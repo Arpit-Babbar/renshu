@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <cmath>
 #include <vector> 
 
@@ -13,11 +14,11 @@ class Linear_Convection
     private:
       void make_grid();
       //void setup_system(); Not needed
-      void solve_system(); //This should give the solution at time t = iteration_number * time_step
+      void solve_system(); //This should give the solution at time t = n_iterations * time_step
       
       double coefficient;double x_min;double x_max; //PDE parameters
 
-      double n_points; double cfl; double time_step; int iteration_number; //Numerical algorithm parameters
+      double n_points; double cfl; double time_step; int n_iterations; //Numerical algorithm parameters
       vector<double> grid;
 
       vector<double> solution_old; //solution at time t-1
@@ -50,13 +51,48 @@ void Linear_Convection::solve_system()
 {
     for (int j = 0; j < n_points; ++j) //Loop over grid points
     {
-        solution_t[j] = solution_old[j] - 0.5 * cfl * (solution_old[j+1] - solution_old[j-1]) + 0.5 * cfl * cfl (solution_old[j-1] - 2 * solution_old[j] + solution_old[j+1]);
+        solution_t[j] = solution_old[j] - 0.5 * cfl * (solution_old[j+1] - solution_old[j-1]) + 0.5 * cfl * cfl * (solution_old[j-1] - 2 * solution_old[j] + solution_old[j+1]);
+        
     }
+    solution_old = solution_t;
 }
 
 void Linear_Convection::run()
 {
     make_grid();
+    n_iterations = 10;
+    for (int i = 0; i < n_iterations; i++)
+    {
+        if (i == 0)
+        {
+            string file_name = "initial_solution.txt";
+            ofstream output_solution;
+            output_solution.open (file_name);
+            for (int j = 0; j < n_points; j++)
+            {
+            if (j>0)
+            output_solution << "\n";
+            output_solution << grid[j] << " " << solution_old[j];
+            }
+            output_solution.close();
+        }
+        else
+        {
+            solve_system();
+            string file_name = "solution_";
+            file_name += to_string(i); file_name += ".txt";
+            ofstream output_solution;
+            output_solution.open (file_name);
+            for (int j = 0; j < n_points; j++)
+            {
+            if (j>0)
+            output_solution << "\n";
+            output_solution << grid[j] << " " << solution_old[j];
+            }
+            output_solution.close();
+        }
+        
+    }
 }
 
 int main()
@@ -67,7 +103,7 @@ int main()
     vector<double> initial_data(n_points);
     for (auto value_i = initial_data.begin(); value_i != initial_data.end(); ++value_i) 
     {
-        *value_i = 0.0;     
+        *value_i = 1.0;     
     }
     //make_grid
     Linear_Convection solver(x_min,x_max,n_points,cfl, coefficient, initial_data);
