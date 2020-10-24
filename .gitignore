@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+a
+.vscode/settings.json
+.vscode/launch.json
+.settings/language.settings.xml
+.vscode/tasks.json
+first(1d linear convection)
