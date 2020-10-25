@@ -1,0 +1,1 @@
+I got the idea of isolating the rhs function when I made a quick glance at rk4cs2.py at https://github.com/cpraveen/numpde/blob/master/linhyp1d/rk4cs2.py
