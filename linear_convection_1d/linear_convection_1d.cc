@@ -9,8 +9,9 @@
 
 using namespace std;
 
-//Got vector adding from here https://stackoverflow.com/questions/3376124/how-to-add-element-by-element-of-two-stl-vectors
-//Used it to make scalar multiplication
+
+//Defining Vector multiplication, which I learned from
+//https://stackoverflow.com/questions/3376124/how-to-add-element-by-element-of-two-stl-vectors
 template <typename T>
 std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
 {
@@ -36,6 +37,7 @@ std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
     return result;
 }
 
+//Defining scalar multiplication with the above idea.
 template <typename T>
 std::vector<T> operator*(const T a, const std::vector<T>& V) //scalar multiplication
 {
@@ -51,23 +53,24 @@ std::vector<T> operator*(const T a, const std::vector<T>& V) //scalar multiplica
 class Linear_Convection_1d
 {
     public:
-    Linear_Convection_1d(double n_points, double dt,string method);
-    void run();
+    Linear_Convection_1d(double n_points, double dt, string method);//input parameters
+    //and which method to use - Lax-Wendroff or RK4
+    void run_and_output_results();
 
     private:
-    void make_grid();
-    void rk4_solver(); //Gives the solution at next time step;
-    void lax_wendroff();
+    void make_grid();   // Grid is needed for writing output
+    void rk4_solver();  //Gives the solution at next time step using RK4
+    void lax_wendroff();//Gives the solutions at next time step using Lax-Wendroff
     vector<double> f(double, vector<double>); //This gives RHS of the system of ODEs
-    //on which we apply Runge-Kutta.
+    //on which we apply RK4.
     double coefficient = 1.0;
 
     double x_min = 0.0; double x_max = 1.0;
 
     vector<double> grid;
 
-    vector<double> solution_old;
-    vector<double> solution_new;
+    vector<double> solution_old;   //Solution at previous step
+    vector<double> solution_new;   //Solution at present step
 
     double n_points; double h; double dt; double cfl;
 
@@ -76,8 +79,8 @@ class Linear_Convection_1d
 
 Linear_Convection_1d::Linear_Convection_1d(double n_points, double dt, string method):n_points(n_points)
             , grid(n_points), solution_old(n_points), solution_new(n_points)
-            , h((x_max - x_min)/n_points),dt(dt)
-            , cfl(abs(coefficient)* dt /h)
+            , h((x_max - x_min)/n_points), dt(dt)
+            , cfl(abs(coefficient) * dt /h)
             , method(method)
 {};
 
@@ -137,7 +140,7 @@ void Linear_Convection_1d::rk4_solver()
         solution_old = solution_new;
 };
 
-void Linear_Convection_1d::run()
+void Linear_Convection_1d::run_and_output_results()
 {
     make_grid();
     vector<double> initial_data(n_points);
@@ -182,7 +185,6 @@ void Linear_Convection_1d::run()
             }
             output_solution.close();
         }
-        
     }
 }
 
@@ -193,5 +195,5 @@ int main()
     cout << "Please type 'lw' for Lax-Wendroff and 'rk4' for Runge-Kutta 4."<<endl;
     cin >> method;
     Linear_Convection_1d solver(n_points, dt,method);
-    solver.run();
+    solver.run_and_output_results();
 }
