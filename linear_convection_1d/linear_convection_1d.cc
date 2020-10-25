@@ -55,10 +55,19 @@ void Linear_Convection::solve_system()
 {
     for (int j = 0; j < n_points; ++j) //Loop over grid points
     {
+        if (j== 0)  //Periodic boundary condition
+        solution_new[j] = solution_old[j]
+                        - 0.5 * cfl * (solution_old[j+1] - solution_old[n_points - 1])
+                        + 0.5 * cfl * cfl * (solution_old[n_points-1] - 2 * solution_old[j] + solution_old[j+1]);
+        else if (j > 0 && j < n_points - 1)
         solution_new[j] = solution_old[j]
                         - 0.5 * cfl * (solution_old[j+1] - solution_old[j-1])
                         + 0.5 * cfl * cfl * (solution_old[j-1] - 2 * solution_old[j] + solution_old[j+1]);
-        
+        else if (j == n_points - 1) //periodic boundary condition
+        solution_new[j] = solution_old[j]
+                        - 0.5 * cfl * (solution_old[0] - solution_old[j-1])
+                        + 0.5 * cfl * cfl * (solution_old[j-1] - 2 * solution_old[j] + solution_old[0]);
+                
     }
     solution_old = solution_new;
 }
