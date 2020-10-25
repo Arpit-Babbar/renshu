@@ -36,3 +36,6 @@ a
 .settings/language.settings.xml
 .vscode/tasks.json
 first(1d linear convection)
+linear_convection_1d/output
+linear_convection_1d/output
+*.txt
