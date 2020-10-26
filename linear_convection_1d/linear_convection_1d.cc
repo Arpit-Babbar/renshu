@@ -78,7 +78,7 @@ std::vector<T> operator*(const T a, const std::vector<T>& V) //scalar multiplica
 class Linear_Convection_1d
 {
     public:
-    Linear_Convection_1d(double n_points, double dt, string method);//input parameters
+    Linear_Convection_1d(double n_points, double cfl, string method);//input parameters
     //and which method to use - Lax-Wendroff or RK4
     void run_and_output_results();
 
@@ -104,10 +104,9 @@ class Linear_Convection_1d
     string method;
 };
 
-Linear_Convection_1d::Linear_Convection_1d(double n_points, double dt, string method):n_points(n_points)
+Linear_Convection_1d::Linear_Convection_1d(double n_points, double cfl, string method):n_points(n_points)
             , grid(n_points), solution_old(n_points), solution_new(n_points), solution_exact(n_points)
-            , h((x_max - x_min)/n_points), dt(dt)
-            , cfl(abs(coefficient) * dt /h)
+            , h((x_max - x_min)/n_points), dt(cfl * h / abs(coefficient)), cfl(cfl)
             , method(method)
 {};
 
@@ -233,9 +232,9 @@ void Linear_Convection_1d::run_and_output_results()
 int main()
 {
     string method;
-    double n_points = 120; double dt = 0.0025; //This makes cfl = 0.3
+    double n_points = 60; double cfl = 0.3; //This makes cfl = 0.3
     cout << "Please type 'lw' for Lax-Wendroff and 'rk4' for Runge-Kutta 4."<<endl;
     cin >> method;
-    Linear_Convection_1d solver(n_points, dt,method);
+    Linear_Convection_1d solver(n_points, cfl,method);
     solver.run_and_output_results();
 }
