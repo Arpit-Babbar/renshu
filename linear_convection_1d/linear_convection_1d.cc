@@ -37,6 +37,31 @@ std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
     return result;
 }
 
+template <typename T>
+std::vector<T> operator-(const std::vector<T>& a, const std::vector<T>& b)
+{
+    if (!(a.size() == b.size()))
+    {
+        cout << "These are the unequal vectors "<< endl;
+        for (int i = 0; i < a.size(); i++)
+            {cout <<  a[i] << " ";}
+        cout << endl;
+        cout << "Size of b is " << b.size() << ", and entries of b are "<< endl;
+        for (int i = 0; i < b.size(); i++)
+            {cout << b[i] << " ";}
+        cout << endl;
+        
+    }
+    assert(a.size() == b.size());
+
+    std::vector<T> result;
+    result.reserve(a.size());
+
+    std::transform(a.begin(), a.end(), b.begin(), 
+                   std::back_inserter(result), std::minus<T>());
+    return result;
+}
+
 //Defining scalar multiplication with the above idea.
 template <typename T>
 std::vector<T> operator*(const T a, const std::vector<T>& V) //scalar multiplication
@@ -58,7 +83,7 @@ class Linear_Convection_1d
     void run_and_output_results();
 
     private:
-    void make_grid();   // Grid is needed for writing output
+    void make_grid();   // Grid is needed for writing output, and defining exact solution.
     void rk4_solver();  //Gives the solution at next time step using RK4
     void lax_wendroff();//Gives the solutions at next time step using Lax-Wendroff
     vector<double> f(double, vector<double>); //This gives RHS of the system of ODEs
@@ -72,13 +97,15 @@ class Linear_Convection_1d
     vector<double> solution_old;   //Solution at previous step
     vector<double> solution_new;   //Solution at present step
 
+    vector<double> solution_exact; //Exact solution at present time step
+
     double n_points; double h; double dt; double cfl;
 
     string method;
 };
 
 Linear_Convection_1d::Linear_Convection_1d(double n_points, double dt, string method):n_points(n_points)
-            , grid(n_points), solution_old(n_points), solution_new(n_points)
+            , grid(n_points), solution_old(n_points), solution_new(n_points), solution_exact(n_points)
             , h((x_max - x_min)/n_points), dt(dt)
             , cfl(abs(coefficient) * dt /h)
             , method(method)
@@ -143,17 +170,18 @@ void Linear_Convection_1d::rk4_solver()
 void Linear_Convection_1d::run_and_output_results()
 {
     make_grid();
-    vector<double> initial_data(n_points);
+    vector<double> initial_data(n_points); vector<double> error(n_points);
     for (int i = 0; i< n_points; i++) //Setting initial data to be constant 1
     {
-        initial_data[i] = i*h;
+        initial_data[i] = sin( 2 * M_PI * i*h);
     }
     int n_iterations = 10;
-    for (int i = 0; i < n_iterations; i++)
+    for (int iteration_number = 0; iteration_number < n_iterations; iteration_number++)
     {
-        if (i == 0)
+        if (iteration_number == 0)
         {
             solution_old = initial_data;
+            solution_exact = initial_data;
             string file_name = "initial_solution.txt";
             ofstream output_solution;
             output_solution.open (file_name);
@@ -164,9 +192,17 @@ void Linear_Convection_1d::run_and_output_results()
             output_solution << grid[j] << " " << solution_old[j];
             }
             output_solution.close();
+            error = solution_old - solution_exact;
+            cout << "Error at time t = 0 is given by these vectors "<< endl ;
+            for (int i = 0; i < n_points; i++)
+            cout << error[i] << " ";
         }
         else
         {
+            for (int j = 0; j < n_points; j++)
+            {
+                solution_exact[j] = sin ( 2 * M_PI * ( grid[j] - coefficient * dt * iteration_number) );
+            }
             if (method == "rk4")
             rk4_solver();
             else if (method == "lw")
@@ -174,7 +210,7 @@ void Linear_Convection_1d::run_and_output_results()
             else
             assert(false);
             string file_name = "solution_";
-            file_name += to_string(i); file_name += ".txt";
+            file_name += to_string(iteration_number); file_name += ".txt";
             ofstream output_solution;
             output_solution.open (file_name);
             for (int j = 0; j < n_points; j++)
@@ -184,6 +220,12 @@ void Linear_Convection_1d::run_and_output_results()
             output_solution << grid[j] << " " << solution_old[j];
             }
             output_solution.close();
+            
+            error = solution_old - solution_exact;
+            cout << "Error at time t = "<<  iteration_number * dt  << " is given by these vectors "<< endl ;
+            for (int i = 0; i < n_points; i++)
+            cout << error[i] << " ";
+            cout << endl;
         }
     }
 }
@@ -191,7 +233,7 @@ void Linear_Convection_1d::run_and_output_results()
 int main()
 {
     string method;
-    double n_points = 30; double dt = 0.01; //This makes cfl = 0.3
+    double n_points = 120; double dt = 0.0025; //This makes cfl = 0.3
     cout << "Please type 'lw' for Lax-Wendroff and 'rk4' for Runge-Kutta 4."<<endl;
     cin >> method;
     Linear_Convection_1d solver(n_points, dt,method);
