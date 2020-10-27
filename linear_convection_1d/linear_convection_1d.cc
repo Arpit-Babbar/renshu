@@ -8,73 +8,6 @@
 #include<functional> //Used to define addition of vectors
 
 using namespace std;
-
-
-//Defining Vector multiplication, which I learned from
-//https://stackoverflow.com/questions/3376124/how-to-add-element-by-element-of-two-stl-vectors
-template <typename T>
-std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
-{
-    if (!(a.size() == b.size()))
-    {
-        cout << "These are the unequal vectors "<< endl;
-        for (int i = 0; i < a.size(); i++)
-            {cout <<  a[i] << " ";}
-        cout << endl;
-        cout << "Size of b is " << b.size() << ", and entries of b are "<< endl;
-        for (int i = 0; i < b.size(); i++)
-            {cout << b[i] << " ";}
-        cout << endl;
-        
-    }
-    assert(a.size() == b.size());
-
-    std::vector<T> result;
-    result.reserve(a.size());
-
-    std::transform(a.begin(), a.end(), b.begin(), 
-                   std::back_inserter(result), std::plus<T>());
-    return result;
-}
-
-template <typename T>
-std::vector<T> operator-(const std::vector<T>& a, const std::vector<T>& b)
-{
-    if (!(a.size() == b.size()))
-    {
-        cout << "These are the unequal vectors "<< endl;
-        for (int i = 0; i < a.size(); i++)
-            {cout <<  a[i] << " ";}
-        cout << endl;
-        cout << "Size of b is " << b.size() << ", and entries of b are "<< endl;
-        for (int i = 0; i < b.size(); i++)
-            {cout << b[i] << " ";}
-        cout << endl;
-        
-    }
-    assert(a.size() == b.size());
-
-    std::vector<T> result;
-    result.reserve(a.size());
-
-    std::transform(a.begin(), a.end(), b.begin(), 
-                   std::back_inserter(result), std::minus<T>());
-    return result;
-}
-
-//Defining scalar multiplication with the above idea.
-template <typename T>
-std::vector<T> operator*(const T a, const std::vector<T>& V) //scalar multiplication
-{
-    std::vector<T> result(V.size());
-
-    for (int i = 0; i < V.size(); i ++)
-    {
-        result[i] = a*V[i];
-    }
-    return result;
-}
-
 class Linear_Convection_1d
 {
     public:
@@ -89,7 +22,7 @@ class Linear_Convection_1d
     //More precisely, it does k = solution_old + factor * u
     void rk4_solver();  //Gives the solution at next time step using RK4
     void lax_wendroff();//Gives the solutions at next time step using Lax-Wendroff
-    vector<double> rhs_function(vector<double> &u, vector<double> &k); //This gives RHS of the system of ODEs
+    void rhs_function(vector<double> &u, vector<double> &k); //This gives RHS of the system of ODEs
     //on which we apply RK4, and stores it in k.
     double coefficient = 1.0;
 
@@ -133,7 +66,7 @@ void Linear_Convection_1d::make_grid()
 };
 
 //This computes the rhs of the system of ODEs on which we apply rk4.
-vector<double> Linear_Convection_1d::rhs_function(vector<double> &u, vector<double> &k)
+void Linear_Convection_1d::rhs_function(vector<double> &u, vector<double> &k)
 {
     /*if (!(u.size() == k.size() == solution_old.size()))
     {
@@ -143,16 +76,15 @@ vector<double> Linear_Convection_1d::rhs_function(vector<double> &u, vector<doub
                  assert(false);
     }*/
     k[0] = -coefficient * (u[1] - u[n_points - 1]) / (2 * h); //left end point
-    for (int j = 0; j < n_points; j++)
+    for (int j = 1; j < n_points-1; j++)
     {
         k[j] = -coefficient * (u[j+1] - u[j-1]) / (2 * h);
     }
-    k[n_points - 1] = -coefficient * (u[0] - u[n_points - 1]) / (2 * h); //right end point
-    return k;
+    k[n_points - 1] = -coefficient * (u[0] - u[n_points - 2]) / (2 * h); //right end point
 };
 
 //k = solution_old + factor*u
-void Linear_Convection_1d::temporary_update_solution(const double factor, vector<double> &u, vector<double> &k)
+void Linear_Convection_1d::temporary_update_solution(const double factor, vector<double> &k0, vector<double> &k)
 {
     /*if (!(u.size() == k.size() && k.size() == solution_old.size()))
     {
@@ -163,8 +95,8 @@ void Linear_Convection_1d::temporary_update_solution(const double factor, vector
     }*/
     for(int i = 0; i < k.size(); i++)
     {
-        k[i] = solution_old[i] + factor * u[i]; 
-    } //k = solution_old + factor * u
+        k[i] = solution_old[i] + factor * k0[i]; 
+    } //k = solution_old + factor * k0
 }
 
 void Linear_Convection_1d::lax_wendroff()
@@ -198,18 +130,18 @@ void Linear_Convection_1d::compute_solution_new_rk4()
 void Linear_Convection_1d::rk4_solver()
 {
         solution_old = solution_new;
-        //k2 = rhs_function(solution_old)
-        rhs_function(solution_old, k2);
+        //k1 = rhs_function(solution_old)
+        rhs_function(solution_old, k1);
         //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
-        temporary_update_solution(dt/2,solution_old,solution_new);
+        temporary_update_solution(dt/2,k1 ,solution_new);
         //So, computing k2 = rhs_function(u^n + dt/2 * k1)
         rhs_function(solution_new,k2);
         //Similarly, temporarily putting u^{n+1}=solution_new = u^n + dt/2 *k2
-        temporary_update_solution(dt/2, solution_old, solution_new);
+        temporary_update_solution(dt/2, k2, solution_new);
         //Computing k3 = rhs_function(solution_old + dt/2 *k2)
         rhs_function(solution_new,k3);
         //Temporarily putting u^{n+1} = solution_new = u^n + dt * k3
-        temporary_update_solution(dt, solution_old, solution_new);
+        temporary_update_solution(dt, k3, solution_new);
         //Computing k4 = rhs_function(solution_old + dt *k3)
         rhs_function(solution_new, k4);
 
@@ -243,7 +175,8 @@ void Linear_Convection_1d::run_and_output_results()
             output_solution << grid[j] << " " << solution_old[j];
             }
             output_solution.close();
-            error = solution_old - solution_exact;
+            for (int l = 0; l< n_points; l++)
+                error[l] = solution_old[l] - solution_exact[l];
             cout << "Error at time t = 0 is given by these vectors "<< endl ;
             for (int i = 0; i < n_points; i++)
             cout << error[i] << " ";
@@ -272,7 +205,8 @@ void Linear_Convection_1d::run_and_output_results()
             }
             output_solution.close();
             
-            error = solution_old - solution_exact;
+            for (int l = 0; l< n_points; l++)
+                error[l] = solution_old[l] - solution_exact[l];
             cout << "Error at time t = "<<  iteration_number * dt  << " is given by these vectors "<< endl ;
             for (int i = 0; i < n_points; i++)
             cout << error[i] << " ";
