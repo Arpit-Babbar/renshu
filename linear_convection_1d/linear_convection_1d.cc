@@ -68,13 +68,13 @@ void Linear_Convection_1d::make_grid()
 //This computes the rhs of the system of ODEs on which we apply rk4.
 void Linear_Convection_1d::rhs_function(vector<double> &u, vector<double> &k)
 {
-    /*if (!(u.size() == k.size() == solution_old.size()))
+    if (u.size() != k.size() or k.size() != solution_old.size())
     {
         cout << "You have used rhs_function to do rhs_funciton(&u,&k)"
              <<" with inappropriately sized u,k. Size of your u is "<< u.size() <<", size of k is "<< k.size()
                  <<". Both the sizes should equal "<< solution_old.size() << endl;
                  assert(false);
-    }*/
+    }
     k[0] = -coefficient * (u[1] - u[n_points - 1]) / (2 * h); //left end point
     for (int j = 1; j < n_points-1; j++)
     {
@@ -86,13 +86,13 @@ void Linear_Convection_1d::rhs_function(vector<double> &u, vector<double> &k)
 //k = solution_old + factor*u
 void Linear_Convection_1d::temporary_update_solution(const double factor, vector<double> &k0, vector<double> &k)
 {
-    /*if (!(u.size() == k.size() && k.size() == solution_old.size()))
+    if (k0.size() != k.size() or k.size() != solution_old.size())
     {
-        cout << "You have used temporary_update_solution to do 'k = solution_old + factor * u "
-                 << "with inappropriately sized u,k. Size of your u is "<< u.size() <<", size of k is "<< k.size()
+        cout << "You have used temporary_update_solution to do 'k = solution_old + factor * k0 "
+                 << "with inappropriately sized k0,k. Size of your k0 is "<< k0.size() <<", size of k is "<< k.size()
                  <<". Both the sizes should equal "<< solution_old.size() << endl;
                  assert(false);
-    }*/
+    }
     for(int i = 0; i < k.size(); i++)
     {
         k[i] = solution_old[i] + factor * k0[i]; 
@@ -128,8 +128,10 @@ void Linear_Convection_1d::compute_solution_new_rk4()
 }
 
 void Linear_Convection_1d::rk4_solver()
-{
-        solution_old = solution_new;
+{       
+        //This innocent step was what was causing trouble
+        /* solution_old = solution_new; */
+        
         //k1 = rhs_function(solution_old)
         rhs_function(solution_old, k1);
         //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
@@ -201,12 +203,12 @@ void Linear_Convection_1d::run_and_output_results()
             {
             if (j>0)
             output_solution << "\n";
-            output_solution << grid[j] << " " << solution_old[j];
+            output_solution << grid[j] << " " << solution_new[j];
             }
             output_solution.close();
             
             for (int l = 0; l< n_points; l++)
-                error[l] = solution_old[l] - solution_exact[l];
+                error[l] = solution_new[l] - solution_exact[l];
             cout << "Error at time t = "<<  iteration_number * dt  << " is given by these vectors "<< endl ;
             for (int i = 0; i < n_points; i++)
             cout << error[i] << " ";
@@ -221,6 +223,6 @@ int main()
     double n_points = 60; double cfl = 0.3; //This makes cfl = 0.3
     cout << "Please type 'lw' for Lax-Wendroff and 'rk4' for Runge-Kutta 4."<<endl;
     cin >> method;
-    Linear_Convection_1d solver(n_points, cfl,method);
+    Linear_Convection_1d solver(n_points, cfl, method);
     solver.run_and_output_results();
 }
