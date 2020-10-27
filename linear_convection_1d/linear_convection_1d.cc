@@ -84,10 +84,13 @@ class Linear_Convection_1d
 
     private:
     void make_grid();   // Grid is needed for writing output, and defining exact solution.
+    void temporary_update_solution(const double factor, vector<double> &u, vector<double> &k); 
+    //We'd use this to compute the rk4 slopes k_i's and temporarily store them in solution_new.
+    //More precisely, it does k = solution_old + factor * u
     void rk4_solver();  //Gives the solution at next time step using RK4
     void lax_wendroff();//Gives the solutions at next time step using Lax-Wendroff
-    vector<double> f(double, vector<double>); //This gives RHS of the system of ODEs
-    //on which we apply RK4.
+    vector<double> rhs_function(vector<double> &u, vector<double> &k); //This gives RHS of the system of ODEs
+    //on which we apply RK4, and stores it in k.
     double coefficient = 1.0;
 
     double x_min = 0.0; double x_max = 1.0;
@@ -101,14 +104,25 @@ class Linear_Convection_1d
 
     double n_points; double h; double dt; double cfl;
 
+    vector<double> k1; vector<double> k2; vector<double> k3;vector<double> k4; //slopes needed by rk4
+
+    //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
+    void compute_solution_new_rk4();
+
     string method;
 };
 
 Linear_Convection_1d::Linear_Convection_1d(double n_points, double cfl, string method):n_points(n_points)
-            , grid(n_points), solution_old(n_points), solution_new(n_points), solution_exact(n_points)
-            , h((x_max - x_min)/n_points), dt(cfl * h / abs(coefficient)), cfl(cfl)
-            , method(method)
-{};
+            , cfl(cfl), method(method)
+{
+   h = (x_max - x_min)/n_points;
+   dt = cfl * h / abs(coefficient);
+   cout << "Spatial grid points are at gap h = "<< h << endl;
+   cout << "Time step dt = "<<dt << endl;
+   grid.resize(n_points); solution_old.resize(n_points); solution_new.resize(n_points); solution_exact.resize(n_points);
+   cout << "Number of spatial grid points is " << n_points <<endl;
+   k1.resize(n_points);k2.resize(n_points);k3.resize(n_points);k4.resize(n_points);
+};
 
 void Linear_Convection_1d::make_grid()
 {
@@ -118,20 +132,41 @@ void Linear_Convection_1d::make_grid()
     };
 };
 
-vector<double> Linear_Convection_1d::f(double h, vector<double> u)
+//This computes the rhs of the system of ODEs on which we apply rk4.
+vector<double> Linear_Convection_1d::rhs_function(vector<double> &u, vector<double> &k)
 {
-    vector<double> right_hand_side(u.size());
+    /*if (!(u.size() == k.size() == solution_old.size()))
+    {
+        cout << "You have used rhs_function to do rhs_funciton(&u,&k)"
+             <<" with inappropriately sized u,k. Size of your u is "<< u.size() <<", size of k is "<< k.size()
+                 <<". Both the sizes should equal "<< solution_old.size() << endl;
+                 assert(false);
+    }*/
+    k[0] = -coefficient * (u[1] - u[n_points - 1]) / (2 * h); //left end point
     for (int j = 0; j < n_points; j++)
     {
-        if (j==0)
-        right_hand_side[j] = -coefficient * (u[j+1] - u[n_points - 1]) / (2 * h);
-        else if (j > 0 && j < n_points - 1)
-        right_hand_side[j] = -coefficient * (u[j+1] - u[j-1]) / (2 * h);
-        else if (j == n_points - 1)
-        right_hand_side[j] = -coefficient * (u[0] - u[j-1]) / (2 * h);
+        k[j] = -coefficient * (u[j+1] - u[j-1]) / (2 * h);
     }
-    return right_hand_side;
+    k[n_points - 1] = -coefficient * (u[0] - u[n_points - 1]) / (2 * h); //right end point
+    return k;
 };
+
+//k = solution_old + factor*u
+void Linear_Convection_1d::temporary_update_solution(const double factor, vector<double> &u, vector<double> &k)
+{
+    /*if (!(u.size() == k.size() && k.size() == solution_old.size()))
+    {
+        cout << "You have used temporary_update_solution to do 'k = solution_old + factor * u "
+                 << "with inappropriately sized u,k. Size of your u is "<< u.size() <<", size of k is "<< k.size()
+                 <<". Both the sizes should equal "<< solution_old.size() << endl;
+                 assert(false);
+    }*/
+    for(int i = 0; i < k.size(); i++)
+    {
+        k[i] = solution_old[i] + factor * u[i]; 
+    } //k = solution_old + factor * u
+}
+
 void Linear_Convection_1d::lax_wendroff()
 {
     for (int j = 0; j < n_points; ++j) //Loop over grid points
@@ -152,17 +187,34 @@ void Linear_Convection_1d::lax_wendroff()
     }
     solution_old = solution_new;
 };
+
+//This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
+void Linear_Convection_1d::compute_solution_new_rk4()
+{
+    for (int i = 0; i < n_points; i++)
+        solution_new[i] = solution_old[i] + dt/6 * (k1[i] + 2.0*k2[i] + 2.0*k3[i] + k4[i]);
+}
+
 void Linear_Convection_1d::rk4_solver()
 {
-        vector<double> k1(n_points); vector<double> k2(n_points); vector<double> k3(n_points);vector<double> k4(n_points);
-        k1 = f(h,solution_old);
-        vector<double> alpha = dt/2 * k1;
-        k2 = f(h, solution_old + dt/2 * k1);
-        k3 = f(h,solution_old + dt/2 * k2);
-        k4 = f(h,solution_old + dt * k3);
+        solution_old = solution_new;
+        //k2 = rhs_function(solution_old)
+        rhs_function(solution_old, k2);
+        //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
+        temporary_update_solution(dt/2,solution_old,solution_new);
+        //So, computing k2 = rhs_function(u^n + dt/2 * k1)
+        rhs_function(solution_new,k2);
+        //Similarly, temporarily putting u^{n+1}=solution_new = u^n + dt/2 *k2
+        temporary_update_solution(dt/2, solution_old, solution_new);
+        //Computing k3 = rhs_function(solution_old + dt/2 *k2)
+        rhs_function(solution_new,k3);
+        //Temporarily putting u^{n+1} = solution_new = u^n + dt * k3
+        temporary_update_solution(dt, solution_old, solution_new);
+        //Computing k4 = rhs_function(solution_old + dt *k3)
+        rhs_function(solution_new, k4);
 
-        solution_new = solution_old;
-        solution_new = solution_new + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4);
+        //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
+        compute_solution_new_rk4();
         solution_old = solution_new;
 };
 
