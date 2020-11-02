@@ -16,7 +16,7 @@ plt.figure(figsize=(6,5))
 cs = plt.contourf(zr,zi,np.abs(G),levels=30,cmap='jet')
 plt.colorbar(cs)
 plt.contour(zr,zi,np.abs(G),levels=[0.9999,1,1.0001],linewidths=2)
-plt.plot([0,0],[-2.8282,2.8282],'sg')
+plt.plot([0,0],[-0.16398,0.16398],'sg')
 plt.axhline(0, color='white')
 plt.axvline(0, color='white')
 plt.text(-2,0,'Stable region',verticalalignment='center',
