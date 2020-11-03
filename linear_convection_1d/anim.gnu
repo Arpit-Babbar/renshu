@@ -1,10 +1,14 @@
 reset
-unset key
+set key #This is what enables setting legends
 set grid
 set yran[-1.1:1.1]
-filename(n) = sprintf("solution_%d_lw.txt",n)
+set xlabel 'x'
+set ylabel 'u'
+set title 'Plot of exact and approximate solution'
+filename(n) = sprintf("solution_%d.txt",n)
 N = 358
 do for [i=1:N-1] {
-   plot filename(i) w l
-   pause 0.2
+   plot filename(i) u 1:2 t 'Approximation' w l, filename(i) u 1:3 t 'Exact' w l
+   pause 0.05
 }
+
