@@ -149,12 +149,12 @@ void Heat1d::rhs_function(const vector<double> &u, vector<double> &k)
                   << ". Both the sizes should equal " << solution_old.size() << endl;
         assert(false);
     }
-    k[0] = (u[n_points - 1] - 2 * u[0] + u[1]) / (h * h); //left end point
+    k[0] = (u[n_points - 2] - 2 * u[0] + u[1]) / (h * h); //left end point
     for (int j = 1; j < n_points - 1; j++)
     {
         k[j] = (u[j - 1] - 2 * u[j] + u[j + 1]) / (h * h);
     }
-    k[n_points - 1] = (u[n_points - 2] - 2 * u[n_points - 1] + u[0]) / (h * h); //right end point
+    k[n_points - 1] = (u[n_points - 2] - 2 * u[n_points - 1] + u[1]) / (h * h); //right end point
 };
 
 //k = solution_old + factor*u
@@ -296,7 +296,7 @@ void Heat1d::evaluate_error_and_output_solution(int time_step_number)
     }
     string solution_file_name = "solution_";
     solution_file_name += to_string(time_step_number) + "_" + method + ".txt";
-    output_1x2vectors_to_file(solution_file_name, grid, solution_old, solution_new);
+    output_1x2vectors_to_file(solution_file_name, grid, solution_old, solution_exact);
 }
 
 void Heat1d::output_final_error()
