@@ -8,6 +8,8 @@
 #include <vector>
 #include <cassert>
 #include <string>
+#include <stdio.h>
+#include <sys/time.h>
 
 #include <algorithm>
 #include <functional> //Used to define addition of vectors
@@ -17,31 +19,41 @@ using namespace std;
 double max_element(vector<double> &v)
 {
     double a = 0.0;
-    for (int i = 0; i < v.size(); i++)
+    for (unsigned int i = 0; i < v.size(); i++)
         a = max(a, v[i]);
     return a;
 }
 
-class Linear_Convection_1d
+void output_1x2vectors_to_file(string file_name, vector<double> &grid, vector<double> &solution_old, vector<double> &solution_exact)
+{
+    ofstream output_solution;
+    output_solution.open(file_name);
+    for (unsigned int j = 0; j < grid.size(); j++)
+    {
+        output_solution << grid[j] << " " << solution_old[j] << " " << solution_exact[j] << "\n";
+    }
+    output_solution.close();
+}
+void output_1x1vectors_to_file(string file_name, vector<double> &grid, vector<double> &solution_old)
+{
+    ofstream output_solution;
+    output_solution.open(file_name);
+    for (unsigned int j = 0; j < grid.size(); j++)
+    {
+        output_solution << grid[j] << " " << solution_old[j] << "\n";
+    }
+    output_solution.close();
+}
+class Heat1d
 {
 public:
-    Linear_Convection_1d(const double n_points, const double cfl, string method, const double running_time, int initial_data_indicator); //input parameters
+    Heat1d(const double n_points, const double cfl, string method, const double running_time, int initial_data_indicator); //input parameters
     //and which method to use - Lax-Wendroff or RK4
-    double run(); //true when output is to be given, and false when it doesn't;
-    void evaluate_error_and_output_solution(const int time_step_number);
+    void run(); //true when output is to be given, and false when it doesn't;
     void output_final_error();
-    vector<double> error; //This will store the maximum error at a grid point in all time-steps
-    double get_l2_error()
-    {
-        double a = 0.0;
-        for (int j = 0; j < n_points; j++)
-        {
-            a = a + error[j] * error[j] * h;
-        }
-        return sqrt(a);
-    }
-    void indicate_to_output() { output_indicator = 1; }
-    
+
+    double get_l2_error() { return l2_error; }
+    double get_linfty_error() { return linfty_error; }
 
 private:
     void make_grid(); // Grid is needed for writing output, and defining exact solution.
@@ -56,6 +68,12 @@ private:
     void rk2_solver();
     void ftcs();                                                   //Gives the solutions at next time step using Lax-Wendroff
     void rhs_function(const vector<double> &u, vector<double> &k); //This gives RHS of the system of ODEs
+
+    void evaluate_error_and_output_solution(const int time_step_number);
+    void update_l2_error();
+
+    vector<double> error; //This will store the maximum error at a grid point in all time-steps
+    double l2_error, linfty_error;
 
     double coefficient = 1.0;
 
@@ -74,8 +92,6 @@ private:
 
     vector<double> initial_data;
 
-    
-
     //h denotes the spatial distance between grid points
     double n_points, h, dt, cfl, running_time; //h = 1/n_points just included for easy typing
 
@@ -87,12 +103,11 @@ private:
 
     string method;
     int initial_data_indicator; //Kept in case we want to add multiple initial datas
-    int output_indicator = 0;
 };
 
-Linear_Convection_1d::Linear_Convection_1d(double n_points, double cfl, string method, double running_time, int initial_data_indicator) : n_points(n_points), cfl(cfl), running_time(running_time), method(method), initial_data_indicator(initial_data_indicator)
+Heat1d::Heat1d(double n_points, double cfl, string method, double running_time, int initial_data_indicator) : n_points(n_points), cfl(cfl), running_time(running_time), method(method), initial_data_indicator(initial_data_indicator)
 {
-    h = (x_max - x_min) / (n_points-1);
+    h = (x_max - x_min) / (n_points- 1);
     dt = cfl * h * h / coefficient;
     std::cout << "Spatial grid points are at gap h = " << h << endl;
     std::cout << "Time step dt = " << dt << endl;
@@ -109,7 +124,7 @@ Linear_Convection_1d::Linear_Convection_1d(double n_points, double cfl, string m
     k4.resize(n_points);
 };
 
-void Linear_Convection_1d::make_grid()
+void Heat1d::make_grid()
 {
     for (int i = 0; i < n_points; i++)
     {
@@ -118,14 +133,14 @@ void Linear_Convection_1d::make_grid()
     cout << endl;
 };
 
-void Linear_Convection_1d::set_initial_data()
+void Heat1d::set_initial_data()
 {
     for (int i = 0; i < n_points; i++)
         initial_data[i] = sin(2 * M_PI * grid[i] / (x_max - x_min));
 }
 
 //This computes the rhs of the system of ODEs on which we apply rk4.
-void Linear_Convection_1d::rhs_function(const vector<double> &u, vector<double> &k)
+void Heat1d::rhs_function(const vector<double> &u, vector<double> &k)
 {
     if (u.size() != k.size() || k.size() != solution_old.size())
     {
@@ -143,7 +158,7 @@ void Linear_Convection_1d::rhs_function(const vector<double> &u, vector<double> 
 };
 
 //k = solution_old + factor*u
-void Linear_Convection_1d::temporary_update_solution(const double factor, const vector<double> &k0, vector<double> &k)
+void Heat1d::temporary_update_solution(const double factor, const vector<double> &k0, vector<double> &k)
 {
     if (k0.size() != k.size() || k.size() != solution_old.size())
     {
@@ -152,12 +167,12 @@ void Linear_Convection_1d::temporary_update_solution(const double factor, const 
                   << ". Both the sizes should equal " << solution_old.size() << endl;
         assert(false);
     }
-    for (int i = 0; i < k.size(); i++)
+    for (unsigned int i = 0; i < k.size(); i++)
     {
         k[i] = solution_old[i] + factor * k0[i];
     } //k = solution_old + factor * k0
 }
-void Linear_Convection_1d::temporary_update_solution(const double factor0, const vector<double> &k0, const double factor1, const vector<double> &k1, vector<double> &k)
+void Heat1d::temporary_update_solution(const double factor0, const vector<double> &k0, const double factor1, const vector<double> &k1, vector<double> &k)
 {
     if (k0.size() != k.size() || k.size() != solution_old.size())
     {
@@ -166,16 +181,16 @@ void Linear_Convection_1d::temporary_update_solution(const double factor0, const
                   << ". Both the sizes should equal " << solution_old.size() << endl;
         assert(false);
     }
-    for (int i = 0; i < k.size(); i++)
+    for (unsigned int i = 0; i < k.size(); i++)
     {
         k[i] = solution_old[i] + factor0 * k0[i] + factor1 * k1[i];
     } //k = solution_old + factor * k0
 }
 
-void Linear_Convection_1d::ftcs()
+void Heat1d::ftcs()
 {
     solution_new[0] = 0.0;
-    for (int j = 1; j < n_points - 1; ++j) //Loop over grid points
+    for (int j = 1; j < n_points - 1; j++) //Loop over grid points
     {
         solution_new[j] = cfl * solution_old[j - 1] + (1 - 2 * cfl) * solution_old[j] + cfl * solution_old[j + 1];
     }
@@ -183,28 +198,28 @@ void Linear_Convection_1d::ftcs()
 };
 
 //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
-void Linear_Convection_1d::compute_solution_new_using_ki(int order)
+void Heat1d::compute_solution_new_using_ki(int order)
 {
     solution_new[0] = 0.0;
     if (order == 4)
     {
-        for (int i = 1; i < n_points-1; i++)
+        for (int i = 1; i < n_points - 1; i++)
             solution_new[i] = solution_old[i] + dt / 6 * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]);
     }
     if (order == 3)
     {
-        for (int i = 1; i < n_points-1; i++)
+        for (int i = 1; i < n_points - 1; i++)
             solution_new[i] = solution_old[i] + dt / 6 * (k1[i] + 4.0 * k2[i] + k3[i]);
     }
     if (order == 2)
     {
-        for (int i = 1; i < n_points-1; i++)
+        for (int i = 1; i < n_points - 1; i++)
             solution_new[i] = solution_old[i] + dt / 2 * (k1[i] + k2[i]);
     }
-    solution_new[n_points-1] = 0.0;
+    solution_new[n_points - 1] = 0.0;
 }
 
-void Linear_Convection_1d::rk4_solver()
+void Heat1d::rk4_solver()
 {
     //This innocent step was what was causing trouble
     /* solution_old = solution_new; */
@@ -225,10 +240,10 @@ void Linear_Convection_1d::rk4_solver()
     rhs_function(solution_new, k4);
 
     //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
-    compute_solution_new_using_ki(4.0);
+    compute_solution_new_using_ki(4);
 };
 
-void Linear_Convection_1d::rk3_solver()
+void Heat1d::rk3_solver()
 {
     //This innocent step was what was causing trouble
     /* solution_old = solution_new; */
@@ -245,10 +260,10 @@ void Linear_Convection_1d::rk3_solver()
     rhs_function(solution_new, k3);
 
     //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
-    compute_solution_new_using_ki(3.0);
+    compute_solution_new_using_ki(3);
 };
 
-void Linear_Convection_1d::rk2_solver()
+void Heat1d::rk2_solver()
 {
     //This innocent step was what was causing trouble
     /* solution_old = solution_new; */
@@ -261,10 +276,10 @@ void Linear_Convection_1d::rk2_solver()
     rhs_function(solution_new, k2);
 
     //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
-    compute_solution_new_using_ki(2.0);
+    compute_solution_new_using_ki(2);
 };
 
-void Linear_Convection_1d::evaluate_error_and_output_solution(int time_step_number)
+void Heat1d::evaluate_error_and_output_solution(int time_step_number)
 {
     if (time_step_number == 0)
         solution_exact = initial_data;
@@ -280,33 +295,18 @@ void Linear_Convection_1d::evaluate_error_and_output_solution(int time_step_numb
         error[j] = max(error[j], abs(solution_old[j] - solution_exact[j])); //error at a particular time step is useless.
     }
     string solution_file_name = "solution_";
-    solution_file_name += to_string(time_step_number);
-    solution_file_name += "_" + method;
-    solution_file_name += ".txt";
-    ofstream output_solution;
-    output_solution.open(solution_file_name);
-    for (int j = 0; j < n_points; j++)
-    {
-        output_solution << grid[j] << " " << solution_old[j] << " " << solution_exact[j] << "\n";
-    }
-    output_solution.close();
+    solution_file_name += to_string(time_step_number) + "_" + method + ".txt";
+    output_1x2vectors_to_file(solution_file_name, grid, solution_old, solution_new);
 }
 
-void Linear_Convection_1d::output_final_error()
+void Heat1d::output_final_error()
 {
     string error_file_name = "finalerror";
-    error_file_name += "_" + method;
-    error_file_name += ".txt";
-    ofstream output_error;
-    output_error.open(error_file_name);
-    for (int j = 0; j < n_points; j++)
-    {
-        output_error << grid[j] << " " << error[j] << "\n";
-    }
-    output_error.close();
+    error_file_name += "_" + method + ".txt";
+    output_1x1vectors_to_file(error_file_name, grid, error);
 }
 
-double Linear_Convection_1d::run()
+void Heat1d::run()
 {
     make_grid();
     set_initial_data();
@@ -329,36 +329,62 @@ double Linear_Convection_1d::run()
         solution_old = solution_new;
         evaluate_error_and_output_solution(time_step_number);
     }
-    cout << "We made " << time_step_number << " steps.";
-    double max_error = max_element(error);
-    return max_error;
+    cout << "In this iteration, we made " << time_step_number << " steps." << endl;
+    linfty_error = max(linfty_error, max_element(error));
+    update_l2_error();
 }
 
 void run_and_get_output(double n_points, double cfl, string method, double running_time, int initial_data_indicator, double tolerance)
 {
-    ofstream error_rate;
-    error_rate.open("error_rate.txt");
-    Linear_Convection_1d solver(n_points, cfl, method, running_time, initial_data_indicator);
-    vector<double> errors(100);
-    double iteration_number = 0;
-    double max_error = solver.run();
-    while (max_error > tolerance)
+    ofstream error_vs_h;
+    error_vs_h.open("error_vs_h.txt");
+    Heat1d solver(n_points, cfl, method, running_time, initial_data_indicator);
+    solver.run();
+    vector<double> linfty_vector(1);
+    vector<double> l2_vector(1);
+    double iteration_number = 0.0;
+    linfty_vector[0] = solver.get_linfty_error();
+    l2_vector[0] = solver.get_l2_error();
+    while (linfty_vector[iteration_number] > tolerance)
     {
-        errors[iteration_number] = max_error;
-        error_rate << 1 / n_points << " " << errors[iteration_number] << "\n";
-        n_points = 2.0 * n_points;
-        solver = Linear_Convection_1d(n_points, cfl, method, running_time, initial_data_indicator);
-        if (iteration_number > 0)
-        {
-            std::cout << "Rate of convergence checked at iteration number " << iteration_number + 1;
-            std::cout << " is " << abs(log(errors[iteration_number] / errors[iteration_number - 1])) / log(2.0) << endl;
-        }
-        max_error = solver.run(); //running without generating output
+        //Is resizing at every step the only option?
         iteration_number++;
+        linfty_vector.push_back(solver.get_linfty_error());
+        l2_vector.push_back(solver.get_l2_error());
+        error_vs_h << 1 / n_points << " " << linfty_vector[iteration_number] << "\n";
+        n_points = 2.0 * n_points;
+        solver = Heat1d(n_points, cfl, method, running_time, initial_data_indicator);
+        if (iteration_number > 1)
+        {
+            std::cout << "Rate of Linfty convergence checked at iteration number " << iteration_number;
+            std::cout << " is " << abs(log(linfty_vector[iteration_number] / linfty_vector[iteration_number - 1])) / log(2.0) << endl;
+            std::cout << "Rate of L2 convergence checked at iteration number " << iteration_number;
+            std::cout << " is " << abs(log(l2_vector[iteration_number] / l2_vector[iteration_number - 1])) / log(2.0) << endl;
+        }
+        struct timeval begin, end;
+        gettimeofday(&begin, 0);
+        solver.run();
+        gettimeofday(&end, 0);
+        long seconds = end.tv_sec - begin.tv_sec;
+        long microseconds = end.tv_usec - begin.tv_usec;
+        double elapsed = seconds + microseconds * 1e-6;
+        cout << "Time taken by this iteration is " << elapsed << " seconds." << endl;
     }
-    error_rate.close();
+    error_vs_h.close();
     solver.output_final_error();
-    cout << "It took " << iteration_number << " iterations to get the Linfty error below " << tolerance << " and precisely at " << max_error << endl << endl;
+    cout << "It took " << iteration_number << " iterations to get the Linfty error below " << tolerance << " and precisely at " << linfty_vector[iteration_number] << endl;
+    cout << "The L2 error is " << l2_vector[iteration_number] << endl
+         << endl;
+}
+void Heat1d::update_l2_error()
+{
+    double a = 0.0;
+    for (int j = 0; j < n_points; j++)
+    {
+        a = a + error[j] * error[j] * h;
+    }
+    a = sqrt(a);
+    l2_error = max(a, l2_error);
 }
 
 int main(int argc, char **argv)
