@@ -62,11 +62,11 @@ public:
 private:
     void make_grid(); // Grid is needed for writing output, and defining exact solution.
     void set_initial_data();
-    void temporary_update_solution(const double factor, const vector<double> &u, vector<double> &k);
+    void temporary_update_solution(const double factor, const vector<double> &u);
     //We'd use this to compute the rk4 slopes k_i's and temporarily store them in solution_new.
     //More precisely, it does k = solution_old + factor * u
     void temporary_update_solution(const double factor0, const vector<double> &u0,
-                                   const double factor1, const vector<double> &u1, vector<double> &k);
+                                   const double factor1, const vector<double> &u1);
     void rk4_solver(); //Gives the solution at next time step using RK4
     void rk3_solver();
     void rk2_solver();
@@ -185,35 +185,35 @@ void Linear_Convection_1d::rhs_function(const vector<double> &u, vector<double> 
 }
 
 //k = solution_old + factor*u
-void Linear_Convection_1d::temporary_update_solution(const double factor, const vector<double> &k0,
-                                                     vector<double> &k)
+void Linear_Convection_1d::temporary_update_solution(const double factor, const vector<double> &k0)
 {
-    if (k0.size() != k.size() || k.size() != solution_old.size())
+    if (k0.size() != solution_new.size() || solution_new.size() != solution_old.size())
     {
-        cout << "You have used temporary_update_solution to do 'k = solution_old + factor * k0 "
-             << "with inappropriately sized k0,k. Size of your k0 is " << k0.size() << ", size of k is " << k.size()
+        cout << "You have used temporary_update_solution to do 'k = solution_old + factor * k0 ";
+        cout << "with inappropriately sized k0,k. Size of your k0 is " << k0.size();
+        cout << ", size of k is " << solution_new.size()
              << ". Both the sizes should equal " << solution_old.size() << endl;
         assert(false);
     }
-    for (int i = 0; i < k.size(); i++)
+    for (int i = 0; i < solution_new.size(); i++)
     {
-        k[i] = solution_old[i] + factor * k0[i];
+        solution_new[i] = solution_old[i] + factor * k0[i];
     } //k = solution_old + factor * k0
 }
 void Linear_Convection_1d::temporary_update_solution(const double factor0, const vector<double> &k0,
-                                                     const double factor1, const vector<double> &k1,
-                                                     vector<double> &k)
+                                                     const double factor1, const vector<double> &k1)
 {
-    if (k0.size() != k.size() || k.size() != solution_old.size())
+    if (k0.size() != solution_new.size() || solution_new.size() != solution_old.size())
     {
-        cout << "You have used temporary_update_solution to do 'k = solution_old + factor * k0 "
-             << "with inappropriately sized k0,k. Size of your k0 is " << k0.size() << ", size of k is " << k.size()
-             << ". Both the sizes should equal " << solution_old.size() << endl;
+        cout << "You have used temporary_update_solution to do 'k = solution_old + factor * k0 ";
+        cout << "with inappropriately sized k0,k. Size of your k0 is " << k0.size();
+        cout << ", size of k is " << solution_new.size();
+        cout << ". Both the sizes should equal " << solution_old.size() << endl;
         assert(false);
     }
-    for (int i = 0; i < k.size(); i++)
+    for (int i = 0; i < solution_new.size(); i++)
     {
-        k[i] = solution_old[i] + factor0 * k0[i] + factor1 * k1[i];
+        solution_new[i] = solution_old[i] + factor0 * k0[i] + factor1 * k1[i];
     } //k = solution_old + factor * k0
 }
 
@@ -244,15 +244,15 @@ void Linear_Convection_1d::rk4_solver()
     //To save memory, we are going to temporarily store some things in solution_new
     //, which is supposed to be u^{n+1}
     //Temporarily putting 'u^{n+1}' = solution_new = solution_old + dt/2 * k1
-    temporary_update_solution(dt / 2, k1, solution_new);
+    temporary_update_solution(dt / 2, k1);
     //So, computing k2 = rhs_function(u^n + dt/2 * k1)
     rhs_function(solution_new, k2);
     //Similarly, temporarily putting 'u^{n+1}'=solution_new = u^n + dt/2 *k2
-    temporary_update_solution(dt / 2, k2, solution_new);
+    temporary_update_solution(dt / 2, k2);
     //Computing k3 = rhs_function(solution_old + dt/2 *k2)
     rhs_function(solution_new, k3);
     //Temporarily putting 'u^{n+1}' = solution_new = u^n + dt * k3
-    temporary_update_solution(dt, k3, solution_new);
+    temporary_update_solution(dt, k3);
     //Computing k4 = rhs_function(solution_old + dt *k3)
     rhs_function(solution_new, k4);
 
@@ -269,11 +269,11 @@ void Linear_Convection_1d::rk3_solver()
     //k1 = rhs_function(solution_old)
     rhs_function(solution_old, k1);
     //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
-    temporary_update_solution(dt / 2, k1, solution_new);
+    temporary_update_solution(dt / 2, k1);
     //So, computing k2 = rhs_function(u^n + dt/2 * k1)
     rhs_function(solution_new, k2);
     //Similarly, temporarily putting u^{n+1}=solution_new = u^n -k1 * dt + 2 k2 * dt
-    temporary_update_solution(-dt, k1, 2 * dt, k2, solution_new);
+    temporary_update_solution(-dt, k1, 2 * dt, k2);
     //Computing k3 = rhs_function(solution_old - dt k1 + 2 dt k2)
     rhs_function(solution_new, k3);
 
@@ -290,7 +290,7 @@ void Linear_Convection_1d::rk2_solver()
     //k1 = rhs_function(solution_old)
     rhs_function(solution_old, k1);
     //Temporarily putting u^{n+1} = solution_new = solution_old + dt * k1
-    temporary_update_solution(dt, k1, solution_new);
+    temporary_update_solution(dt, k1);
     //So, computing k2 = rhs_function(u^n + dt * k1)
     rhs_function(solution_new, k2);
 
