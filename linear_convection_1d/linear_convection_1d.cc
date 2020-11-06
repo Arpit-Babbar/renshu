@@ -47,17 +47,9 @@ public:
     //and which method to use - Lax-Wendroff or RK4
     void run(); //true when output is to be given, and false when it doesn't;
     void output_final_error();
-    
-    
 
-    double get_l2_error();
-    double get_error()
-    {
-        if (initial_data_indicator != 2)
-            return max_element(error);
-        else
-            return get_l2_error();
-    }
+    vector<double> get_error();
+
 
 private:
     void make_grid(); // Grid is needed for writing output, and defining exact solution.
@@ -376,7 +368,8 @@ void Linear_Convection_1d::run()
 
 void run_and_get_output(double n_points, double cfl,
                         string method, double running_time,
-                        int initial_data_indicator, double tolerance)
+                        int initial_data_indicator, double tolerance,
+                        int max_refinements)
 {
     double h = 1/n_points;
     ofstream error_vs_h;
@@ -388,24 +381,23 @@ void run_and_get_output(double n_points, double cfl,
         cout << n_points << " grid points" << endl;
         Linear_Convection_1d solver(n_points, cfl, method, running_time, initial_data_indicator);
         solver.run();
-        cout << "The L_infty error is " << solver.get_error() << endl;
+        cout << "The L_infty error is " << solver.get_error()[2] << endl;
         return;
     }
     Linear_Convection_1d solver(n_points, cfl, method, running_time, initial_data_indicator);
     solver.run();
     vector<double> linfty_vector(1);
     vector<double> l2_vector(1);
-    double refinement_level = 0.0;
+    vector<double> l1_vector(1);
+    int refinement_level = 0;
 
-    linfty_vector[0] = solver.get_error();
-    l2_vector[0] = solver.get_l2_error();
-
-    while (linfty_vector[refinement_level] > tolerance)
+    double testing_error = 1.0;//This will store the error that we'd iterate untill we reach tolerance.
+    while (testing_error > tolerance && refinement_level < max_refinements)
     {
-        //Is resizing at every step the only option?
         refinement_level++;
-        linfty_vector.push_back(solver.get_error());
-        l2_vector.push_back(solver.get_l2_error());
+        linfty_vector.push_back(solver.get_error()[2]);
+        l2_vector.push_back(solver.get_error()[1]);
+        l1_vector.push_back(solver.get_error()[0]);
         error_vs_h << h << " " << linfty_vector[refinement_level] << "\n";
         n_points = 2.0 * n_points;
         solver = Linear_Convection_1d(n_points, cfl, method, running_time, initial_data_indicator);
@@ -418,6 +410,9 @@ void run_and_get_output(double n_points, double cfl,
             cout << "Rate of L2 convergence checked at refinemenet level " << refinement_level;
             cout << " is " << abs(log(l2_vector[refinement_level] / l2_vector[refinement_level - 1])) / log(2.0);
             cout << endl;
+            cout << "Rate of L1 convergence checked at refinemenet level " << refinement_level;
+            cout << " is " << abs(log(l1_vector[refinement_level] / l1_vector[refinement_level - 1])) / log(2.0);
+            cout << endl;
         }
         struct timeval begin, end;
         gettimeofday(&begin, 0);
@@ -427,11 +422,15 @@ void run_and_get_output(double n_points, double cfl,
         long microseconds = end.tv_usec - begin.tv_usec;
         double elapsed = seconds + microseconds * 1e-6;
         cout << "Time taken by this iteration is " << elapsed << " seconds." << endl;
+        if (initial_data_indicator == 0)
+            testing_error = solver.get_error()[2];
+        else
+            testing_error = solver.get_error()[0];
     }
     error_vs_h.close();
     solver.output_final_error();
     cout << "After " << refinement_level << " refinements, l_infty error = ";
-    cout << linfty_vector[refinement_level] << "<" << tolerance << endl;
+    cout << linfty_vector[refinement_level] << ", when the tolerance was " << tolerance << endl;
     cout << "The L2 error is " << l2_vector[refinement_level] << endl
          << endl;
 }
@@ -469,24 +468,32 @@ double Linear_Convection_1d::step_function(double grid_point)
         value = 1.0;
     return value;
 }
-double Linear_Convection_1d::get_l2_error()
+vector<double> Linear_Convection_1d::get_error()
 {
-    double a = 0.0;
-    for (int j = 0; j < n_points; j++)
+    vector<double> error_vector = {0.0,0.0,0.0};
+    for (int j = 0; j < n_points; j++) //compute L^1 error
     {
-        a = a + error[j] * error[j] * h;
+        error_vector[0] = error_vector[0] + error[j]  * h;
     }
-    a = sqrt(a);
-    return a;
+    for (int j = 0; j < n_points; j++) //compute L^2 error
+    {
+        error_vector[1] = error_vector[1] + error[j] * error[j]  * h;
+    }
+    error_vector[1] = pow(error_vector[1], 0.5);
+    for (int j = 0; j < n_points; j++) //compute L^infty
+    {
+        error_vector[2] = max(error_vector[2], error[j]);
+    }
+    return error_vector;
 }
 
 int main(int argc, char **argv)
 {
-    if (argc != 6)
+    if (argc != 7)
     {
         cout << "Incorrect format, use" << endl;
         cout << "./output lw/rk4/rk3/rk2(for the respective method) cfl running_time 0/1/2(for ";
-        cout << "sine/hat/discts initial data)" << endl;
+        cout << "sine/hat/discts initial data) tolerance max_refinements" << endl;
         assert(false);
     }
     string method = argv[1];
@@ -499,5 +506,8 @@ int main(int argc, char **argv)
     int initial_data_indicator = stoi(argv[4]);
     cout << "initial_data_indicator = " << initial_data_indicator << endl;
     double tolerance = stod(argv[5]);
-    run_and_get_output(n_points, cfl, method, running_time, initial_data_indicator, tolerance);
+    cout << "Tolerance = "<< tolerance << endl;
+    int max_refinements = stoi(argv[6]);
+    cout << "Max refinements = " << max_refinements <<endl;
+    run_and_get_output(n_points, cfl, method, running_time, initial_data_indicator, tolerance, max_refinements);
 }
