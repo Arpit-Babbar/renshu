@@ -70,7 +70,7 @@ private:
     void rk4_solver(); //Gives the solution at next time step using RK4
     void rk3_solver();
     void rk2_solver();
-    void lax_wendroff();                                           //Gives the solutions at next time step using Lax-Wendroff
+    void lax_wendroff();                                           //Computes next time step soln by Lax-Wendroff
     void rhs_function(const vector<double> &u, vector<double> &k); //This gives RHS of the system of ODEs
     double hat_function(double grid_point);
     double step_function(double grid_point); //Functions for initial data.
