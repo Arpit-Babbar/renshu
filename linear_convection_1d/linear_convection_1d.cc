@@ -1,4 +1,3 @@
-#define _USE_MATH_DEFINES
 #include <cmath>
 #include <iostream>
 #include <fstream>
@@ -7,9 +6,6 @@
 #include <string>
 #include <stdio.h>
 #include <sys/time.h>
-
-#include <algorithm>
-#include <functional> //Used to define addition of vectors
 
 using namespace std;
 
