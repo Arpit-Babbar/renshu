@@ -121,7 +121,7 @@ private:
     double n_points, h, dt,t, cfl, running_time; //h = 1/n_points just included for easy typing
 
     //slopes needed by rk4
-    vector<double> k1, k2, k3, k4;
+    vector<double> temp, k2, k3, k4;
 
     //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
     void compute_solution_new_using_ki(int);
@@ -148,7 +148,7 @@ Linear_Convection_1d::Linear_Convection_1d(double n_points, double cfl, string m
     solution_old.resize(n_points);
     solution.resize(n_points);
     solution_exact.resize(n_points);
-    k1.resize(n_points);
+    temp.resize(n_points);
     k2.resize(n_points);
     k3.resize(n_points);
     k4.resize(n_points);
@@ -203,7 +203,7 @@ void Linear_Convection_1d::lax_wendroff()
                                           - 2.0 * solution_old[0] + solution_old[1]);
     //For easy readability, whenever there is a line break in an ongoing bracket,
     //the next line starts from where the bracket opens.
-    for (unsigned int j = 1; j < n_points - 1; ++j) //Loop over grid points
+    for (unsigned int j/ = 1; j < n_points - 1; ++j) //Loop over grid points
     {
         solution[j] = solution_old[j] 
                           - 0.5 * cfl * (solution_old[j + 1] - solution_old[j - 1]) 
@@ -220,73 +220,51 @@ void Linear_Convection_1d::lax_wendroff()
 void Linear_Convection_1d::rk4_solver()
 {
     //Since rhs_function gives its output to (*rhs), and we are interested
-    //in updating ki, we shall do this sneaky thing.
-    rhs = &k1;
-    //k1 = rhs_function(solution_old). With this, k1 is done.
-    rhs_function();
-    //To save memory, we are going to temporarily store some things in the
-    //solution variable, which is supposed to be u^{n+1}
+    //in updating temp, we shall do this sneaky thing.
+    rhs = &temp;
+    //We know the rk4 time-stepping formula explicitly. We only need temp
+    //because steps like solution = rhs_function(solution) do not work 
+    //because of the way we have defined rhs_function.
+    rhs_function();//temp = rhs(solution) = rhs(solution_old)
+    
+    add(solution_old,dt/4.0,temp,solution); 
+    //Temporarily putting u^{n+1} = u^n + dt/4*temp
 
-    //Temporarily putting 'u^{n+1}' = solution_new = solution_old + dt/2 * rhs
-    // = solution + dt/2 * k1
-    add(solution_old, dt / 2.0, k1, solution);
-    rhs = &k2;
-    //So, computing k2 = rhs = rhs_function(u^n + dt/2 * k1)
-    rhs_function();
-    //Similarly, temporarily putting 'u^{n+1}'=solution_new = u^n + dt/2 *k2
-    add(solution_old, dt / 2.0, k2, solution);
-    rhs = &k3; //similar
-    //Computing k3 = rhs_function(solution_old + dt/2 *k2)
-    rhs_function();
-    //Temporarily putting 'u^{n+1}' = solution = u^n + dt * k3
-    add(solution_old, dt, k3, solution);
-    rhs = &k4; //similar
-    //Computing k4 = rhs_function(solution_old + dt *k3)
-    rhs_function();
+    rhs_function();//temp = rhs(solution)
+    add(solution_old,dt/3.0,temp,solution);
+    //u^{n+1} = u^n + dt/3 * temp
 
-    //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
-    for (unsigned int i = 0; i < n_points; i++)
-        solution[i] = solution_old[i] + dt / 6.0 * (k1[i] + 2.0 * k2[i] 
-                                                    + 2.0 * k3[i] + k4[i]);
+    rhs_function(); //temp = rhs(solution)
+    add(solution_old,dt/2.0,temp,solution);
+
+    rhs_function();
+    add(solution_old,dt,temp,solution);
 }
 
 void Linear_Convection_1d::rk3_solver()
 {
-    rhs = &k1;
+    rhs = &temp;
     //k1 = rhs_function(solution) = rhs_function(solution_old)
     rhs_function();
     //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
-    add(solution_old, dt / 2.0, k1, solution);
+    add(solution_old, dt / 6.0, temp, solution);
     //So, computing k2 = rhs_function(u^n + dt/2 * k1)
-    rhs = &k2;
     rhs_function();
-    
-    //Similarly, temporarily putting 
-    //u^{n+1}=solution= u^n -k1 * dt + 2 k2 * dt    
-    add(solution_old, -dt, k1, 2.0 * dt, k2, solution); 
-    rhs = &k3;
-    rhs_function();
-    //Computing k3 = rhs(solution_old - dt k1 + 2 dt k2)
-
-    //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
-    for (unsigned int i = 0; i < n_points; i++)
-        solution[i] = solution_old[i] + dt / 6.0 * (k1[i] + 4.0 * k2[i] + k3[i]);
+    add(solution_old, 0.5 * dt, temp, solution);
+    temp = rhs_function();
+    add(solution_old, dt, temp, solution);
 }
 
 void Linear_Convection_1d::rk2_solver()
 {
-    rhs = &k1;
+    rhs = &temp;
     //k1 = rhs_function(solution_old)
     rhs_function();
-    //Temporarily putting u^{n+1} = solution_new = solution_old + dt * k1
-    add(solution_old, dt, k1, solution);
-    rhs = &k2;
-    //So, computing k2 = rhs_function(u^n + dt * k1)
+    //Temporarily putting u^{n+1} = solution = solution_old + 0.5 * dt * k1
+    add(solution_old, 0.5 * dt, temp, solution);
+    //Next, putting k1 = rhs_function(solution) = rhs_function(solution+old + 0.5)
     rhs_function();
-
-    //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
-    for (unsigned int i = 0; i < n_points; i++)
-        solution[i] = solution_old[i] + dt / 2.0 * (k1[i] + k2[i]);
+    add(solution_old,dt, temp, solution);
 }
 
 void Linear_Convection_1d::evaluate_error_and_output_solution(int time_step_number)
