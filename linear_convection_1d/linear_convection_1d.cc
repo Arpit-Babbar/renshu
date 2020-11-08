@@ -48,16 +48,15 @@ private:
     void make_grid(); // Grid is needed for writing output, and defining exact solution.
     void set_initial_solution();
     //removed initial_data vector, as it was wasteful
-    void temporary_update_solution(const double factor, const vector<double> &u);
+    void temporary_update_solution(const double factor);
+    void temporary_update_solution(const double factor0, const double factor1);
     //We'd use this to compute the rk4 slopes k_i's and temporarily store them in solution_new.
-    //More precisely, it does k = solution_old + factor * u
-    void temporary_update_solution(const double factor0, const vector<double> &u0,
-                                   const double factor1, const vector<double> &u1);
+    //More precisely, it does solution = solution_old + factor * u
     void rk4_solver(); //Gives the solution at next time step using RK4
     void rk3_solver();
     void rk2_solver();
     void lax_wendroff();                                           
-    void rhs_function(const vector<double> &u, vector<double> &k); //This gives RHS of the system of ODEs
+    void rhs_function(); //This gives RHS of the system of ODEs
     double hat_function(double grid_point);
     double step_function(double grid_point); //Functions for initial data.
                                              //on which we apply RK4, and stores it in k.
@@ -73,6 +72,9 @@ private:
 
     vector<double> solution_old; //Solution at previous step
     vector<double> solution; //Solution at present step
+
+    vector<double> *rhs;
+    vector<double> *rhs2;
 
     vector<double> solution_exact; //Exact solution at present time step
 
@@ -131,13 +133,13 @@ void Linear_Convection_1d::set_initial_solution()
         switch (initial_data_indicator)
         {
         case 0:
-            solution_old[i] = sin(2.0 * M_PI * grid[i] / (x_max - x_min));
+            solution[i] = sin(2.0 * M_PI * grid[i] / (x_max - x_min));
             break;
         case 1:
-            solution_old[i] = hat_function(grid[i]);
+            solution[i] = hat_function(grid[i]);
             break;
         case 2:
-            solution_old[i] = step_function(grid[i]);
+            solution[i] = step_function(grid[i]);
             break;
         default:
             cout << "You entered the wrong initial_data_indicator ";
@@ -147,54 +149,30 @@ void Linear_Convection_1d::set_initial_solution()
 }
 
 //This computes the rhs of the system of ODEs on which we apply rk4.
-void Linear_Convection_1d::rhs_function(const vector<double> &u, vector<double> &k)
+void Linear_Convection_1d::rhs_function()
 {
-    if (u.size() != k.size() || k.size() != solution_old.size())
-    {
-        cout << "You have used rhs_function to do rhs_funciton(&u,&k)"
-             << " with inappropriately sized u,k. Size of your u is " << u.size();
-        cout << ", size of k is " << k.size()
-             << ". Both the sizes should equal " << solution_old.size() << endl;
-        assert(false);
-    }
-    k[0] = -(u[1] - u[n_points - 1]) / (2.0 * h); //left end point
+    (*rhs)[0] = -(solution[1] - solution[n_points - 1]) / (2.0 * h); //left end point
     for (int j = 1; j < n_points - 1; j++)
     {
-        k[j] = -(u[j + 1] - u[j - 1]) / (2.0 * h);
+        (*rhs)[j] = -(solution[j + 1] - solution[j - 1]) / (2.0 * h);
     }
-    k[n_points - 1] = -(u[0] - u[n_points - 2]) / (2.0 * h); //right end point
+    (*rhs)[n_points - 1] = -(solution[0] - solution[n_points - 2]) / (2.0 * h); //right end point
 }
 
 //k = solution_old + factor*u
-void Linear_Convection_1d::temporary_update_solution(const double factor, const vector<double> &k0)
+void Linear_Convection_1d::temporary_update_solution(const double factor)
 {
-    if (k0.size() != solution.size() || solution.size() != solution_old.size())
+    for (unsigned int i = 0; i < n_points; i++)
     {
-        cout << "You have used temporary_update_solution to do 'k = solution_old + factor * k0 ";
-        cout << "with inappropriately sized k0,k. Size of your k0 is " << k0.size();
-        cout << ", size of k is " << solution.size()
-             << ". Both the sizes should equal " << solution_old.size() << endl;
-        assert(false);
-    }
-    for (unsigned int i = 0; i < solution.size(); i++)
-    {
-        solution[i] = solution_old[i] + factor * k0[i];
+        solution[i] = solution_old[i] + factor * (*rhs)[i];
     } //k = solution_old + factor * k0
 }
-void Linear_Convection_1d::temporary_update_solution(const double factor0, const vector<double> &k0,
-                                                     const double factor1, const vector<double> &k1)
+void Linear_Convection_1d::temporary_update_solution(const double factor0,
+                                                     const double factor1)
 {
-    if (k0.size() != solution.size() || solution.size() != solution_old.size())
+    for (unsigned int i = 0; i < n_points; i++)
     {
-        cout << "You have used temporary_update_solution to do 'k = solution_old + factor * k0 ";
-        cout << "with inappropriately sized k0,k. Size of your k0 is " << k0.size();
-        cout << ", size of k is " << solution.size();
-        cout << ". Both the sizes should equal " << solution_old.size() << endl;
-        assert(false);
-    }
-    for (unsigned int i = 0; i < solution.size(); i++)
-    {
-        solution[i] = solution_old[i] + factor0 * k0[i] + factor1 * k1[i];
+        solution[i] = solution_old[i] + factor0 * (*rhs)[i] + factor1 * (*rhs2)[i];
     } //k = solution_old + factor * k0
 }
 
@@ -222,43 +200,55 @@ void Linear_Convection_1d::lax_wendroff()
 
 void Linear_Convection_1d::rk4_solver()
 {
-    //This innocent step was what was causing trouble
-    /* solution_old = solution; */
+    //Since rhs_function gives its output to (*rhs), and we are interested
+    //in updating ki, we shall do this.
+    rhs = &k1;
+    //k1 = rhs_function(solution_old). With this, k1 is done.
+    rhs_function();
+    //To save memory, we are going to temporarily store some things in the
+    //solution variable, which is supposed to be u^{n+1}
 
-    //k1 = rhs_function(solution_old)
-    rhs_function(solution_old, k1);
-    //To save memory, we are going to temporarily store some things in solution_new
-    //, which is supposed to be u^{n+1}
-    //Temporarily putting 'u^{n+1}' = solution_new = solution_old + dt/2 * k1
-    temporary_update_solution(dt / 2.0, k1);
-    //So, computing k2 = rhs_function(u^n + dt/2 * k1)
-    rhs_function(solution, k2);
+    //Temporarily putting 'u^{n+1}' = solution_new = solution_old + dt/2 * rhs
+    // = solution + dt/2 * k1
+    temporary_update_solution(dt / 2.0);
+    rhs = &k2;
+    //So, computing k2 = rhs = rhs_function(u^n + dt/2 * k1)
+    rhs_function();
     //Similarly, temporarily putting 'u^{n+1}'=solution_new = u^n + dt/2 *k2
-    temporary_update_solution(dt / 2.0, k2);
+    temporary_update_solution(dt / 2.0);
+    rhs = &k3; //similar
     //Computing k3 = rhs_function(solution_old + dt/2 *k2)
-    rhs_function(solution, k3);
-    //Temporarily putting 'u^{n+1}' = solution_new = u^n + dt * k3
-    temporary_update_solution(dt, k3);
+    rhs_function();
+    //Temporarily putting 'u^{n+1}' = solution = u^n + dt * k3
+    temporary_update_solution(dt);
+    rhs = &k4; //similar
     //Computing k4 = rhs_function(solution_old + dt *k3)
-    rhs_function(solution, k4);
+    rhs_function();
 
     //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
     for (unsigned int i = 0; i < n_points; i++)
-        solution[i] = solution_old[i] + dt / 6.0 * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]);
+        solution[i] = solution_old[i] + dt / 6.0 * (k1[i] + 2.0 * k2[i] 
+                                                    + 2.0 * k3[i] + k4[i]);
 }
 
 void Linear_Convection_1d::rk3_solver()
 {
+    rhs = &k1;
     //k1 = rhs_function(solution_old)
-    rhs_function(solution_old, k1);
+    rhs_function();
     //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
-    temporary_update_solution(dt / 2.0, k1);
+    temporary_update_solution(dt / 2.0);
     //So, computing k2 = rhs_function(u^n + dt/2 * k1)
-    rhs_function(solution, k2);
-    //Similarly, temporarily putting u^{n+1}=solution_new = u^n -k1 * dt + 2 k2 * dt
-    temporary_update_solution(-dt, k1, 2.0 * dt, k2);
-    //Computing k3 = rhs_function(solution_old - dt k1 + 2 dt k2)
-    rhs_function(solution, k3);
+    rhs = &k2;
+    rhs_function();
+    
+    rhs = &k1; rhs2 = &k2;
+    //Similarly, temporarily putting 
+    //u^{n+1}=solution= u^n -k1 * dt + 2 k2 * dt    
+    temporary_update_solution(-dt, 2.0 * dt); 
+    rhs = &k3;
+    rhs_function();
+    //Computing k3 = rhs(solution_old - dt k1 + 2 dt k2)
 
     //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
     for (unsigned int i = 0; i < n_points; i++)
@@ -267,12 +257,14 @@ void Linear_Convection_1d::rk3_solver()
 
 void Linear_Convection_1d::rk2_solver()
 {
+    rhs = &k1;
     //k1 = rhs_function(solution_old)
-    rhs_function(solution_old, k1);
+    rhs_function();
     //Temporarily putting u^{n+1} = solution_new = solution_old + dt * k1
-    temporary_update_solution(dt, k1);
+    temporary_update_solution(dt);
+    rhs = &k2;
     //So, computing k2 = rhs_function(u^n + dt * k1)
-    rhs_function(solution, k2);
+    rhs_function();
 
     //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
     for (unsigned int i = 0; i < n_points; i++)
@@ -319,12 +311,13 @@ void Linear_Convection_1d::output_final_error()
 void Linear_Convection_1d::run()
 {
     make_grid();
-    set_initial_solution(); //sets solution_old to be the initial data
+    set_initial_solution(); //sets solution to be the initial data
     int time_step_number = 0; //The bug I had made here was that I was running the solver
     //even for time_step_number = 0, which is wrong.
     evaluate_error_and_output_solution(time_step_number);
     while (t < running_time) //compute solution at next time step using solution_old
     {
+        solution_old = solution;//update solution_old to be used at next time step
         if (method == "rk4")
             rk4_solver();
         else if (method == "rk3")
@@ -335,7 +328,6 @@ void Linear_Convection_1d::run()
             lax_wendroff();
         else
             assert(false);
-        solution_old = solution;//update solution_old to be used at next time step
         time_step_number += 1;
         t = t + dt; //Need to update the time_step_number because the updated version
         //is needed by the next function. We could have done it outside of the while
@@ -354,20 +346,26 @@ void run_and_get_output(double n_points, double cfl,
 {
     ofstream error_vs_h;
     error_vs_h.open("error_vs_h.txt");
-    Linear_Convection_1d solver(n_points, cfl, method, running_time, initial_data_indicator);
-    solver.run();
     vector<double> linfty_vector;
     vector<double> l2_vector;
     vector<double> l1_vector;
-    int refinement_level = 0;
 
-    while (refinement_level <= max_refinements)
+    for (unsigned int refinement_level = 0; refinement_level <= max_refinements;
+        refinement_level++)
     {
+        Linear_Convection_1d solver(n_points, cfl, method, running_time,
+                                    initial_data_indicator);
+        struct timeval begin, end;
+        gettimeofday(&begin, 0);
+        solver.run();
+        gettimeofday(&end, 0);
+        long seconds = end.tv_sec - begin.tv_sec;
+        long microseconds = end.tv_usec - begin.tv_usec;
+        double elapsed = seconds + microseconds * 1e-6;
+        cout << "Time taken by this iteration is " << elapsed << " seconds." << endl;
         solver.get_error(l1_vector,l2_vector,linfty_vector);//push_back resp. error.
-        error_vs_h << 1.0/n_points << " " << linfty_vector[refinement_level] << "\n";
+        error_vs_h << 2.0/n_points << " " << linfty_vector[refinement_level] << "\n";
         n_points = 2.0 * n_points;
-        solver = Linear_Convection_1d(n_points, cfl, method,
-                                      running_time, initial_data_indicator);
         if (refinement_level > 0)
         {
             cout << "Linfty convergence rate at refinement level ";
@@ -388,19 +386,11 @@ void run_and_get_output(double n_points, double cfl,
                              / l1_vector[refinement_level - 1])) / log(2.0);
             cout << endl;
         }
-        struct timeval begin, end;
-        gettimeofday(&begin, 0);
-        solver.run();
-        gettimeofday(&end, 0);
-        long seconds = end.tv_sec - begin.tv_sec;
-        long microseconds = end.tv_usec - begin.tv_usec;
-        double elapsed = seconds + microseconds * 1e-6;
-        cout << "Time taken by this iteration is " << elapsed << " seconds." << endl;
-        refinement_level++;
+        if (refinement_level == max_refinements + 1) solver.output_final_error(); //I couldn't figure a
+        //way to keep it outside the while loop.
     }
     error_vs_h.close();
-    solver.output_final_error();
-    cout << "After " << refinement_level << " refinements, l_infty error = ";
+    cout << "After " << max_refinements << " refinements, l_infty error = ";
     cout << linfty_vector[max_refinements-1] << endl;
     cout << "The L2 error is " << l2_vector[max_refinements-1] << endl;
     cout << "The L1 error is " << l1_vector[max_refinements-1] << endl;
