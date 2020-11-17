@@ -91,6 +91,7 @@ private:
     //More precisely, it does solution = solution_old + factor * u
     void rk4_solver(); //Gives the solution at next time step using RK4
     void rk3_solver();
+    void rk3_solver_new();
     void rk2_solver();
     void lax_wendroff();                                           
     void rhs_function(); //This gives RHS of the system of ODEs and stores it to where rhs points.
@@ -121,10 +122,7 @@ private:
     double n_points, h, dt,t, cfl, running_time; //h = 1/n_points just included for easy typing
 
     //slopes needed by rk4
-    vector<double> temp, k2, k3, k4;
-
-    //This computes solution_new = u^{n+1} = u^n + dt/6 * (k1 + 2.0*k2 + 2.0*k3 + k4)
-    void compute_solution_new_using_ki(int);
+    vector<double> temp;
 
     string method;
     int initial_data_indicator;
@@ -149,9 +147,6 @@ Linear_Convection_1d::Linear_Convection_1d(double n_points, double cfl, string m
     solution.resize(n_points);
     solution_exact.resize(n_points);
     temp.resize(n_points);
-    k2.resize(n_points);
-    k3.resize(n_points);
-    k4.resize(n_points);
 }
 
 void Linear_Convection_1d::make_grid()
@@ -203,7 +198,7 @@ void Linear_Convection_1d::lax_wendroff()
                                           - 2.0 * solution_old[0] + solution_old[1]);
     //For easy readability, whenever there is a line break in an ongoing bracket,
     //the next line starts from where the bracket opens.
-    for (unsigned int j/ = 1; j < n_points - 1; ++j) //Loop over grid points
+    for (unsigned int j = 1; j < n_points - 1; ++j) //Loop over grid points
     {
         solution[j] = solution_old[j] 
                           - 0.5 * cfl * (solution_old[j + 1] - solution_old[j - 1]) 
@@ -247,11 +242,25 @@ void Linear_Convection_1d::rk3_solver()
     //k1 = rhs_function(solution) = rhs_function(solution_old)
     rhs_function();
     //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
+    add(solution_old, dt / 3.0, temp, solution);
+    //So, computing k2 = rhs_function(u^n + dt/2 * k1)
+    rhs_function();
+    add(solution_old, 0.5 * dt, temp, solution);
+    rhs_function();
+    add(solution_old, dt, temp, solution);
+}
+
+void Linear_Convection_1d::rk3_solver_new()
+{
+    rhs = &temp;
+    //k1 = rhs_function(solution) = rhs_function(solution_old)
+    rhs_function();
+    //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
     add(solution_old, dt / 6.0, temp, solution);
     //So, computing k2 = rhs_function(u^n + dt/2 * k1)
     rhs_function();
     add(solution_old, 0.5 * dt, temp, solution);
-    temp = rhs_function();
+    rhs_function();
     add(solution_old, dt, temp, solution);
 }
 
@@ -318,6 +327,8 @@ void Linear_Convection_1d::run()
             rk4_solver();
         else if (method == "rk3")
             rk3_solver();
+        else if (method == "rk3_new")
+            rk3_solver_new();
         else if (method == "rk2")
             rk2_solver();
         else if (method == "lw")
@@ -338,7 +349,7 @@ void Linear_Convection_1d::run()
 void run_and_get_output(double n_points, double cfl,
                         string method, double running_time,
                         int initial_data_indicator,
-                        int max_refinements)
+                        unsigned int max_refinements)
 {
     ofstream error_vs_h;
     error_vs_h.open("error_vs_h.txt");
@@ -449,7 +460,7 @@ int main(int argc, char **argv)
     if (argc != 6)
     {
         cout << "Incorrect format, use" << endl;
-        cout << "./output lw/rk4/rk3/rk2(for the respective method) cfl running_time 0/1/2(for " ;
+        cout << "./output lw/rk4/rk3/rk3_new/rk2(for the respective method) cfl running_time 0/1/2(for " ;
         cout << "sin/hat/discts initial data) max_refinements" << endl;
         assert(false);
     }
@@ -462,7 +473,7 @@ int main(int argc, char **argv)
     cout << "running_time = " << running_time << endl;
     int initial_data_indicator = stoi(argv[4]);
     cout << "initial_data_indicator = " << initial_data_indicator << endl;
-    int max_refinements = stoi(argv[5]);
+    unsigned int max_refinements = stoi(argv[5]);
     cout << "max_refinements = " << max_refinements <<endl;
     run_and_get_output(n_points, cfl, method, running_time, initial_data_indicator, max_refinements);
 }
