@@ -407,9 +407,9 @@ void run_and_get_output(double n_points, double cfl,
 double Linear_Convection_1d::interval_part(double x)
 {
     if (x > x_max)
-        return x - ceil((x_max - x_min) * (x - x_max)) / (x_max - x_min);
+        return x - ceil((x - x_max) / (x_max - x_min)) * (x_max - x_min);
     else if (x < x_min)
-        return x + ceil((x_max - x_min) * (x_min - x)) / (x_max - x_min);
+        return x + ceil((x_min - x) / (x_max - x_min)) * (x_max - x_min);
     else
         return x;
 }

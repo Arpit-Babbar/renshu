@@ -24,7 +24,7 @@ double max_element(vector<double> &v)
     return a;
 }
 
-void output_1x2vectors_to_file(string file_name, vector<double> &grid, vector<double> &solution_old, vector<double> &solution_exact)
+void output_vectors_to_file(string file_name, vector<double> &grid, vector<double> &solution_old, vector<double> &solution_exact)
 {
     ofstream output_solution;
     output_solution.open(file_name);
@@ -34,7 +34,7 @@ void output_1x2vectors_to_file(string file_name, vector<double> &grid, vector<do
     }
     output_solution.close();
 }
-void output_1x1vectors_to_file(string file_name, vector<double> &grid, vector<double> &solution_old)
+void output_vectors_to_file(string file_name, vector<double> &grid, vector<double> &solution_old)
 {
     ofstream output_solution;
     output_solution.open(file_name);
@@ -296,14 +296,14 @@ void Heat1d::evaluate_error_and_output_solution(int time_step_number)
     }
     string solution_file_name = "solution_";
     solution_file_name += to_string(time_step_number) + "_" + method + ".txt";
-    output_1x2vectors_to_file(solution_file_name, grid, solution_old, solution_exact);
+    output_vectors_to_file(solution_file_name, grid, solution_old, solution_exact);
 }
 
 void Heat1d::output_final_error()
 {
     string error_file_name = "finalerror";
     error_file_name += "_" + method + ".txt";
-    output_1x1vectors_to_file(error_file_name, grid, error);
+    output_vectors_to_file(error_file_name, grid, error);
 }
 
 void Heat1d::run()
