@@ -105,12 +105,8 @@ private:
     void soup_rk3();
     void soup_rk2_minmod(); //Second order upwind Scheme with min-mod limiter
     void soup_rk3_minmod(); //Second order upwind Scheme with min-mod limiter
-    /*void soup_rk2_superbee(); //Second order upwind Scheme with min-mod limiter
-    void soup_rk3_superbee(); //Second order upwind Scheme with min-mod limiter*/
 
     double minmod_limiter(int i); //psi(r_i)
-    //double superbee_limiter(int i); //psi(r_i)
-    //double superbee_limiter(double ratio); //psi(r) when r!=
 
     double hat_function(double grid_point);
     double step_function(double grid_point); //Functions for initial data.
@@ -241,8 +237,8 @@ double Linear_Convection_1d::minmod_limiter(int i) //Psi(r_i)
     previous_value = solution_old[n_points-1];
   else
     previous_value = solution_old[i-1];
-  if ((solution_old[i+1] - solution_old[i]) * (solution_old[i] -previous_value) <= 0.0) //if numerator is 0
-    return 0.0;
+  if ((solution_old[i+1] - solution_old[i]) * (solution_old[i] -previous_value) <= 0.0) 
+    return 0.0; //we are defining phi(a/b). If a or b is zero, phi is zero.
   else 
     {
     double r = (solution_old[i+1] - solution_old[i]) / (solution_old[i] -previous_value);
@@ -301,7 +297,7 @@ void Linear_Convection_1d::rk3_solver()
 {
     rhs = &temp;
     //k1 = rhs_function(solution) = rhs_function(solution_old)
-    rhs_function();
+    rhs_function();//depends on method
     //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
     add(solution_old, dt / 3.0, temp, solution);
     //So, computing k2 = rhs_function(u^n + dt/2 * k1)
@@ -315,177 +311,13 @@ void Linear_Convection_1d::rk2_solver()
 {
     rhs = &temp;
     //k1 = rhs_function(solution_old)
-    rhs_function();
+    rhs_function(); //depends on method
     //Temporarily putting u^{n+1} = solution = solution_old + 0.5 * dt * k1
     add(solution_old, 0.5 * dt, temp, solution);
     //Next, putting k1 = rhs_function(solution) = rhs_function(solution+old + 0.5)
-    rhs_function();
+    rhs_function(); 
     add(solution_old,dt, temp, solution);
 }
-/*
-void Linear_Convection_1d::rhs_soup()
-{
-    (*rhs)[0] = - (coefficient/h) * (1.5 * solution_old[0] 
-                                 - 2.0 * solution_old[n_points-1] 
-                                 + 0.5 * solution_old[n_points-2]);
-    (*rhs)[1] = - (coefficient/h) * (1.5 * solution_old[1] 
-                                 - 2.0 * solution_old[0] 
-                                 + 0.5 * solution_old[n_points-1]);
-    for (int i = 2; i < n_points; i++)
-    {
-        (*rhs)[i] = - (coefficient/h) * (1.5 * solution_old[i] 
-                                    - 2.0 * solution_old[i-1] 
-                                    + 0.5 * solution_old[i-2]);
-    }
-}
-
-void Linear_Convection_1d::soup_rk2() //second order upwind scheme
-{
-    rhs = &temp;
-    //k1 = rhs_function(solution_old)
-    rhs_function();
-    //Temporarily putting u^{n+1} = solution = solution_old + 0.5 * dt * k1
-    add(solution_old, 0.5 * dt, temp, solution);
-    //Next, putting k1 = rhs_function(solution) = rhs_function(solution+old + 0.5)
-    rhs_soup();
-    add(solution_old,dt, temp, solution);
-}
-
-void Linear_Convection_1d::soup_rk3()
-{
-    rhs = &temp;
-    //k1 = rhs_function(solution) = rhs_function(solution_old)
-    rhs_soup();
-    //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
-    add(solution_old, dt / 3.0, temp, solution);
-    //So, computing k2 = rhs_function(u^n + dt/2 * k1)
-    rhs_soup();
-    add(solution_old, 0.5 * dt, temp, solution);
-    rhs_soup();
-    add(solution_old, dt, temp, solution);
-}
-*/
-/*
-void Linear_Convection_1d::rhs_soup_minmod()
-{
-  (*rhs)[0] = -(coefficient/h) * ( (solution_old[0] - solution_old[n_points-1])
-                                 +0.5 * minmod_limiter(0)
-                                      * (solution_old[0] - solution_old[n_points-1])
-                                 -0.5 * minmod_limiter(n_points-1)
-                                      * (solution_old[n_points-1] - solution_old[n_points-2]));
-  (*rhs)[1] = -(coefficient/h) * ( (solution_old[1] - solution_old[0])
-                                 +0.5 * minmod_limiter(1)
-                                      * (solution_old[1] - solution_old[0])
-                                 -0.5 * minmod_limiter(0)
-                                      * (solution_old[0] - solution_old[n_points-1]));
-  for (int i = 2; i<n_points; i++)
-  {
-    (*rhs)[i] = -(coefficient/h) * ( (solution_old[i] - solution_old[i-1])
-                                 +0.5 * minmod_limiter(i)
-                                      * (solution_old[i] - solution_old[i-1])
-                                 -0.5 * minmod_limiter(i-1)
-                                      * (solution_old[i-1] - solution_old[i-2]));
-  }
-}
-
-void Linear_Convection_1d::soup_rk2_minmod() //second order upwind scheme
-{
-    rhs = &temp;
-    //k1 = rhs_function(solution_old)
-    rhs_soup_minmod();
-    //Temporarily putting u^{n+1} = solution = solution_old + 0.5 * dt * k1
-    add(solution_old, 0.5 * dt, temp, solution);
-    //Next, putting k1 = rhs_function(solution) = rhs_function(solution+old + 0.5)
-    rhs_soup_minmod();
-    add(solution_old,dt, temp, solution);
-}
-
-void Linear_Convection_1d::soup_rk3_minmod() //second order upwind scheme
-{
-    rhs = &temp;
-    //k1 = rhs_function(solution) = rhs_function(solution_old)
-    rhs_soup_minmod();
-    //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
-    add(solution_old, dt / 3.0, temp, solution);
-    //So, computing k2 = rhs_function(u^n + dt/2 * k1)
-    rhs_soup_minmod();
-    add(solution_old, 0.5 * dt, temp, solution);
-    rhs_soup_minmod();
-    add(solution_old, dt, temp, solution);
-}
-*/
-
-/*
-double Linear_Convection_1d::ratio(int i)
-{
-  double previous_value; //solution_old[i-1] isolated for handling i=0 case
-  if (i == 0)
-    previous_value = solution_old[n_points-1];
-  else
-    previous_value = solution_old[i-1];
-  if ((solution_old[i+1] - solution_old[i]) * (solution_old[i] -previous_value) <= 0) //if numerator is 0
-    return 0.0;
-  else if (solution_old[i] == previous_value) //If denomniator is zero
-    return 100000.0; //Replacement for infinity
-  else 
-    {
-      double r = (solution_old[i+1] - solution_old[i]) / (solution_old[i] - previous_value);
-      return r;
-    }
-}
-*/
-/*
-double Linear_Convection_1d::minmod_limiter(double ratio)
-{
-  if (ratio <= 0.0)
-    return 0.0;
-  else 
-    return min(ratio,1.0);
-}
-
-double Linear_Convection_1d::superbee_limiter(double ratio)
-{
-  if (ratio <= 0.0)
-    return 0.0;
-  else 
-    {
-    double a =  max(0.0, min(2.0 * ratio, 1.0)); //
-    a = max(a, min(ratio, 2.0));
-    return a;
-    }
-}
-*/
-/*
-//v_i^{n+1} = [1 - a/h(1 + 0.5 * psi(r_i) - 0.5 * psi(r_{i-1}) /r_{i-1} )]v_i^{n}
-//               + a/h(1 + 0.5 * psi(r_i) - 0.5 * psi(r_{i-1})/r_{i-1}) v_{i-1}^n
-void Linear_Convection_1d::soup_minmod() //second order upwind scheme with min-mod limiter
-{
-  double term; //Isolating psi(r_{i-1})/r_{i-1}) to handle zero numerator case.
-  if (ratio(n_points-1) == 0)
-    term = 0;
-  else 
-    term = minmod_limiter(ratio(n_points-1)) / ratio(n_points-1);
-  solution[0] = ( 1.0 - sigma * (1.0 + 0.5 * minmod_limiter(ratio(0))
-                                       - 0.5 * term )
-                   ) * solution_old[0]
-                  + sigma * (1.0 + 0.5 * minmod_limiter(ratio(0)) 
-                                    - 0.5 * term )
-                                  * solution_old[n_points-1];
-  for (int i = 1; i < n_points; i++)
-  {
-    if (ratio(i-1) == 0)
-      term = 0;
-    else 
-      term = minmod_limiter(ratio(i-1)) / ratio(i-1);
-    solution[i] = ( 1.0 - sigma * (1.0 + 0.5 * minmod_limiter(ratio(i))
-                                       - 0.5 * term )
-                   ) * solution_old[i]
-                  + sigma * (1.0 + 0.5 * minmod_limiter(ratio(i)) 
-                                    - 0.5 * term )
-                                  * solution_old[i-1];
-  }
-}
-*/
 void Linear_Convection_1d::evaluate_error_and_output_solution(int time_step_number)
 {
     for (unsigned int i = 0; i < n_points; i++)
@@ -541,12 +373,10 @@ void Linear_Convection_1d::run()
             foup();
         else if (method == "soup_rk3" ||  method == "soup_rk3_minmod")
             rk3_solver();
+            //rk3_solver in which the rhs would depend on method
         else if (method == "soup_rk2" || method == "soup_rk2_minmod")
             rk2_solver();
-        /*else if (method == "soup_rk2_superbee")
-            soup_rk2_superbee();
-        else if (method == "soup_rk3_superbee")
-            soup_rk3_superbee();*/
+            //rk2_solver in which the rhs would depend on method
         else
             {
             cout << "Incorrect scheme chosen "<<endl;
