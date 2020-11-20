@@ -249,6 +249,10 @@ double Linear_Convection_1d::minmod_limiter(int i) //Psi(r_i)
 
 void Linear_Convection_1d::rhs_function()
 {
+  //rhs_function changes with the scheme.
+
+  //first scheme is soup
+  //rhs = -a/h(3/2 v_i - 2 v_{i-1} + 1/2 v_{i-2})
   if (method == "soup_rk2" || method == "soup_rk3")
   {
     (*rhs)[0] = - (coefficient/h) * (1.5 * solution_old[0] 
@@ -264,22 +268,24 @@ void Linear_Convection_1d::rhs_function()
                                     + 0.5 * solution_old[i-2]);
     }
   }
+  //second scheme is soup with minmod limiter
+  //rhs = -a/h[v_i - v_{i-1} + 1/2( phi(r_i)(v_i-v_{i-1}) - phi(r_{i-1})(v_i - v_{i-2}) )]
   else if (method == "soup_rk3_minmod" || method == "soup_rk2_minmod")
   {
     (*rhs)[0] = -(coefficient/h) * ( (solution_old[0] - solution_old[n_points-1])
-                                  +0.5 * minmod_limiter(0)
+                                  +0.5  * minmod_limiter(0)  //Phi(r_0)
                                         * (solution_old[0] - solution_old[n_points-1])
-                                  -0.5 * minmod_limiter(n_points-1)
+                                  -0.5  * minmod_limiter(n_points-1)
                                         * (solution_old[n_points-1] - solution_old[n_points-2]));
     (*rhs)[1] = -(coefficient/h) * ( (solution_old[1] - solution_old[0])
-                                  +0.5 * minmod_limiter(1)
+                                  +0.5  * minmod_limiter(1)  //Phi(r_1)
                                         * (solution_old[1] - solution_old[0])
-                                  -0.5 * minmod_limiter(0)
+                                  -0.5  * minmod_limiter(0)
                                         * (solution_old[0] - solution_old[n_points-1]));
     for (int i = 2; i<n_points; i++)
     {
       (*rhs)[i] = -(coefficient/h) * ( (solution_old[i] - solution_old[i-1])
-                                  +0.5 * minmod_limiter(i)
+                                  +0.5 * minmod_limiter(i) //Phi(r_i)
                                         * (solution_old[i] - solution_old[i-1])
                                   -0.5 * minmod_limiter(i-1)
                                         * (solution_old[i-1] - solution_old[i-2]));
