@@ -10,8 +10,6 @@
 #include "finite_volume_solver.h"
 using namespace std;
 
-//This function will output the flux f_{i+1/2} from input v_i,v_{i-1}
-
 double minmod(double numerator,double denominator)
 {
   if (numerator * denominator <= 0.0) 
