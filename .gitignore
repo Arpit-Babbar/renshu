@@ -39,3 +39,19 @@ first(1d linear convection)
 linear_convection_1d/output
 linear_convection_1d/output
 *.txt
+heat1d/output
+heat1d/rk3
+heat1d/rk4
+*.pdf
+linear_convection_1d/.ipynb_checkpoints/Stabiliy analysis-checkpoint.ipynb
+*.json
+*.json
+linear_convection_1d/runlw0
+*.ps
+linear_convection_1d_limiter_functions/output
+linear_convection_1d_limiter_functions/runfoup
+linear_convection_1d_limiter_functions/runsoup_rk2
+linear_convection_1d_limiter_functions/runsoup_rk2_minmod
+linear_convection_1d_limiter_functions/runsoup_rk3
+linear_convection_1d_limiter_functions/runsoup_rk3_superbee
+linear_convection_1d_limiter_functions/runsoup_rk3_minmod

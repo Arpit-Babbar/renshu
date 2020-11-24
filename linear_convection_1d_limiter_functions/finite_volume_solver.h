@@ -13,7 +13,7 @@ class Finite_Volume_Solver_1d
 public:
     Finite_Volume_Solver_1d(const double n_points, const double cfl,
                          string method, const double running_time,
-                         string initial_data_indicator); //input parameters
+                         string initial_data_indicator);
     //and which method to use - Lax-Wendroff or RK4
    //true when output is to be given, and false when it doesn't;
     void refine();
@@ -21,7 +21,7 @@ public:
     void get_error(vector<double> &l1_vector, vector<double> &l2_vector,
                    vector<double> &linfty_vector);
 protected:
-    void make_grid(); // Grid is needed for writing output, and defining exact solution.
+    void make_grid();
     void set_initial_solution();
     //removed initial_data vector, as it was wasteful
     //We'd use this to compute the rk4 slopes k_i's and temporarily store them in solution_new.
@@ -56,7 +56,8 @@ protected:
 };
 
 Finite_Volume_Solver_1d::Finite_Volume_Solver_1d(double n_points, double cfl, string method,
-                                           double running_time, string initial_data_indicator):
+                                           double running_time,
+                                           string initial_data_indicator):
                                            n_points(n_points), cfl(cfl),
                                            running_time(running_time), method(method),
                                            initial_data_indicator(initial_data_indicator)
@@ -100,7 +101,7 @@ void Finite_Volume_Solver_1d::refine()
   h = (x_max - x_min) / (n_points);
   t = 0.0;
   dt = cfl * h / abs(coefficient);
-  cout << "After refinement, here's the new values - "<<endl;
+  cout << "Values after refinement are"<<endl;
   cout << "h = " << h << endl;
   cout << "dt = " << dt << endl;
   grid.resize(n_points);

@@ -90,9 +90,9 @@ private:
     //We'd use this to compute the rk4 slopes k_i's and temporarily store them in solution_new.
     //More precisely, it does solution = solution_old + factor * u
     void rk4_solver(); //Gives the solution at next time step using RK4
-    void rk3_solver();
     void rk3_solver_new();
-    void rk2_solver();
+    void ssp_rk2_solver();
+    void ssp_rk3_solver();
     void lax_wendroff();                                           
     void rhs_function(); //This gives RHS of the system of ODEs and stores it to where rhs points.
     double hat_function(double grid_point);
@@ -122,7 +122,7 @@ private:
     double n_points, h, dt,t, cfl, running_time; //h = 1/n_points just included for easy typing
 
     //slopes needed by rk4
-    vector<double> temp;
+    vector<double> temp; vector<double> k1;vector<double> k2;
 
     string method;
     int initial_data_indicator;
@@ -147,6 +147,8 @@ Linear_Convection_1d::Linear_Convection_1d(double n_points, double cfl, string m
     solution.resize(n_points);
     solution_exact.resize(n_points);
     temp.resize(n_points);
+    k1.resize(n_points);
+    k2.resize(n_points);
 }
 
 void Linear_Convection_1d::make_grid()
@@ -236,18 +238,18 @@ void Linear_Convection_1d::rk4_solver()
     add(solution_old,dt,temp,solution);
 }
 
-void Linear_Convection_1d::rk3_solver()
+void Linear_Convection_1d::ssp_rk3_solver()
 {
     rhs = &temp;
-    //k1 = rhs_function(solution) = rhs_function(solution_old)
-    rhs_function();
-    //Temporarily putting u^{n+1} = solution_new = solution_old + dt/2 * k1
-    add(solution_old, dt / 3.0, temp, solution);
-    //So, computing k2 = rhs_function(u^n + dt/2 * k1)
-    rhs_function();
-    add(solution_old, 0.5 * dt, temp, solution);
-    rhs_function();
-    add(solution_old, dt, temp, solution);
+    rhs_function(); //Put temp = rhs(solution)=rhs(solution_old)
+    add(solution_old,dt,temp,solution); //Put solution = solution_old + dt*rhs(solution_old)
+    rhs_function(); //Put temp = f(y)
+              //We want to put k2 = 3/4 * U^n + 1/4*(k1 + dt*rhs(k1))
+    add(solution,dt,temp,temp);
+    add(0.75,solution_old,0.25,temp, solution);
+    rhs_function(); //r = f(y)
+    add(solution,dt,temp,solution);
+    add(1.0/3.0, solution_old, 2.0/3.0, solution, solution);
 }
 
 void Linear_Convection_1d::rk3_solver_new()
@@ -264,7 +266,7 @@ void Linear_Convection_1d::rk3_solver_new()
     add(solution_old, dt, temp, solution);
 }
 
-void Linear_Convection_1d::rk2_solver()
+void Linear_Convection_1d::ssp_rk2_solver()
 {
     rhs = &temp;
     //k1 = rhs_function(solution_old)
@@ -302,7 +304,7 @@ void Linear_Convection_1d::evaluate_error_and_output_solution(int time_step_numb
         error[j] = abs(solution[j] - solution_exact[j]);
     }
     string solution_file_name = "solution_";
-    solution_file_name += to_string(time_step_number) + "_" + method + ".txt";
+    solution_file_name += to_string(time_step_number) + ".txt";
     output_vectors_to_file(solution_file_name, grid, solution, solution_exact);
 }
 
@@ -326,11 +328,13 @@ void Linear_Convection_1d::run()
         if (method == "rk4")
             rk4_solver();
         else if (method == "rk3")
-            rk3_solver();
+            ssp_rk3_solver();
         else if (method == "rk3_new")
             rk3_solver_new();
-        else if (method == "rk2")
-            rk2_solver();
+        else if (method == "ssp_rk2")
+            ssp_rk2_solver();
+        else if (method == "ssp_rk3")
+            ssp_rk3_solver();
         else if (method == "lw")
             lax_wendroff();
         else

@@ -1,5 +1,12 @@
 {
     "files.associations": {
-        "ostream": "cpp"
+        "iosfwd": "cpp",
+        "fstream": "cpp",
+        "ostream": "cpp",
+        "cmath": "cpp",
+        "iostream": "cpp",
+        "deque": "cpp",
+        "string": "cpp",
+        "vector": "cpp"
     }
 }

@@ -9,6 +9,6 @@ filename(n) = sprintf("solution_%d.txt",n)
 N = 358
 do for [i=1:N-1] {
    plot filename(i) u 1:2 t 'Approximation' w l, filename(i) u 1:3 t 'Exact' w l
-   pause 0.05
+   pause 0.5
 }
 

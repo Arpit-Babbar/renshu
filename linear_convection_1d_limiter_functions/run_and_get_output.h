@@ -6,10 +6,7 @@
 #include <cassert>
 using namespace std;
 template<typename Pde_Solver>
-void run_and_get_output(double n_points, double cfl,
-                        string method, double running_time,
-                        string initial_data_indicator,
-                        unsigned int max_refinements, Pde_Solver solver)
+void run_and_get_output(double n_points, double max_refinements, Pde_Solver solver)
 {
     ofstream error_vs_h;
     error_vs_h.open("error_vs_h.txt");
