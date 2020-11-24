@@ -102,11 +102,11 @@ double Limiter_1d::reconstructor(int j) //Gives v_{i-1/2}^L = v_i + 0.5*Phi(i)
   double ujm2,ujm1,uj/*,ujp1*/;//u_{j-2},u_{j-1},u_j,u_{j+1} isolated
   //for j=n-1,0,1,2 cases.
   //Though it is wasteful in most cases, it adds to readability.
-  uj = solution[j];
   /*if (j==n_points-1)
     ujp1 = solution[0];
   else 
     ujp1 = solution[j+1];*/ //ujp1 is not needed in our limiters.
+  uj = solution[j];
   if (j==0)
     {
       ujm2 = solution[n_points-2];
