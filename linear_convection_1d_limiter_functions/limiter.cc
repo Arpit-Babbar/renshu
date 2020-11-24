@@ -50,11 +50,10 @@ double minmod3(double back_diff,double cent_diff,double fwd_diff)
 class Limiter_1d : public Finite_Volume_Solver_1d
 {
 public:
-    //and which method to use - Lax-Wendroff or RK4
     Limiter_1d(const double n_points, const double cfl,
                string method, const double running_time,
                string initial_data_indicator, string limiter);
-    void run(); //true when output is to be given, and false when it doesn't;
+    void run();
 protected:
     void make_grid();
     void rhs_function();
