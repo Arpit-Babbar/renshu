@@ -3,7 +3,7 @@
 #include <fstream>
 #include <cmath>
 #include "initial_conditions.h"
-#include "vector_output.h"
+#include "vector_upgrade.h"
 #include <cassert>
 
 using namespace std;
@@ -182,3 +182,4 @@ void Finite_Volume_Solver_1d::get_error(vector<double> &l1_vector,
     l2_vector.push_back(l2);
     linfty_vector.push_back(linfty);
 }
+

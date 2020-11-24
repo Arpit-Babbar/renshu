@@ -55,3 +55,5 @@ linear_convection_1d_limiter_functions/runsoup_rk2_minmod
 linear_convection_1d_limiter_functions/runsoup_rk3
 linear_convection_1d_limiter_functions/runsoup_rk3_superbee
 linear_convection_1d_limiter_functions/runsoup_rk3_minmod
+heat1d/ftcs
+.ipynb_checkpoints/soup-checkpoint.ipynb

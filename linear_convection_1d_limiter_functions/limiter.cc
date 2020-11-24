@@ -6,7 +6,6 @@
 #include <string>
 #include <stdio.h>
 #include <sys/time.h>
-#include "vector_add.h"
 #include "run_and_get_output.h"
 #include "finite_volume_solver.h"
 using namespace std;
