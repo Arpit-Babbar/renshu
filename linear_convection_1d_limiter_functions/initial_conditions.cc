@@ -55,15 +55,18 @@ double Initial_Data::interval_part(double x)
   }
   double Initial_Data::hat_function(double grid_point)
   {
-      double value;
+      double result;
       grid_point = interval_part(grid_point);
-      if (grid_point < -0.5 || grid_point > 0.5)
-          value = 0.0;
-      else if (grid_point <= 0.0)
-          value = grid_point + 0.5;
-      else if (grid_point >= 0.0)
-          value = 0.5 - grid_point;
-      return value;
+      if (grid_point <= -0.5 || grid_point >= 0.5)
+          result = 0.0;
+      else 
+      {
+      	  if (grid_point <= 0.0)
+            result = grid_point + 0.5; //x+1/2
+          if (grid_point >  0.0)
+            result = 0.5 - grid_point; //x-1/2
+      }
+      return result;
   }
 
   double Initial_Data::step_function(double grid_point)

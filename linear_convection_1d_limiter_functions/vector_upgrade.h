@@ -1,3 +1,6 @@
+#ifndef __VECTOR_UPGRADE_H__
+#define __VECTOR_UPGRADE_H__
+
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -28,3 +31,5 @@ void output_vectors_to_file(string file_name, vector<double> &grid,
 //output vectors as file_name.txt with columns in following format
 //vector1 vector2
 void output_vectors_to_file(string file_name, vector<double> &grid, vector<double> &solution_old);
+
+#endif

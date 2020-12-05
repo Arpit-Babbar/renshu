@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include "finite_volume_solver.h"
+#include "run_and_get_output.h"
 using namespace std;
 
 //Recall that f_{j+1/2} = a*u_{j+1/2}^L
