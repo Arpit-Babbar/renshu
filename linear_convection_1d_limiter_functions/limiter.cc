@@ -87,7 +87,7 @@ public:
     Solver(const double n_points, const double cfl,
                string scheme, const double running_time,
                string initial_data_indicator, string limiter);
-    void run(); //true when output is to be given, and false when it doesn't;
+    void run();
 protected:
     void make_grid();
     void rhs_function();
