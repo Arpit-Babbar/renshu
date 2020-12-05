@@ -57,3 +57,14 @@ linear_convection_1d_limiter_functions/runsoup_rk3_superbee
 linear_convection_1d_limiter_functions/runsoup_rk3_minmod
 heat1d/ftcs
 .ipynb_checkpoints/soup-checkpoint.ipynb
+back_lw/backward_lw
+linear_convection_1d_limiter_functions/file.ipynb
+linear_convection_1d_limiter_functions/limiter
+soup.ipynb
+linear_convection_1d_limiter_functions/animate_all.gnu
+linear_convection_1d_limiter_functions/all_limiters.png
+linear_convection_1d_limiter_functions/__pycache__/ic.cpython-38.pyc
+linear_convection_1d_limiter_functions/.makefile.swp
+linear_convection_1d/rk3_stab.py
+linear_convection_1d/Figure_1.png
+linear_convection_1d/rk3_stab.py
