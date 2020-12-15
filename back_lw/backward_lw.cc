@@ -121,6 +121,8 @@ void Solver::run()
       solution_old = solution;//update solution_old to be used at next time step
       if (scheme == "back_lw")
           back_lw();
+      else if (scheme =="lw")
+	  lax_wendroff();
       else
         {
           cout << "Incorrect scheme chosen "<<endl;

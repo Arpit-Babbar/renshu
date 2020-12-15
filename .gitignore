@@ -71,3 +71,7 @@ linear_convection_1d/rk3_stab.py
 linear_convection_1d/rk3_stab.py
 linear_convection_1d/rk3_stab.py
 linear_convection_1d/rk3_stab.py
+back_lw/anim.gnu
+back_lw/fourier_transform.py
+back_lw/high_frequency.ipynb
+back_lw/high_frequency_packet.py

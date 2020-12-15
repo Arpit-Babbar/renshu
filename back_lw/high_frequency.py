@@ -25,9 +25,25 @@ def update_back_lw(nu,u):
               +0.5*nu**2*(u[0:-2] - 2.0*u[1:-1] + u[2:])
   return unew
 
-def solve(a, N, cfl, Tf):
-    xmin, xmax = 0.0, 2*np.pi
 
+def solve(a, N, cfl, Tf, k):
+    xmin, xmax = 0.0*np.pi, 2*np.pi
+
+    def uinit(x):
+          return np.sin(k*x)
+    #
+    #def uinit(x):
+    #  f = np.empty_like(x)
+    #  for i, xx in enumerate(x):
+    #    if xx > xmax:
+    #      #y = xx - 2.0*int((xx+1.0)/2.0)
+    #      y = xx - np.ceil((xx-xmax) / (xmax-xmin) ) * (xmax-xmin)
+    #    elif xx < xmin:
+    #      y = xx + np.ceil((xmin - xx) / (xmax - xmin)) * (xmax - xmin)
+    #    else:
+    #      y = xx
+    #    f[i] = np.sin(10.0*y) * np.exp(-4.0*(y-np.pi)**2.0)
+    #  return f
     h = (xmax - xmin)/N
     dt= cfl * h / np.abs(a)
     nu= a * dt / h
@@ -44,7 +60,7 @@ def solve(a, N, cfl, Tf):
     ax.set_xlabel('x'); ax.set_ylabel('u')
     plt.grid(True)
     plt.legend(('Backward Lax-Wendroff','Central Lax-Wendroff', 'Exact Solution'))
-    plt.title('N='+str(N)+', CFL='+str(cfl))
+    plt.title('N='+str(N)+', CFL='+str(cfl)+', k*h = '+str(args.k/N))
     plt.draw(); plt.pause(0.1)
     wait = input("Press enter to continue ")
 
@@ -65,10 +81,9 @@ parser.add_argument('-N', type=int, help='Number of cells', default=100)
 parser.add_argument('-cfl', type=float, help='CFL number', default=0.98)
 parser.add_argument('-a', type=float, help='Advection speed', default=1.0)
 parser.add_argument('-Tf', type=float, help='Final time', default=1.0)
-parser.add_argument('-k', type = float, help='Frequency', default='1.0')
+parser.add_argument('-k', type = float, help='Frequency', default=20.0)
 args = parser.parse_args()
 
 # Run the solver
-def uinit(x):
-  return np.sin(args.k*x)
-solve(args.a, args.N, args.cfl, args.Tf)
+
+solve(args.a, args.N, args.cfl, args.Tf, args.k)

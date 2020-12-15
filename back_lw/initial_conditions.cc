@@ -29,12 +29,17 @@ double Initial_Data::value(double x)
     double result = sine_wave(x);
     return result;
   }
+  else if (initial_data_indicator=="sine_kx")
+  {
+    double result = sin(2.0 * M_PI * x / (x_max - x_min));
+    return result;
+  }
   else 
   {
     cout <<"Incorrect initial_data_indicator"<<endl;
     cout <<"You put "<<initial_data_indicator<<endl;
     cout <<"Your choices are "<<endl;
-    cout << "hat, smooth_sine, step, cts_sine ." <<endl;
+    cout << "hat, smooth_sine, step, cts_sine,sine_kx ." <<endl;
     assert(false);
   }
 }
