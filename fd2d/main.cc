@@ -8,11 +8,11 @@
 #include <sys/time.h>
 
 #include "array2d.h"
-
+#include "vtk_anim.h"
 using namespace std;
 
-//Returns true or false if real number is integer or not.
-bool  int_tester(double a)
+//Returns true if real number is integer, false otherwise.
+bool int_tester(double a)
 {
     double dummy;
     double c = modf(a,&a);
@@ -32,7 +32,7 @@ public:
     void get_error(vector<double> &l1_vector, vector<double> &l2_vector, 
                    vector<double> &linfty_vector, vector<double> &snapshot_error);
 private:
-    //void make_grid();
+    void make_grid();
     void set_initial_solution();
 
     void upwind();
@@ -42,10 +42,9 @@ private:
     double hat_function(double grid_point);
     double step_function(double grid_point); 
     double exp_func_25(double grid_point);
-    double exp_func_100(double grid_point);
 
     void evaluate_error_and_output_solution(const int time_step_number);
-    vector<double[2]> grid;
+    vector<double> grid_x,grid_y;
     double theta, coefficient_x, coefficient_y, x_min, x_max, y_min, y_max;
 
     double interval_part(double);
@@ -84,17 +83,18 @@ Linear_Convection_2d::Linear_Convection_2d(double n_points,
                                            initial_data_indicator(initial_data_indicator)
 {
     theta = M_PI/4.0;
-    // Coefficients are non-constant, only storing their max values temporarily,
-    // as their max values are a working way to get CFL condition.
     coefficient_x = 1.0, coefficient_y = 1.0;
+    //coefficient_x = 1.0, coefficient_y = 1.0;
     x_min = -1.0, x_max = 1.0, y_min = -1.0, y_max = 1.0;
     dx = (x_max - x_min) / (n_points), dy = (y_max-y_min)/(n_points);
     //In interval [0,1], if we run the loop for i = 0,1,...,n-1
     //and take the grid spacing to be 1/n, we won't reach the end of interval.
     t = 0.0;
     dt = lam_x*dx/(abs(coefficient_x));
-    dt = dt * M_PI/(3.5);
-    //We want dt/(2*pi) to be integer, this ensures it.
+    /*//We want dt/coefficient_x to be integer, this ensures it.
+    dt = dt/coefficient_x; Or maybe this step is not needed since dt already
+    divided by coefficient_x
+    */
     lam_x = abs(coefficient_x)*dt/dx;//lam_x updates
     sigma_x = coefficient_x*dt/(dx), sigma_y = coefficient_y*dt/(dy);
     //Since we have lam_x = |u|dt/dx,lam_y = |v|dt/dy, we can actually write
@@ -114,10 +114,21 @@ Linear_Convection_2d::Linear_Convection_2d(double n_points,
     cout << "lam_y = " <<lam_y << endl;
     //grid.resize(n_points);
     error.resize(n_points,n_points);
+    grid_x.resize(n_points),grid_y.resize(n_points);
     initial_solution.resize(n_points,n_points);
     solution_old.resize(n_points,n_points);
     solution.resize(n_points,n_points);
     solution_exact.resize(n_points,n_points);
+}
+
+void Linear_Convection_2d::make_grid()
+{
+  //Note that you must run two for loops for a rectangular grid.
+  for (unsigned int i = 0; i < n_points; i++)
+  {
+    grid_x[i] = x_min + i * dx;
+    grid_y[i] = y_min + i * dy;
+  }
 }
 
 void Linear_Convection_2d::set_initial_solution()
@@ -125,7 +136,8 @@ void Linear_Convection_2d::set_initial_solution()
     for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j < n_points; j++)
       {
-          double x = x_min + i*dx, y = y_min + j*dy;
+          double x = x_min + i*dx;
+          double y = y_min + j*dy;
           switch (initial_data_indicator)
           {
           case 0:
@@ -141,9 +153,6 @@ void Linear_Convection_2d::set_initial_solution()
           case 3:
               solution(i,j) = exp_func_25(x)*exp_func_25(y);
               break;
-          case 4:
-              solution(i,j) = exp_func_100(x)*exp_func_100(y);
-              break;
           default:
               cout << "You entered the wrong initial_data_indicator ";
               assert(false);
@@ -155,10 +164,6 @@ void Linear_Convection_2d::set_initial_solution()
 void Linear_Convection_2d::upwind()
 {
   //(i,j)=(0,0)
-  double x = x_min + 0.0*dx, y = y_min + 0.0*dy;
-  coefficient_x = -y, coefficient_y = x;
-  sigma_x = coefficient_x*dt/(dx),sigma_y = coefficient_y*dt/(dx);
-  lam_x = abs(coefficient_x)*dt/(dx),lam_y = abs(coefficient_y)*dt/(dx);
   solution(0,0) = (1.0-lam_x-lam_y)*solution_old(0,0)
                     +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-1,0)
                     +max(coefficient_y,0.)*(dt/dy)*solution_old(0,n_points-1)
@@ -167,10 +172,6 @@ void Linear_Convection_2d::upwind()
   //i=0
   for (unsigned int j = 1; j<n_points-1;j++) 
     {
-      double x = x_min + 0.0*dx, y = y_min + j*dy;
-      coefficient_x = -y, coefficient_y = x;
-      sigma_x = coefficient_x*dt/(dx),sigma_y = coefficient_y*dt/(dx);
-      lam_x = abs(coefficient_x)*dt/(dx),lam_y = abs(coefficient_y)*dt/(dx);
       solution(0,j) = (1.0-lam_x-lam_y)*solution_old(0,j)
                       +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-1,j)
                       +max(coefficient_y,0.)*(dt/dy)*solution_old(0,j-1)
@@ -178,10 +179,6 @@ void Linear_Convection_2d::upwind()
                       -min(coefficient_y,0.)*(dt/dy)*solution_old(0,j+1);
     }
     //i = 0; j =n_points-1
-  x = x_min + 0.0*dx, y = y_min + (n_points-1.0)*dy;
-  coefficient_x = -y, coefficient_y = x;
-  sigma_x = coefficient_x*dt/(dx),sigma_y = coefficient_y*dt/(dx);
-  lam_x = abs(coefficient_x)*dt/(dx),lam_y = abs(coefficient_y)*dt/(dx);
   solution(0,n_points-1) = (1.0-lam_x-lam_y)*solution_old(0,n_points-1)
                           +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-1,n_points-1)
                           +max(coefficient_y,0.)*(dt/dy)*solution_old(0,n_points-2)
@@ -190,10 +187,6 @@ void Linear_Convection_2d::upwind()
   //j=0
   for (unsigned int i = 1; i<n_points-1 ;i++) 
   {
-    x = x_min + i*dx, y = y_min + 0.0*dy;
-    coefficient_x = -y, coefficient_y = x;
-    sigma_x = coefficient_x*dt/(dx),sigma_y = coefficient_y*dt/(dx);
-    lam_x = abs(coefficient_x)*dt/(dx),lam_y = abs(coefficient_y)*dt/(dx);
     solution(i,0) = (1.0-lam_x-lam_y)*solution_old(i,0)
                         +max(coefficient_x,0.)*(dt/dx)*solution_old(i-1,0)
                         +max(coefficient_y,0.)*(dt/dy)*solution_old(i,n_points-1)
@@ -201,10 +194,6 @@ void Linear_Convection_2d::upwind()
                         -min(coefficient_y,0.)*(dt/dy)*solution_old(i,1);;
   }
   //j=0, i = n_points-1
-  x = x_min + (n_points-1)*dx, y = y_min + 0.0*dy;
-  coefficient_x = -y, coefficient_y = x;
-  sigma_x = coefficient_x*dt/(dx),sigma_y = coefficient_y*dt/(dx);
-  lam_x = abs(coefficient_x)*dt/(dx),lam_y = abs(coefficient_y)*dt/(dx);
   solution(n_points-1,0) = (1.0-lam_x-lam_y)*solution_old(n_points-1,0)
                   +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-2,0)
                   +max(coefficient_y,0.)*(dt/dy)*solution_old(n_points-1,n_points-1)
@@ -213,10 +202,6 @@ void Linear_Convection_2d::upwind()
   //i = n_points-1
   for (unsigned int j = 1;j<n_points-1;j++)
   {
-    x = x_min + (n_points-1)*dx, y = y_min + j*dy;
-    coefficient_x = -y, coefficient_y = x;
-    sigma_x = coefficient_x*dt/(dx),sigma_y = coefficient_y*dt/(dx);
-    lam_x = abs(coefficient_x)*dt/(dx),lam_y = abs(coefficient_y)*dt/(dx);
     solution(n_points-1,j) = (1.0-lam_x-lam_y)*solution_old(n_points-1,j)
                           +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-2,j)
                           +max(coefficient_y,0.)*(dt/dy)*solution_old(n_points-1,j-1)
@@ -226,24 +211,22 @@ void Linear_Convection_2d::upwind()
   //j = n_points - 1
   for (unsigned int i = 1; i<n_points-1; i++)
   {
-        x = x_min + i*dx, y = y_min + (n_points-1)*dy;
-        coefficient_x = -y, coefficient_y = x;
-        sigma_x = coefficient_x*dt/(dx),sigma_y = coefficient_y*dt/(dx);
-        lam_x = abs(coefficient_x)*dt/(dx),lam_y = abs(coefficient_y)*dt/(dx);
         solution(i,n_points-1) = (1.0-lam_x-lam_y)*solution_old(i,n_points-1)
                         +max(coefficient_x,0.)*(dt/dx)*solution_old(i-1,n_points-1)
                         +max(coefficient_y,0.)*(dt/dy)*solution_old(i,n_points-2)
                         -min(coefficient_x,0.)*(dt/dx)*solution_old(i+1,n_points-1)
                         -min(coefficient_y,0.)*(dt/dy)*solution_old(i,0);
   }
+  //i = n_points - 1, j = n_points-1
+  solution(n_points-1,n_points-1) = (1.0-lam_x-lam_y)*solution_old(n_points-1,n_points-1)
+                +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-2,n_points-1)
+                +max(coefficient_y,0.)*(dt/dy)*solution_old(n_points-1,n_points-2)
+                -min(coefficient_x,0.)*(dt/dx)*solution_old(0,n_points-1)
+                -min(coefficient_y,0.)*(dt/dy)*solution_old(n_points-1,0);
   //i != 0,n_points-1, j != 0,n_points-1
   for (unsigned int i = 1; i < n_points-1; i++)
       for (unsigned int j = 1; j < n_points-1; j++)
       {
-        x = x_min + i*dx, y = y_min + j*dy;
-        coefficient_x = -y, coefficient_y = x;
-        sigma_x = coefficient_x*dt/(dx),sigma_y = coefficient_y*dt/(dx);
-        lam_x = abs(coefficient_x)*dt/(dx),lam_y = abs(coefficient_y)*dt/(dx);
         solution(i,j) = (1.0-lam_x-lam_y)*solution_old(i,j)
                         +max(coefficient_x,0.)*(dt/dx)*solution_old(i-1,j)
                         +max(coefficient_y,0.)*(dt/dy)*solution_old(i,j-1)
@@ -449,7 +432,6 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
       {
           double x = x_min + i*dx;
           double y = y_min + j*dy;
-          coefficient_x = -y, coefficient_y = x;
           switch (initial_data_indicator)
           {
           case 0:
@@ -468,16 +450,19 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
               solution_exact(i,j) = exp_func_25(x-coefficient_x*t)
                                     * exp_func_25(y-coefficient_y*t);
               break;
-          case 4:
-              solution_exact(i,j) = exp_func_100(x*cos(t)+y*sin(t))
-                                    * exp_func_100(-x*sin(t)+y*cos(t));
-              break;
           default:
               cout << "You entered the wrong initial_data_indicator ";
               assert(false);
           }
       }
-    
+    vtk_anim_sol(grid_x,grid_y,
+          solution,
+          t, time_step_number,
+          "approximate_solution");
+    vtk_anim_sol(grid_x,grid_y,
+          solution_exact,
+          t, time_step_number,
+          "exact_solution");
     for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j < n_points; j++)
       {
@@ -489,7 +474,7 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
 
 void Linear_Convection_2d::run()
 {
-    //make_grid();
+    make_grid();
     set_initial_solution(); //sets solution to be the initial data
     int time_step_number = 0; 
     evaluate_error_and_output_solution(time_step_number);
@@ -507,7 +492,7 @@ void Linear_Convection_2d::run()
             assert(false);
         //Compute snapshot error for integert/coefficient_x, t/coefficient_y
         //You must run the solver for longer time, or you'd get very less error.
-        if ((t>0.0)&&(int_tester(t/(2*M_PI))==true))
+        if ((t>0.0)&&(int_tester(t*coefficient_x)==true)&&(int_tester(t*coefficient_y)))
         {
           //cout << "We are evaluating snapshot error at t = "<< t<<endl;
           for (unsigned int i = 0; i < n_points; i++)
@@ -636,13 +621,7 @@ double Linear_Convection_2d::step_function(double grid_point)
 double Linear_Convection_2d::exp_func_25(double grid_point)
 {
   grid_point = interval_part(grid_point);
-  return exp(-25.0*grid_point*grid_point);
-}
-
-double Linear_Convection_2d::exp_func_100(double grid_point)
-{
-  grid_point = interval_part(grid_point);
-  return exp(-100.0*(grid_point-0.5)*(grid_point-0.5));
+  return exp(-25*grid_point*grid_point);
 }
 
 void Linear_Convection_2d::get_error(vector<double> &l1_vector,
@@ -679,12 +658,12 @@ int main(int argc, char **argv)
         cout << "upwind"<<endl<<"lw"<<endl<<"ct_upwind"<<endl;
         cout << "Choices for initial data "<<endl;
         cout << "0 - smooth_sine"<<endl<<"1 - hat"<<"2 - step"<<endl;
-        cout << "3 - exp_func_25" << "4 - exp_func_100"<<endl;
+        cout << "3 - exp_func_25" <<endl;
         assert(false);
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    double n_points = 15.0;
+    double n_points = 100.0;
     double cfl = stod(argv[2]);
     cout << "cfl = " << cfl << endl;
     double running_time = stod(argv[3]);

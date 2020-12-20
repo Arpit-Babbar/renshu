@@ -2,6 +2,7 @@
 #define __ARRAY2D_H__
 
 #include <vector>
+#include <cassert>
 
 using namespace std;
 

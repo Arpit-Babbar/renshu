@@ -120,3 +120,6 @@ bvp2d/bvp2d/step-02/ssor_solver.cc
 bvp2d/bvp2d/step-02/ssor_solver.h
 bvp2d/bvp2d/step-02/Vector.cc
 bvp2d/bvp2d/step-02/Vector.h
+*.vtk
+fd2d/output
+fd2d/output
