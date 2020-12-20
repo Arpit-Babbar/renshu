@@ -42,6 +42,8 @@ private:
     double hat_function(double grid_point);
     double step_function(double grid_point); 
     double exp_func_25(double grid_point);
+    double exp_func_100(double grid_point);
+
 
     void evaluate_error_and_output_solution(const int time_step_number);
     vector<double> grid_x,grid_y;
@@ -83,7 +85,7 @@ Linear_Convection_2d::Linear_Convection_2d(double n_points,
                                            initial_data_indicator(initial_data_indicator)
 {
     theta = M_PI/4.0;
-    coefficient_x = 1.0, coefficient_y = 1.0;
+    coefficient_x = -1.0, coefficient_y = 1.0;
     //coefficient_x = 1.0, coefficient_y = 1.0;
     x_min = -1.0, x_max = 1.0, y_min = -1.0, y_max = 1.0;
     dx = (x_max - x_min) / (n_points), dy = (y_max-y_min)/(n_points);
@@ -99,7 +101,7 @@ Linear_Convection_2d::Linear_Convection_2d(double n_points,
     sigma_x = coefficient_x*dt/(dx), sigma_y = coefficient_y*dt/(dy);
     //Since we have lam_x = |u|dt/dx,lam_y = |v|dt/dy, we can actually write
     //Thus, dt = lam_x*dx/|u|. Thus, lam_y = |v/u|*(dx/dy) * lam_x = 
-    lam_y = (coefficient_y/coefficient_x)*dx/dy * lam_x;
+    lam_y = abs(coefficient_y/coefficient_x)*dx/dy * lam_x;
     if (method == "lw"    &&
         (dx - dy < 1e-12) && 
         (dt/dx > 1.0/sqrt(coefficient_x*coefficient_x + coefficient_y*coefficient_y)))
@@ -152,6 +154,9 @@ void Linear_Convection_2d::set_initial_solution()
               break;
           case 3:
               solution(i,j) = exp_func_25(x)*exp_func_25(y);
+              break;
+          case 4:
+              solution(i,j) = exp_func_100(x)*exp_func_100(y);
               break;
           default:
               cout << "You entered the wrong initial_data_indicator ";
@@ -450,6 +455,10 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
               solution_exact(i,j) = exp_func_25(x-coefficient_x*t)
                                     * exp_func_25(y-coefficient_y*t);
               break;
+          case 4:
+              solution_exact(i,j) = exp_func_100(x-coefficient_x*t)
+                                    * exp_func_100(y-coefficient_y*t);
+              break;
           default:
               cout << "You entered the wrong initial_data_indicator ";
               assert(false);
@@ -624,6 +633,12 @@ double Linear_Convection_2d::exp_func_25(double grid_point)
   return exp(-25*grid_point*grid_point);
 }
 
+double Linear_Convection_2d::exp_func_100(double grid_point)
+{
+  grid_point = interval_part(grid_point);
+  return exp(-100.0*(grid_point-0.5)*(grid_point-0.5));
+}
+
 void Linear_Convection_2d::get_error(vector<double> &l1_vector,
                                      vector<double> &l2_vector,
                                      vector<double> &linfty_vector,
@@ -664,7 +679,7 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    double n_points = 100.0;
+    double n_points = 60.0;
     double cfl = stod(argv[2]);
     cout << "cfl = " << cfl << endl;
     double running_time = stod(argv[3]);

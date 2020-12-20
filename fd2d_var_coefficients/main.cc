@@ -178,7 +178,7 @@ void Linear_Convection_2d::upwind()
   //i=0
   for (unsigned int j = 1; j<n_points-1;j++) 
     {
-      double x = x_min + 0.0*dx, y = y_min + j*dy;
+      x = x_min + 0.0*dx, y = y_min + j*dy;
       coefficient_x = -y, coefficient_y = x;
       sigma_x = coefficient_x*dt/(dx),sigma_y = coefficient_y*dt/(dx);
       lam_x = abs(coefficient_x)*dt/(dx),lam_y = abs(coefficient_y)*dt/(dx);
@@ -474,20 +474,20 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
           switch (initial_data_indicator)
           {
           case 0:
-              solution_exact(i,j) = sin(2.0 * M_PI * (x - coefficient_x*t) / (x_max - x_min))
-                                    * sin(2.0 * M_PI * (y - coefficient_y*t) / (y_max - y_min));
+              solution_exact(i,j) = sin(2.0 * M_PI * (x*cos(t)+y*sin(t)) / (x_max - x_min))
+                                    * sin(2.0 * M_PI * (-x*sin(t)+y*cos(t)) / (y_max - y_min));
               break;
           case 1:
-              solution_exact(i,j) = hat_function(x - coefficient_x*t)
-                                    * hat_function(y - coefficient_y*t);
+              solution_exact(i,j) = hat_function(x*cos(t)+y*sin(t))
+                                    * hat_function(-x*sin(t)+y*cos(t));
               break;
           case 2:
-              solution_exact(i,j) = step_function(x - coefficient_x*t)
-                                    * step_function(y - coefficient_y*t);
+              solution_exact(i,j) = step_function(x*cos(t)+y*sin(t))
+                                    * step_function(-x*sin(t)+y*cos(t));
               break;
           case 3:
-              solution_exact(i,j) = exp_func_25(x-coefficient_x*t)
-                                    * exp_func_25(y-coefficient_y*t);
+              solution_exact(i,j) = exp_func_25(x*cos(t)+y*sin(t))
+                                    * exp_func_25(-x*sin(t)+y*cos(t));
               break;
           case 4:
               solution_exact(i,j) = exp_func_100(x*cos(t)+y*sin(t))
@@ -717,7 +717,7 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    double n_points = 300.0;
+    double n_points = 60.0;
     double cfl = stod(argv[2]);
     cout << "cfl = " << cfl << endl;
     double running_time = stod(argv[3]);
