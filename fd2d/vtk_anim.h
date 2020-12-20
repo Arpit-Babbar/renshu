@@ -86,14 +86,14 @@ void write_rectilinear_grid(vector<double> &grid_x,
    }
    fout.close();
 
-   cout << "Wrote Cartesian grid into " << filename << endl;
+   //cout << "Wrote Cartesian grid into " << filename << endl;
 }
 void vtk_anim_sol(vector<double> &grid_x,vector<double> &grid_y,
                   Array2D& solution, double t,
                   double time_step_number,
                   string filename)
 {
-  cout << "Saving rectilinear grid\n";
+  //cout << "Saving rectilinear grid\n";
   /*
   const int nx = solution.sizex(), ny = solution.sizey();
   const double xmin = -1.0, xmax = 1.0;

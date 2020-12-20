@@ -572,8 +572,8 @@ void run_and_get_output(double n_points, double cfl,
     if (snapshot_vector[linfty_vector.size()-1]-(-1.0) < 1e-12)
     {
       cout<<"WARNING -Initial state never reached, so snapshot error not calculated.";
-      cout<<" Check if running_time is too less, or if (n*dt)/(2pi) ";
-      cout<<" is actually close to an integer for any n" <<endl;
+      cout<<" Check if running_time is too less, or coefficient_x/coefficient_y";
+      cout<<" is irrational " <<endl;
     }
     cout << "After " << max_refinements << " refinements, l_infty error = ";
     cout << linfty_vector[linfty_vector.size()-1] << endl;
@@ -657,7 +657,8 @@ int main(int argc, char **argv)
         cout << "Choices for method"<<endl;
         cout << "upwind"<<endl<<"lw"<<endl<<"ct_upwind"<<endl;
         cout << "Choices for initial data "<<endl;
-        cout << "0 - smooth_sine"<<endl<<"1 - hat"<<"2 - step"<<endl;
+        cout << "0 - smooth_sine"<<endl<<"1 - hat"<<endl;
+	cout << "2 - step"<<endl;
         cout << "3 - exp_func_25" <<endl;
         assert(false);
     }
