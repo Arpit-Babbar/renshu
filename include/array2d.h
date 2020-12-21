@@ -9,7 +9,8 @@ class Array2D
 {
 public:
    Array2D();
-   Array2D(const unsigned int nx, const unsigned int ny);
+   Array2D(const unsigned int nx, const unsigned int ny,
+           const unsigned int ng = 0/*Default value*/); 
    void resize (const unsigned int nx, const unsigned int ny);
    unsigned int sizex() const;
    unsigned int sizey() const;
@@ -19,7 +20,7 @@ public:
    Array2D& operator= (const Array2D& u);
    
 private:
-   unsigned int nx, ny, n;
+   const unsigned int nx, ny, n, ng;
    std::vector<double> u;
 };
 
@@ -29,19 +30,27 @@ Array2D::Array2D ()
 :
 nx (0),
 ny (0),
+ng (0),
 n  (0)
 {
 }
-
+//We can specify a layer of ghost cells 
+//Adding a print function.
 // Constructor based on size
-Array2D::Array2D (const unsigned int nx, const unsigned int ny)
+Array2D::Array2D (const unsigned int nx, const unsigned int ny,
+                  const unsigned int ng)
 :
 nx (nx),
 ny (ny),
-n  (nx*ny),
-u  (nx*ny)
+ng (ng),
+n  ((nx+2*ng)*(ny+2*ng)),
+u  ((nx+2*ng)*(ny+2*ng))
 {
 }
+
+//Overload constructor.
+
+
 
 // Change size of array
 void Array2D::resize(const unsigned int nx1, const unsigned int ny1)
@@ -80,13 +89,15 @@ double Array2D::operator() (const unsigned int i, const unsigned int j) const
 // Return reference to (i,j), this can modify the value
 double& Array2D::operator() (const unsigned int i, const unsigned int j)
 {
-   if ((i>=nx) || (j>=ny))
+#ifdef DEBUG /* g++ -o output main.cc -DDEBUG*/
+   if ((i>=nx) || (j>=ny)) //Move to debug. Debugging option in makefile.
    {
    cout << "Attempt to access non-existent array entries"<<endl;
    cout << "Array has rows,columns of sizes " <<  nx <<","<< ny << endl;
    cout << "Tried to access row, column position " << i <<"," <<j << endl;
    assert(false);
    }
+#endif
    return u[i + j*nx];
 }
 

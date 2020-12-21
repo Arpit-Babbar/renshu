@@ -16,18 +16,20 @@ all: $(TARGETS)
 %.o: %.cc %.h
 	$(CXX) $(CFLAGS) -c $*.cc
 
-array2d.o: array2d.cc
-	$(CXX) $(CFLAGS) -c limiter.cc
+main.o: main.cc array2d.h
+	$(CXX) $(CFLAGS) -c main.cc
+
+#rray2d.o: array2d.cc
+#$(CXX) $(CFLAGS) -c limiter.cc
 
 #linking stage
-array2d:  $(OBJ) #making a file without extension?
-	$(CXX) -o $@ $^ #$@ -> limiter, $^ -> $(OBJ)
+#array2d:  $(OBJ) #making a file without extension?
+#	$(CXX) -o $@ $^ #$@ -> limiter, $^ -> $(OBJ)
 
 
 
-#linsol_test: sparse_matrix.o Vector.o cg_solver.o jacobi_solver.o \
-#             sor_solver.o ssor_solver.o linsol_test.o
-#	$(CXX) -o $@ $^
+main: array2d.o main.o
+	$(CXX) -o $@ $^
 
 #linsol_test_2d: sparse_matrix.o Vector.o cg_solver.o jacobi_solver.o \
                 sor_solver.o ssor_solver.o linsol_test_2d.o

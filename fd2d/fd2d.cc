@@ -85,7 +85,7 @@ private:
     double q_i_j,q_i_jm1,q_i_jp1;  //Q_{i,j},Q_{i,j-1},Q_{i,j+1}
     double q_im1_j,q_im1_jm1,q_im1_jp1;//Q_{i-1,j},Q_{i-1,j-1},Q_{i-1,j+1}
     double q_ip1_j,q_ip1_jm1,q_ip1_jp1;//Q_{i+1,j},Q_{i+1,j-1},Q_{i+1,j+1}
-    void update_values(unsigned int i, unsigned int j); //Updates all the Q_{i,j}'s
+    void get_stencil_values(unsigned int i, unsigned int j); //Updates all the Q_{i,j}'s
     string method;
     int initial_data_indicator;
 };
@@ -148,7 +148,7 @@ void Linear_Convection_2d::make_grid()
   }
 }
 
-void Linear_Convection_2d::update_values(unsigned int i, unsigned int j)
+void Linear_Convection_2d::get_stencil_values(unsigned int i, unsigned int j)
 {
   q_i_j = solution_old(i,j);
 
@@ -280,7 +280,7 @@ void Linear_Convection_2d::upwind()
   for (unsigned int i = 0; i < n_points; i++)
     for (unsigned int j = 0; j < n_points; j++)
     {
-      update_values(i,j);
+      get_stencil_values(i,j);
       solution(i,j) = (1.0-lam_x-lam_y)*q_i_j
                       +max(coefficient_x,0.)*(dt/dx)*q_im1_j
                       +max(coefficient_y,0.)*(dt/dy)*q_i_jm1
@@ -294,7 +294,7 @@ void Linear_Convection_2d::ct_upwind()
   for (unsigned int i = 0; i < n_points; i++)
     for (unsigned int j = 0; j < n_points; j++)
     {
-      update_values(i,j);
+      get_stencil_values(i,j);
       solution(i,j) = (1.0-sigma_x)*(1.0-sigma_y)*q_i_j
                       +sigma_x*(1-sigma_y)*q_im1_j
                       +(1-sigma_x)*sigma_y*q_i_jm1
@@ -307,7 +307,7 @@ void Linear_Convection_2d::lw()
   for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j < n_points; j++)
       {
-        update_values(i,j);
+        get_stencil_values(i,j);
         solution(i,j) = q_i_j-0.5*sigma_x*(q_ip1_j-q_im1_j)
                         -0.5*sigma_y*(q_i_jp1-q_i_jm1)
                         +0.5*sigma_x*sigma_x*(q_im1_j-2.0*q_i_j+q_ip1_j)
@@ -324,7 +324,7 @@ void Linear_Convection_2d::m_roe()
     for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j<n_points;j++)
       {
-        update_values(i,j);
+        get_stencil_values(i,j);
         solution(i,j) = q_i_j-0.5*sigma_x*(q_ip1_j-q_im1_j)
                         -0.5*sigma_y*(q_i_jp1-q_i_jm1)
                         +0.5*sigma_x*sigma_x*(q_im1_j-2.0*q_i_j+q_ip1_j)
@@ -372,13 +372,9 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
     if (output_indicator==true && time_step_number%5==0)
     {
     vtk_anim_sol(grid_x,grid_y,
-          solution,
+          solution, solution_exact,
           t, time_step_number/5,
           "approximate_solution");
-    vtk_anim_sol(grid_x,grid_y,
-          solution_exact,
-          t, time_step_number/5,
-          "exact_solution");
     }
     for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j < n_points; j++)
