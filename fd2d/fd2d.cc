@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-#include "array2d.h"
-#include "vtk_anim.h"
+#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/array2d.h"
+#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/vtk_anim.h"
 using namespace std;
 
 //Returns true if real number is integer, false otherwise.
@@ -20,6 +20,15 @@ bool int_tester(double a)
     return (c<1e-4);
 }
 
+double f_x(double qij, double x, double y)
+{
+  return -y*qij;
+}
+double f_y(double qij, double x, double y)
+{
+  return x*qij;
+}
+
 class Linear_Convection_2d
 {
 public:
@@ -28,7 +37,7 @@ public:
                          string method, const double running_time,
                          int initial_data_indicator); 
 
-    void run();
+    void run(bool output_indicator);
     void get_error(vector<double> &l1_vector, vector<double> &l2_vector, 
                    vector<double> &linfty_vector, vector<double> &snapshot_error);
 private:
@@ -38,6 +47,7 @@ private:
     void upwind();
     void lw();
     void ct_upwind();
+    void m_roe();
 
     double hat_function(double grid_point);
     double step_function(double grid_point); 
@@ -45,7 +55,8 @@ private:
     double exp_func_100(double grid_point);
 
 
-    void evaluate_error_and_output_solution(const int time_step_number);
+    void evaluate_error_and_output_solution(const int time_step_number,
+                                            bool output_indicator);
     vector<double> grid_x,grid_y;
     double theta, coefficient_x, coefficient_y, x_min, x_max, y_min, y_max;
 
@@ -70,7 +81,11 @@ private:
 
     double n_points, dx, dy, dt, t, running_time;
     double lam_x,lam_y, sigma_x,sigma_y;
-
+    //It will beneficial for us to isolate the following values
+    double q_i_j,q_i_jm1,q_i_jp1;  //Q_{i,j},Q_{i,j-1},Q_{i,j+1}
+    double q_im1_j,q_im1_jm1,q_im1_jp1;//Q_{i-1,j},Q_{i-1,j-1},Q_{i-1,j+1}
+    double q_ip1_j,q_ip1_jm1,q_ip1_jp1;//Q_{i+1,j},Q_{i+1,j-1},Q_{i+1,j+1}
+    void update_values(unsigned int i, unsigned int j); //Updates all the Q_{i,j}'s
     string method;
     int initial_data_indicator;
 };
@@ -133,6 +148,100 @@ void Linear_Convection_2d::make_grid()
   }
 }
 
+void Linear_Convection_2d::update_values(unsigned int i, unsigned int j)
+{
+  q_i_j = solution_old(i,j);
+
+  //Q_{i,j-1}
+  if (j==0)
+    q_i_jm1 = solution_old(i,n_points-1);
+  else
+    q_i_jm1 = solution_old(i,j-1);
+  
+  //Q_{i,j+1}
+  if (j==n_points-1)
+    q_i_jp1 = solution_old(i,0);
+  else
+    q_i_jp1 = solution_old(i,j+1);
+  
+  //Q_{i-1,j}
+  if (i==0)
+    q_im1_j = solution_old(n_points-1,j);      
+  else
+    q_im1_j = solution_old(i-1,j); 
+  
+  //Q_{i-1,j-1}
+  if (i==0)
+  {
+    if (j==0)
+      q_im1_jm1 = solution_old(n_points-1,n_points-1);
+    else
+      q_im1_jm1 = solution_old(n_points-1,j-1);
+  }
+  else
+  {
+    if (j==0)
+      q_im1_jm1 = solution_old(i-1,n_points-1);
+    else
+      q_im1_jm1 = solution_old(i-1,j-1);
+  }
+
+  //Q_{i-1,j+1}
+  if (i==0)
+  {
+    if (j==n_points-1)
+      q_im1_jp1 = solution_old(n_points-1,0);
+    else
+      q_im1_jp1 = solution_old(n_points-1,j+1);
+  }
+  else
+  {
+    if (j==n_points-1)
+      q_im1_jp1 = solution_old(i-1,0);
+    else
+      q_im1_jp1 = solution_old(i-1,j+1);
+  }
+  
+  //Q_{i+1,j}
+  if (i==n_points-1)
+    q_ip1_j = solution_old(0,j);
+  else
+    q_ip1_j = solution_old(i+1,j);
+  
+  //Q_{i+1,j-1}
+  if (i==n_points-1)
+  {
+    if (j==0)
+      q_ip1_jm1 = solution_old(0,n_points-1);
+    else
+      q_ip1_jm1 = solution_old(0,j-1);
+  }
+  else
+  {
+    if (j==0)
+      q_ip1_jm1 = solution_old(i+1,n_points-1);
+    else
+      q_ip1_jm1 = solution_old(i+1,j-1);
+  }
+
+  //Q_{i+1,j+1}
+  if (i==n_points-1)
+  {
+    if (j==n_points-1)
+      q_ip1_jp1 = solution_old(0,0);  
+    else
+      q_ip1_jp1 = solution_old(0,j+1);
+  }
+  else
+  {
+    if (j==n_points-1)
+      q_ip1_jp1 = solution_old(i+1,0);
+    else
+      q_ip1_jp1 = solution_old(i+1,j+1);
+  }
+    
+}
+
 void Linear_Convection_2d::set_initial_solution()
 {
     for (unsigned int i = 0; i < n_points; i++)
@@ -168,269 +277,65 @@ void Linear_Convection_2d::set_initial_solution()
 
 void Linear_Convection_2d::upwind()
 {
-  //(i,j)=(0,0)
-  solution(0,0) = (1.0-lam_x-lam_y)*solution_old(0,0)
-                    +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-1,0)
-                    +max(coefficient_y,0.)*(dt/dy)*solution_old(0,n_points-1)
-                    -min(coefficient_x,0.)*(dt/dx)*solution_old(1,0)
-                    -min(coefficient_y,0.)*(dt/dy)*solution_old(0,1);
-  //i=0
-  for (unsigned int j = 1; j<n_points-1;j++) 
+  for (unsigned int i = 0; i < n_points; i++)
+    for (unsigned int j = 0; j < n_points; j++)
     {
-      solution(0,j) = (1.0-lam_x-lam_y)*solution_old(0,j)
-                      +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-1,j)
-                      +max(coefficient_y,0.)*(dt/dy)*solution_old(0,j-1)
-                      -min(coefficient_x,0.)*(dt/dx)*solution_old(1,j)
-                      -min(coefficient_y,0.)*(dt/dy)*solution_old(0,j+1);
+      update_values(i,j);
+      solution(i,j) = (1.0-lam_x-lam_y)*q_i_j
+                      +max(coefficient_x,0.)*(dt/dx)*q_im1_j
+                      +max(coefficient_y,0.)*(dt/dy)*q_i_jm1
+                      -min(coefficient_x,0.)*(dt/dx)*q_ip1_j
+                      -min(coefficient_y,0.)*(dt/dy)*q_i_jp1;
     }
-    //i = 0; j =n_points-1
-  solution(0,n_points-1) = (1.0-lam_x-lam_y)*solution_old(0,n_points-1)
-                          +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-1,n_points-1)
-                          +max(coefficient_y,0.)*(dt/dy)*solution_old(0,n_points-2)
-                          -min(coefficient_x,0.)*(dt/dx)*solution_old(1,n_points-1)
-                          -min(coefficient_y,0.)*(dt/dy)*solution_old(0,0);
-  //j=0
-  for (unsigned int i = 1; i<n_points-1 ;i++) 
-  {
-    solution(i,0) = (1.0-lam_x-lam_y)*solution_old(i,0)
-                        +max(coefficient_x,0.)*(dt/dx)*solution_old(i-1,0)
-                        +max(coefficient_y,0.)*(dt/dy)*solution_old(i,n_points-1)
-                        -min(coefficient_x,0.)*(dt/dx)*solution_old(i+1,0)
-                        -min(coefficient_y,0.)*(dt/dy)*solution_old(i,1);;
-  }
-  //j=0, i = n_points-1
-  solution(n_points-1,0) = (1.0-lam_x-lam_y)*solution_old(n_points-1,0)
-                  +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-2,0)
-                  +max(coefficient_y,0.)*(dt/dy)*solution_old(n_points-1,n_points-1)
-                  -min(coefficient_x,0.)*(dt/dx)*solution_old(0,0)
-                  -min(coefficient_y,0.)*(dt/dy)*solution_old(n_points-1,1);
-  //i = n_points-1
-  for (unsigned int j = 1;j<n_points-1;j++)
-  {
-    solution(n_points-1,j) = (1.0-lam_x-lam_y)*solution_old(n_points-1,j)
-                          +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-2,j)
-                          +max(coefficient_y,0.)*(dt/dy)*solution_old(n_points-1,j-1)
-                          -min(coefficient_x,0.)*(dt/dx)*solution_old(0,j)
-                          -min(coefficient_y,0.)*(dt/dy)*solution_old(n_points-1,j+1);
-  }
-  //j = n_points - 1
-  for (unsigned int i = 1; i<n_points-1; i++)
-  {
-        solution(i,n_points-1) = (1.0-lam_x-lam_y)*solution_old(i,n_points-1)
-                        +max(coefficient_x,0.)*(dt/dx)*solution_old(i-1,n_points-1)
-                        +max(coefficient_y,0.)*(dt/dy)*solution_old(i,n_points-2)
-                        -min(coefficient_x,0.)*(dt/dx)*solution_old(i+1,n_points-1)
-                        -min(coefficient_y,0.)*(dt/dy)*solution_old(i,0);
-  }
-  //i = n_points - 1, j = n_points-1
-  solution(n_points-1,n_points-1) = (1.0-lam_x-lam_y)*solution_old(n_points-1,n_points-1)
-                +max(coefficient_x,0.)*(dt/dx)*solution_old(n_points-2,n_points-1)
-                +max(coefficient_y,0.)*(dt/dy)*solution_old(n_points-1,n_points-2)
-                -min(coefficient_x,0.)*(dt/dx)*solution_old(0,n_points-1)
-                -min(coefficient_y,0.)*(dt/dy)*solution_old(n_points-1,0);
-  //i != 0,n_points-1, j != 0,n_points-1
-  for (unsigned int i = 1; i < n_points-1; i++)
-      for (unsigned int j = 1; j < n_points-1; j++)
-      {
-        solution(i,j) = (1.0-lam_x-lam_y)*solution_old(i,j)
-                        +max(coefficient_x,0.)*(dt/dx)*solution_old(i-1,j)
-                        +max(coefficient_y,0.)*(dt/dy)*solution_old(i,j-1)
-                        -min(coefficient_x,0.)*(dt/dx)*solution_old(i+1,j)
-                        -min(coefficient_y,0.)*(dt/dy)*solution_old(i,j+1);
-      }
 }
 
 void Linear_Convection_2d::ct_upwind()
 {
-  //(i,j)=(0,0)
-  solution(0,0) = (1.0-sigma_x)*(1.0-sigma_y)*solution_old(0,0)
-                +sigma_x*(1-sigma_y)*solution_old(n_points-1,0)
-                +(1-sigma_x)*sigma_y*solution_old(0,n_points-1)
-                +sigma_x*sigma_y*solution_old(n_points-1,n_points-1);
-  //i=0
-  for (unsigned int j = 1; j<n_points;j++) 
+  for (unsigned int i = 0; i < n_points; i++)
+    for (unsigned int j = 0; j < n_points; j++)
     {
-    solution(0,j) = (1.0-sigma_x)*(1.0-sigma_y)*solution_old(0,j)
-                    +sigma_x*(1-sigma_y)*solution_old(n_points-1,j)
-                    +(1-sigma_x)*sigma_y*solution_old(0,j-1)
-                    +sigma_x*sigma_y*solution_old(n_points-1,j-1);
+      update_values(i,j);
+      solution(i,j) = (1.0-sigma_x)*(1.0-sigma_y)*q_i_j
+                      +sigma_x*(1-sigma_y)*q_im1_j
+                      +(1-sigma_x)*sigma_y*q_i_jm1
+                      +sigma_x*sigma_y*q_im1_jm1;
     }
-  //Extremely stupid mistake - I thought that the above cover all
-  //the extra cases, when it clearly doesn't.
-  //j=0
-  for (unsigned int i = 1; i<n_points ;i++) 
-  {
-  solution(i,0) = (1.0-sigma_x)*(1.0-sigma_y)*solution_old(i,0)
-                  +sigma_x*(1-sigma_y)*solution_old(i-1,0)
-                  +(1-sigma_x)*sigma_y*solution_old(i,n_points-1)
-                  +sigma_x*sigma_y*solution_old(i-1,n_points-1);
-  }
-  for (unsigned int i = 1; i < n_points; i++)
-      for (unsigned int j = 1; j < n_points; j++)
-      {
-        solution(i,j) = (1.0-sigma_x)*(1.0-sigma_y)*solution_old(i,j)
-                        +sigma_x*(1-sigma_y)*solution_old(i-1,j)
-                        +(1-sigma_x)*sigma_y*solution_old(i,j-1)
-                        +sigma_x*sigma_y*solution_old(i-1,j-1);
-      }
 }
 
 void Linear_Convection_2d::lw()
 {
-  //(i,j)=(0,0)
-  solution(0,0) = solution_old(0,0)
-                      -0.5*sigma_x*(solution_old(1,0)-solution_old(n_points-1,0))
-                      -0.5*sigma_y*(solution_old(0,1)-solution_old(0,n_points-1))
-                      +0.5*sigma_x*sigma_x*(solution_old(1,0)
-                                            -2.0*solution_old(0,0)
-                                            +solution_old(n_points-1,0))
-                      +0.25*sigma_x*sigma_y*(solution_old(1,1)
-                                            -solution_old(1,n_points-1)
-                                            -solution_old(n_points-1,1)
-                                            +solution_old(n_points-1,n_points-1))
-                      +0.5*sigma_y*sigma_y*(solution_old(0,1)
-                                            -2.0*solution_old(0,0)
-                                            +solution_old(0,n_points-1));
-  //i=0
-  for (unsigned int j = 1; j<n_points-1;j++) 
-    {
-      solution(0,j) = solution_old(0,j)
-                      -0.5*sigma_x*(solution_old(1,j)-solution_old(n_points-1,j))
-                      -0.5*sigma_y*(solution_old(0,j+1)-solution_old(0,j-1))
-                      +0.5*sigma_x*sigma_x*(solution_old(1,j)
-                                            -2.0*solution_old(0,j)
-                                            +solution_old(n_points-1,j))
-                      +0.25*sigma_x*sigma_y*(solution_old(1,j+1)
-                                            -solution_old(1,j-1)
-                                            -solution_old(n_points-1,j+1)
-                                            +solution_old(n_points-1,j-1))
-                      +0.5*sigma_y*sigma_y*(solution_old(0,j+1)
-                                            -2.0*solution_old(0,j)
-                                            +solution_old(0,j-1));
-    }
-  //Extremely stupid mistake - I thought that the above cover all
-  //the extra cases, when it clearly doesn't.
-  //j=0
-  for (unsigned int i = 1; i<n_points-1;i++) 
-  {
-    solution(i,0) = solution_old(i,0)
-                -0.5*sigma_x*(solution_old(i+1,0)-solution_old(i-1,0))
-                -0.5*sigma_y*(solution_old(i,1)-solution_old(i,n_points-1))
-                +0.5*sigma_x*sigma_x*(solution_old(i+1,0)
-                                      -2.0*solution_old(i,0)
-                                      +solution_old(i-1,0))
-                +0.25*sigma_x*sigma_y*(solution_old(i+1,1)
-                                      -solution_old(i+1,n_points-1)
-                                      -solution_old(i-1,1)
-                                      +solution_old(i-1,n_points-1))
-                +0.5*sigma_y*sigma_y*(solution_old(i,1)
-                                      -2.0*solution_old(i,0)
-                                      +solution_old(i,n_points-1));
-  }
-  //i=n_points-1,j=0
-  solution(n_points-1,0) = solution_old(n_points-1,0)
-                      -0.5*sigma_x*(solution_old(0,0)
-                                    -solution_old(n_points-2,0))
-                      -0.5*sigma_y*(solution_old(n_points-1,1)
-                                    - solution_old(n_points-1,n_points-1))
-                      +0.5*sigma_x*sigma_x*(solution_old(0,0)
-                                            -2.0*solution_old(n_points-1,0)
-                                            +solution_old(n_points-2,0))
-                      +0.25*sigma_x*sigma_y*(solution_old(0,1)
-                                            -solution_old(0,n_points-1)
-                                            -solution_old(n_points-2,1)
-                                            +solution_old(n_points-2,n_points-1))
-                      +0.5*sigma_y*sigma_y*(solution_old(n_points-1,1)
-                                            -2.0*solution_old(n_points-1,0)
-                                            +solution_old(n_points-1,n_points-1));
-  //i=0,j=n_points-1
-  solution(0,n_points -1) = solution_old(0,n_points -1 )
-                    -0.5*sigma_x*(solution_old(1,n_points -1 )
-                                  -solution_old(n_points-1,n_points -1 ))
-                    -0.5*sigma_y*(solution_old(0,0)-solution_old(0,n_points -2))
-                    +0.5*sigma_x*sigma_x*(solution_old(1,n_points -1 )
-                                          -2.0*solution_old(0,n_points -1 )
-                                          +solution_old(n_points-1,n_points -1 ))
-                    +0.25*sigma_x*sigma_y*(solution_old(1,0)
-                                          -solution_old(1,n_points -2)
-                                          -solution_old(n_points-1,0)
-                                          +solution_old(n_points-1,n_points -2))
-                    +0.5*sigma_y*sigma_y*(solution_old(0,0)
-                                          -2.0*solution_old(0,n_points -1)
-                                          +solution_old(0,n_points -2)); 
-  //i=n_points-1
-  for (unsigned int j = 1; j<n_points-1; j++)
-  {
-    solution(n_points-1,j) = solution_old(n_points-1,j)
-                        -0.5*sigma_x*(solution_old(0,j)
-                                      -solution_old(n_points-2,j))
-                        -0.5*sigma_y*(solution_old(n_points-1,j+1)
-                                      - solution_old(n_points-1,j-1))
-                        +0.5*sigma_x*sigma_x*(solution_old(0,j)
-                                              -2.0*solution_old(n_points-1,j)
-                                              +solution_old(n_points-2,j))
-                        +0.25*sigma_x*sigma_y*(solution_old(0,j+1)
-                                              -solution_old(0,j-1)
-                                              -solution_old(n_points-2,j+1)
-                                              +solution_old(n_points-2,j-1))
-                        +0.5*sigma_y*sigma_y*(solution_old(n_points-1,j+1)
-                                              -2.0*solution_old(n_points-1,j)
-                                              +solution_old(n_points-1,j-1));
-  }
-  // j = n_points -1 
-  for (unsigned int i = 1; i<n_points -1 ; i++)
-  {
-    solution(i,n_points -1) = solution_old(i,n_points -1 )
-                    -0.5*sigma_x*(solution_old(i+1,n_points -1 )
-                                  -solution_old(i-1,n_points -1 ))
-                    -0.5*sigma_y*(solution_old(i,0)-solution_old(i,n_points -2))
-                    +0.5*sigma_x*sigma_x*(solution_old(i+1,n_points -1 )
-                                          -2.0*solution_old(i,n_points -1 )
-                                          +solution_old(i-1,n_points -1 ))
-                    +0.25*sigma_x*sigma_y*(solution_old(i+1,0)
-                                          -solution_old(i+1,n_points -2)
-                                          -solution_old(i-1,0)
-                                          +solution_old(i-1,n_points -2))
-                    +0.5*sigma_y*sigma_y*(solution_old(i,0)
-                                          -2.0*solution_old(i,n_points -1)
-                                          +solution_old(i,n_points -2)); 
-  }
-  //(i,j) = (n_points-1,n_points-1)
-  solution(n_points -1,n_points -1) = solution_old(n_points -1,n_points -1 )
-                  -0.5*sigma_x*(solution_old(0,n_points -1 )
-                                -solution_old(n_points -2,n_points -1 ))
-                  -0.5*sigma_y*(solution_old(n_points -1,0)
-                                -solution_old(n_points -1,n_points -2))
-                  +0.5*sigma_x*sigma_x*(solution_old(0,n_points -1 )
-                                        -2.0*solution_old(n_points -1,n_points -1 )
-                                        +solution_old(n_points -2,n_points -1 ))
-                  +0.25*sigma_x*sigma_y*(solution_old(0,0)
-                                        -solution_old(0,n_points -2)
-                                        -solution_old(n_points -2,0)
-                                        +solution_old(n_points -2,n_points -2))
-                  +0.5*sigma_y*sigma_y*(solution_old(n_points -1,0)
-                                        -2.0*solution_old(n_points -1,n_points -1)
-                                        +solution_old(n_points -1,n_points -2)); 
-  for (unsigned int i = 1; i < n_points-1; i++)
-      for (unsigned int j = 1; j < n_points-1; j++)
+  for (unsigned int i = 0; i < n_points; i++)
+      for (unsigned int j = 0; j < n_points; j++)
       {
-        solution(i,j) = solution_old(i,j)
-                        -0.5*sigma_x*(solution_old(i+1,j)-solution_old(i-1,j))
-                        -0.5*sigma_y*(solution_old(i,j+1)-solution_old(i,j-1))
-                        +0.5*sigma_x*sigma_x*(solution_old(i+1,j)
-                                              -2.0*solution_old(i,j)
-                                              +solution_old(i-1,j))
-                        +0.25*sigma_x*sigma_y*(solution_old(i+1,j+1)
-                                              -solution_old(i+1,j-1)
-                                              -solution_old(i-1,j+1)
-                                              +solution_old(i-1,j-1))
-                        +0.5*sigma_y*sigma_y*(solution_old(i,j+1)
-                                              -2.0*solution_old(i,j)
-                                              +solution_old(i,j-1));
+        update_values(i,j);
+        solution(i,j) = q_i_j-0.5*sigma_x*(q_ip1_j-q_im1_j)
+                        -0.5*sigma_y*(q_i_jp1-q_i_jm1)
+                        +0.5*sigma_x*sigma_x*(q_im1_j-2.0*q_i_j+q_ip1_j)
+                        +0.25*sigma_x*sigma_y*(q_ip1_jp1-q_ip1_jm1
+                                              -q_im1_jp1+q_im1_jm1)
+                        +0.5*sigma_y*sigma_y*(q_i_jm1-2.0*q_i_j+q_i_jp1);
       }
 }
 
-void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_number)
+void Linear_Convection_2d::m_roe()
+{
+    double coeff_x,coeff_y;//a_{i+1/2,j},a_{i,j+1/2}
+    double flux_x,flux_y; //f_{i+1/2,j}, f_{i,j+1/2}
+    for (unsigned int i = 0; i < n_points; i++)
+      for (unsigned int j = 0; j<n_points;j++)
+      {
+        update_values(i,j);
+        solution(i,j) = q_i_j-0.5*sigma_x*(q_ip1_j-q_im1_j)
+                        -0.5*sigma_y*(q_i_jp1-q_i_jm1)
+                        +0.5*sigma_x*sigma_x*(q_im1_j-2.0*q_i_j+q_ip1_j)
+                        +0.25*sigma_x*sigma_y*(q_ip1_jp1-q_ip1_jm1
+                                              -q_im1_jp1+q_im1_jm1)
+                        +0.5*sigma_y*sigma_y*(q_i_jm1-2.0*q_i_j+q_i_jp1);
+      }
+}
+
+void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_number,
+                                                              bool output_indicator)
 {
     for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j < n_points; j++)
@@ -464,29 +369,30 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
               assert(false);
           }
       }
+    if (output_indicator==true && time_step_number%5==0)
+    {
     vtk_anim_sol(grid_x,grid_y,
           solution,
-          t, time_step_number,
+          t, time_step_number/5,
           "approximate_solution");
     vtk_anim_sol(grid_x,grid_y,
           solution_exact,
-          t, time_step_number,
+          t, time_step_number/5,
           "exact_solution");
+    }
     for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j < n_points; j++)
       {
           error(i,j) = abs(solution(i,j) - solution_exact(i,j));
-          /*cout << "Error at x = "<< x_min + i*dx;
-          cout << ", y = "<< y_min + j*dy<< " = "<< error(i,j) << endl;*/
       }
 }
 
-void Linear_Convection_2d::run()
+void Linear_Convection_2d::run(bool output_indicator)
 {
     make_grid();
     set_initial_solution(); //sets solution to be the initial data
     int time_step_number = 0; 
-    evaluate_error_and_output_solution(time_step_number);
+    evaluate_error_and_output_solution(time_step_number,output_indicator);
     while (t < running_time) //compute solution at next time step using solution_old
     {
         
@@ -509,13 +415,11 @@ void Linear_Convection_2d::run()
             {
                 snapshot_error = max(snapshot_error,
                                      abs(solution(i,j) - initial_solution(i,j)));
-                /*cout << "Error at x = "<< x_min + i*dx;
-                cout << ", y = "<< y_min + j*dy<< " = "<< error(i,j) << endl;*/
             }
         }
         time_step_number += 1;
         t = t + dt; 
-        evaluate_error_and_output_solution(time_step_number);
+        evaluate_error_and_output_solution(time_step_number, output_indicator);
     }
     cout << "For n_points = " << n_points<<", we took ";
     cout << time_step_number << " steps." << endl;
@@ -540,7 +444,7 @@ void run_and_get_output(double n_points, double cfl,
                                     initial_data_indicator);
         struct timeval begin, end;
         gettimeofday(&begin, 0);
-        solver.run();
+        solver.run(refinement_level==max_refinements-1);//Output only last soln
         gettimeofday(&end, 0);
         long seconds = end.tv_sec - begin.tv_sec;
         long microseconds = end.tv_usec - begin.tv_usec;
@@ -670,7 +574,7 @@ int main(int argc, char **argv)
         cout << " sigma_x running_time initial_data_indicator " ;
         cout << "max_refinements" << endl;
         cout << "Choices for method"<<endl;
-        cout << "upwind"<<endl<<"lw"<<endl<<"ct_upwind"<<endl;
+        cout << "upwind, lw, ct_upwind, m_roe"<<endl;
         cout << "Choices for initial data "<<endl;
         cout << "0 - smooth_sine"<<endl<<"1 - hat"<<endl;
 	cout << "2 - step"<<endl;
