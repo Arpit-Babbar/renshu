@@ -1,6 +1,7 @@
 # Prerequisites
 *.d
 
+
 # Compiled Object files
 *.slo
 *.lo
@@ -30,6 +31,12 @@
 *.exe
 *.out
 *.app
+
+# Files without extension
+*
+!*/
+!*.*
+
 a
 .vscode/settings.json
 .vscode/launch.json
@@ -124,4 +131,14 @@ bvp2d/bvp2d/step-02/Vector.h
 fd2d/output
 fd2d/output
 fd2d_var_coeff/output
+fd2d/output
+fd2d/output
+fd2d_var_coeff/output
+bvp2d/bvp2d/slides/sparse_matrix.out
+fd2d(makefile_error)/array2d.o
+bvp2d/bvp2d/slides/1dbvp.out
+fd2d(makefile_error)/main.o
+*.o
+fd2d_var_coeff/output
+fd2d/output
 fd2d/output

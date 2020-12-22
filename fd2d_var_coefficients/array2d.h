@@ -2,7 +2,10 @@
 #define __ARRAY2D_H__
 
 #include <vector>
+#include <iomanip>
+//https://stdcxx.apache.org/doc/stdlibref/iomanip-h.html#:~:text=The%20header%20is%20part,the%20state%20of%20iostream%20objects.
 #include <cassert>
+#include <iostream>
 
 using namespace std;
 
@@ -18,7 +21,19 @@ public:
    double& operator()(const unsigned int i, const unsigned int j);
    Array2D& operator= (const double scalar);
    Array2D& operator= (const Array2D& u);
-   
+
+  friend std::ostream& operator<< (std::ostream&          os,
+                                    const Array2D& A) //Overload.
+  {
+      for(unsigned int i=0; i<A.sizex(); ++i)
+      {
+        for(unsigned int j=0; j<A.sizey(); ++j)
+            os << std::setw(10) << A(i,j);
+        os << std::endl;
+      }
+      return os;
+  }
+
 private:
    unsigned int nx, ny, n;
    std::vector<double> u;

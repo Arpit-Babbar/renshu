@@ -405,7 +405,7 @@ void Linear_Convection_2d::run(bool output_indicator)
         t = t + dt; 
                 //Compute snapshot error for integert/coefficient_x, t/coefficient_y
         //You must run the solver for longer time, or you'd get very less error.
-        if ((t>0.0)&&(int_tester(t*abs(coefficient_x))==true)&&(int_tester(abs(t*coefficient_y))))
+        if ((t>0.0)&&(int_tester(t*coefficient_x)==true)&&(int_tester(t*coefficient_y)))
         {
           cout << "We are evaluating snapshot error at t = "<< t<<endl;
           for (unsigned int i = 0; i < n_points; i++)
