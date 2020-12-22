@@ -100,7 +100,7 @@ Linear_Convection_2d::Linear_Convection_2d(double n_points,
                                            initial_data_indicator(initial_data_indicator)
 {
     theta = M_PI/4.0;
-    coefficient_x = -1.0, coefficient_y = 1.0;
+    coefficient_x = 1.0, coefficient_y = 1.0;
     //coefficient_x = 1.0, coefficient_y = 1.0;
     x_min = -1.0, x_max = 1.0, y_min = -1.0, y_max = 1.0;
     dx = (x_max - x_min) / (n_points), dy = (y_max-y_min)/(n_points);
@@ -401,11 +401,13 @@ void Linear_Convection_2d::run(bool output_indicator)
             ct_upwind();
         else
             assert(false);
-        //Compute snapshot error for integert/coefficient_x, t/coefficient_y
+        time_step_number += 1;
+        t = t + dt; 
+                //Compute snapshot error for integert/coefficient_x, t/coefficient_y
         //You must run the solver for longer time, or you'd get very less error.
-        if ((t>0.0)&&(int_tester(t*coefficient_x)==true)&&(int_tester(t*coefficient_y)))
+        if ((t>0.0)&&(int_tester(t*abs(coefficient_x))==true)&&(int_tester(abs(t*coefficient_y))))
         {
-          //cout << "We are evaluating snapshot error at t = "<< t<<endl;
+          cout << "We are evaluating snapshot error at t = "<< t<<endl;
           for (unsigned int i = 0; i < n_points; i++)
             for (unsigned int j = 0; j < n_points; j++)
             {
@@ -413,8 +415,6 @@ void Linear_Convection_2d::run(bool output_indicator)
                                      abs(solution(i,j) - initial_solution(i,j)));
             }
         }
-        time_step_number += 1;
-        t = t + dt; 
         evaluate_error_and_output_solution(time_step_number, output_indicator);
     }
     cout << "For n_points = " << n_points<<", we took ";

@@ -9,8 +9,8 @@ class Array2D
 {
 public:
    Array2D();
-   Array2D(const unsigned int nx, const unsigned int ny,
-           const unsigned int ng = 0/*Default value*/); 
+   Array2D(const unsigned int nx, const unsigned int ny/*,
+           const unsigned int ng = 0*//*Default value*/); 
    void resize (const unsigned int nx, const unsigned int ny);
    unsigned int sizex() const;
    unsigned int sizey() const;
@@ -20,7 +20,7 @@ public:
    Array2D& operator= (const Array2D& u);
    
 private:
-   const unsigned int nx, ny, n, ng;
+   /*const */unsigned int nx, ny, n/*, ng*/;
    std::vector<double> u;
 };
 
@@ -30,21 +30,21 @@ Array2D::Array2D ()
 :
 nx (0),
 ny (0),
-ng (0),
+/*ng (0),*/
 n  (0)
 {
 }
 //We can specify a layer of ghost cells 
 //Adding a print function.
 // Constructor based on size
-Array2D::Array2D (const unsigned int nx, const unsigned int ny,
-                  const unsigned int ng)
+Array2D::Array2D (const unsigned int nx, const unsigned int ny/*,
+                  const unsigned int ng*/)
 :
 nx (nx),
 ny (ny),
-ng (ng),
-n  ((nx+2*ng)*(ny+2*ng)),
-u  ((nx+2*ng)*(ny+2*ng))
+/*ng (ng),*/
+n  ((nx/*+2*ng*/)*(ny/*+2*ng*/)),
+u  ((nx/*+2*ng*/)*(ny/*+2*ng*/))
 {
 }
 
