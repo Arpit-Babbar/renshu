@@ -86,6 +86,7 @@ private:
     double q_im1_j,q_im1_jm1,q_im1_jp1;//Q_{i-1,j},Q_{i-1,j-1},Q_{i-1,j+1}
     double q_ip1_j,q_ip1_jm1,q_ip1_jp1;//Q_{i+1,j},Q_{i+1,j-1},Q_{i+1,j+1}
     void get_stencil_values(unsigned int i, unsigned int j); //Updates all the Q_{i,j}'s
+    void update_ghost_values();
     string method;
     int initial_data_indicator;
 };
@@ -133,8 +134,8 @@ Linear_Convection_2d::Linear_Convection_2d(double n_points,
     error.resize(n_points,n_points);
     grid_x.resize(n_points),grid_y.resize(n_points);
     initial_solution.resize(n_points,n_points);
-    solution_old.resize(n_points,n_points);
-    solution.resize(n_points,n_points);
+    solution_old.resize(n_points,n_points,1);
+    solution.resize(n_points,n_points,1);
     solution_exact.resize(n_points,n_points);
 }
 
@@ -242,6 +243,25 @@ void Linear_Convection_2d::get_stencil_values(unsigned int i, unsigned int j)
     
 }
 
+void Linear_Convection_2d::update_ghost_values()
+{
+  //Will corner values in the second loop, i.e., with j
+  //or we'd end up giving outdated values to corners.
+  //i = -1, n_points
+  for (int j = 0; j<n_points;j++) //not doing corners
+  {
+    solution_old(-1,j) = solution_old(n_points-1,j);
+    solution_old(n_points,j) = solution_old(0,j);
+  }
+  //j = -1, n_points
+  for (int i = -1; i<=n_points;i++) //doing corners
+  {
+    
+    solution_old(i,-1) = solution_old(i,n_points-1);
+    solution_old(i,n_points) = solution_old(i,0);
+  }
+}
+
 void Linear_Convection_2d::set_initial_solution()
 {
     for (unsigned int i = 0; i < n_points; i++)
@@ -304,16 +324,23 @@ void Linear_Convection_2d::ct_upwind()
 
 void Linear_Convection_2d::lw()
 {
+  update_ghost_values();
   for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j < n_points; j++)
       {
-        get_stencil_values(i,j);
-        solution(i,j) = q_i_j-0.5*sigma_x*(q_ip1_j-q_im1_j)
-                        -0.5*sigma_y*(q_i_jp1-q_i_jm1)
-                        +0.5*sigma_x*sigma_x*(q_im1_j-2.0*q_i_j+q_ip1_j)
-                        +0.25*sigma_x*sigma_y*(q_ip1_jp1-q_ip1_jm1
-                                              -q_im1_jp1+q_im1_jm1)
-                        +0.5*sigma_y*sigma_y*(q_i_jm1-2.0*q_i_j+q_i_jp1);
+        solution(i,j) = solution_old(i,j)
+                        -0.5*sigma_x*(solution_old(i+1,j)-solution_old(i-1,j))
+                        -0.5*sigma_y*(solution_old(i,j+1)-solution_old(i,j-1))
+                        +0.5*sigma_x*sigma_x*(solution_old(i+1,j)
+                                              -2.0*solution_old(i,j)
+                                              +solution_old(i-1,j))
+                        +0.25*sigma_x*sigma_y*(solution_old(i+1,j+1)
+                                              -solution_old(i+1,j-1)
+                                              -solution_old(i-1,j+1)
+                                              +solution_old(i-1,j-1))
+                        +0.5*sigma_y*sigma_y*(solution_old(i,j+1)
+                                              -2.0*solution_old(i,j)
+                                              +solution_old(i,j-1));
       }
 }
 

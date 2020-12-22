@@ -16,6 +16,7 @@ public:
    Array2D(const int nx, const int ny,
            const int ng = 0/*Default value*/); 
    void resize (const int nx, const int ny);
+   void resize (const int nx, const int ny, const int ng);
    int sizex() const;
    int sizey() const;
    double  operator()(const int i, const int j) const;
@@ -27,9 +28,9 @@ public:
     friend std::ostream& operator<< (std::ostream&  os,
                                      const Array2D& A) 
     {
-      for(int i=-1; i<=A.sizex(); ++i)
+      for(int i=0; i<A.sizex(); ++i)
       {
-        for(int j=-1; j<=A.sizey(); ++j)
+        for(int j=0; j<A.sizey(); ++j)
           os << std::setw(10) << A(i,j); //Sets width to be 10
         os << std::endl;
       }
@@ -84,6 +85,15 @@ void Array2D::resize(const int nx1, const int ny1)
    n  = (nx1+2*ng) * (ny1+2*ng);
    u.resize (n);
 }
+void Array2D::resize(const int nx1, const int ny1, const int ng1)
+{
+  //Remember that nx, ny are sizes without ghost cells.
+   nx = nx1;
+   ny = ny1;
+   ng = ng1;
+   n  = (nx1+2*ng) * (ny1+2*ng);
+   u.resize (n);
+}
 
 // return number of rows, size of first index
 int Array2D::sizex() const
@@ -110,7 +120,7 @@ double Array2D::operator() (const int i, const int j) const
    assert(false);
    }
 #endif
-   return u[(nx+3)+ i + j*(nx+2)];
+   return u[(nx+3)*ng+ i + j*(nx+2*ng)];
 }
 
 // Return reference to (i,j), this can modify the value
@@ -126,7 +136,7 @@ double& Array2D::operator() (const int i, const int j)
    assert(false);
    }
 #endif
-   return u[(nx+3) + i + j*(nx+2)];
+   return u[(nx+3)*ng + i + j*(nx+2*ng)];
 }
 
 // Set all elements to scalar value
