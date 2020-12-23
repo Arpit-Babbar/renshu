@@ -55,8 +55,7 @@ private:
     double exp_func_100(double grid_point);
 
 
-    void evaluate_error_and_output_solution(const int time_step_number,
-                                            bool output_indicator);
+    void evaluate_error_and_output_solution(const int time_step_number,bool output_indicator);
     vector<double> grid_x,grid_y;
     double theta, coefficient_x, coefficient_y, x_min, x_max, y_min, y_max;
 
@@ -81,11 +80,6 @@ private:
 
     double n_points, dx, dy, dt, t, running_time;
     double lam_x,lam_y, sigma_x,sigma_y;
-    //It will beneficial for us to isolate the following values
-    double q_i_j,q_i_jm1,q_i_jp1;  //Q_{i,j},Q_{i,j-1},Q_{i,j+1}
-    double q_im1_j,q_im1_jm1,q_im1_jp1;//Q_{i-1,j},Q_{i-1,j-1},Q_{i-1,j+1}
-    double q_ip1_j,q_ip1_jm1,q_ip1_jp1;//Q_{i+1,j},Q_{i+1,j-1},Q_{i+1,j+1}
-    void get_stencil_values(unsigned int i, unsigned int j); //Updates all the Q_{i,j}'s
     void update_ghost_values();
     string method;
     int initial_data_indicator;
@@ -149,100 +143,6 @@ void Linear_Convection_2d::make_grid()
   }
 }
 
-void Linear_Convection_2d::get_stencil_values(unsigned int i, unsigned int j)
-{
-  q_i_j = solution_old(i,j);
-
-  //Q_{i,j-1}
-  if (j==0)
-    q_i_jm1 = solution_old(i,n_points-1);
-  else
-    q_i_jm1 = solution_old(i,j-1);
-  
-  //Q_{i,j+1}
-  if (j==n_points-1)
-    q_i_jp1 = solution_old(i,0);
-  else
-    q_i_jp1 = solution_old(i,j+1);
-  
-  //Q_{i-1,j}
-  if (i==0)
-    q_im1_j = solution_old(n_points-1,j);      
-  else
-    q_im1_j = solution_old(i-1,j); 
-  
-  //Q_{i-1,j-1}
-  if (i==0)
-  {
-    if (j==0)
-      q_im1_jm1 = solution_old(n_points-1,n_points-1);
-    else
-      q_im1_jm1 = solution_old(n_points-1,j-1);
-  }
-  else
-  {
-    if (j==0)
-      q_im1_jm1 = solution_old(i-1,n_points-1);
-    else
-      q_im1_jm1 = solution_old(i-1,j-1);
-  }
-
-  //Q_{i-1,j+1}
-  if (i==0)
-  {
-    if (j==n_points-1)
-      q_im1_jp1 = solution_old(n_points-1,0);
-    else
-      q_im1_jp1 = solution_old(n_points-1,j+1);
-  }
-  else
-  {
-    if (j==n_points-1)
-      q_im1_jp1 = solution_old(i-1,0);
-    else
-      q_im1_jp1 = solution_old(i-1,j+1);
-  }
-  
-  //Q_{i+1,j}
-  if (i==n_points-1)
-    q_ip1_j = solution_old(0,j);
-  else
-    q_ip1_j = solution_old(i+1,j);
-  
-  //Q_{i+1,j-1}
-  if (i==n_points-1)
-  {
-    if (j==0)
-      q_ip1_jm1 = solution_old(0,n_points-1);
-    else
-      q_ip1_jm1 = solution_old(0,j-1);
-  }
-  else
-  {
-    if (j==0)
-      q_ip1_jm1 = solution_old(i+1,n_points-1);
-    else
-      q_ip1_jm1 = solution_old(i+1,j-1);
-  }
-
-  //Q_{i+1,j+1}
-  if (i==n_points-1)
-  {
-    if (j==n_points-1)
-      q_ip1_jp1 = solution_old(0,0);  
-    else
-      q_ip1_jp1 = solution_old(0,j+1);
-  }
-  else
-  {
-    if (j==n_points-1)
-      q_ip1_jp1 = solution_old(i+1,0);
-    else
-      q_ip1_jp1 = solution_old(i+1,j+1);
-  }
-    
-}
-
 void Linear_Convection_2d::update_ghost_values()
 {
   //Will corner values in the second loop, i.e., with j
@@ -300,12 +200,12 @@ void Linear_Convection_2d::upwind()
   for (unsigned int i = 0; i < n_points; i++)
     for (unsigned int j = 0; j < n_points; j++)
     {
-      get_stencil_values(i,j);
-      solution(i,j) = (1.0-lam_x-lam_y)*q_i_j
-                      +max(coefficient_x,0.)*(dt/dx)*q_im1_j
-                      +max(coefficient_y,0.)*(dt/dy)*q_i_jm1
-                      -min(coefficient_x,0.)*(dt/dx)*q_ip1_j
-                      -min(coefficient_y,0.)*(dt/dy)*q_i_jp1;
+      update_ghost_values();
+      solution(i,j) = (1.0-lam_x-lam_y)*solution_old(i,j)
+                      +max(coefficient_x,0.)*(dt/dx)*solution_old(i-1,j)
+                      +max(coefficient_y,0.)*(dt/dy)*solution_old(i,j-1)
+                      -min(coefficient_x,0.)*(dt/dx)*solution_old(i+1,j)
+                      -min(coefficient_y,0.)*(dt/dy)*solution_old(i,j+1);
     }
 }
 
@@ -314,11 +214,11 @@ void Linear_Convection_2d::ct_upwind()
   for (unsigned int i = 0; i < n_points; i++)
     for (unsigned int j = 0; j < n_points; j++)
     {
-      get_stencil_values(i,j);
-      solution(i,j) = (1.0-sigma_x)*(1.0-sigma_y)*q_i_j
-                      +sigma_x*(1-sigma_y)*q_im1_j
-                      +(1-sigma_x)*sigma_y*q_i_jm1
-                      +sigma_x*sigma_y*q_im1_jm1;
+      update_ghost_values();
+      solution(i,j) = (1.0-sigma_x)*(1.0-sigma_y)*solution_old(i,j)
+                      +sigma_x*(1-sigma_y)*solution_old(i-1,j)
+                      +(1-sigma_x)*sigma_y*solution_old(i,j-1)
+                      +sigma_x*sigma_y*solution_old(i-1,j-1);
     }
 }
 
@@ -349,20 +249,14 @@ void Linear_Convection_2d::m_roe()
     double coeff_x,coeff_y;//a_{i+1/2,j},a_{i,j+1/2}
     double flux_x,flux_y; //f_{i+1/2,j}, f_{i,j+1/2}
     for (unsigned int i = 0; i < n_points; i++)
-      for (unsigned int j = 0; j<n_points;j++)
+      for (unsigned int j = 0; j < n_points;j++)
       {
-        get_stencil_values(i,j);
-        solution(i,j) = q_i_j-0.5*sigma_x*(q_ip1_j-q_im1_j)
-                        -0.5*sigma_y*(q_i_jp1-q_i_jm1)
-                        +0.5*sigma_x*sigma_x*(q_im1_j-2.0*q_i_j+q_ip1_j)
-                        +0.25*sigma_x*sigma_y*(q_ip1_jp1-q_ip1_jm1
-                                              -q_im1_jp1+q_im1_jm1)
-                        +0.5*sigma_y*sigma_y*(q_i_jm1-2.0*q_i_j+q_i_jp1);
+        update_ghost_values();
+        solution(i,j) = solution(i,j);
       }
 }
 
-void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_number,
-                                                              bool output_indicator)
+void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_number,bool output_indicator)
 {
     for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j < n_points; j++)
@@ -413,13 +307,14 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
 void Linear_Convection_2d::run(bool output_indicator)
 {
     make_grid();
-    set_initial_solution(); //sets solution to be the initial data
     int time_step_number = 0; 
+    set_initial_solution(); //sets solution to be the initial data
     evaluate_error_and_output_solution(time_step_number,output_indicator);
     while (t < running_time) //compute solution at next time step using solution_old
-    {
-        
-        solution_old = solution;//update solution_old to be used at next time step
+    {        
+        solution_old = solution;//update solution_old for next time_step
+        //This requires puttingg ghost cells in solution
+        //We should update array2d.h to change this. 
         if (method == "upwind")
             upwind();
         else if (method == "lw")
@@ -430,18 +325,6 @@ void Linear_Convection_2d::run(bool output_indicator)
             assert(false);
         time_step_number += 1;
         t = t + dt; 
-                //Compute snapshot error for integert/coefficient_x, t/coefficient_y
-        //You must run the solver for longer time, or you'd get very less error.
-        if ((t>0.0)&&(int_tester(t*coefficient_x)==true)&&(int_tester(t*coefficient_y)))
-        {
-          cout << "We are evaluating snapshot error at t = "<< t<<endl;
-          for (unsigned int i = 0; i < n_points; i++)
-            for (unsigned int j = 0; j < n_points; j++)
-            {
-                snapshot_error = max(snapshot_error,
-                                     abs(solution(i,j) - initial_solution(i,j)));
-            }
-        }
         evaluate_error_and_output_solution(time_step_number, output_indicator);
     }
     cout << "For n_points = " << n_points<<", we took ";
@@ -465,7 +348,8 @@ void run_and_get_output(double n_points, double cfl,
     {
         Linear_Convection_2d solver(n_points, cfl, method, running_time,
                                     initial_data_indicator);
-        struct timeval begin, end;
+        //We calculate time takenṣ in our refinement.
+        struct timeval begin, end; 
         gettimeofday(&begin, 0);
         solver.run(refinement_level==max_refinements-1);//Output only last soln
         gettimeofday(&end, 0);
@@ -474,7 +358,6 @@ void run_and_get_output(double n_points, double cfl,
         double elapsed = seconds + microseconds * 1e-6;
         cout << "Time taken by this iteration is " << elapsed << " seconds." << endl;
         solver.get_error(l1_vector,l2_vector,linfty_vector,snapshot_vector);//push_back resp. error.
-        cout << "Snapshot error is "<< snapshot_vector[refinement_level] << endl;
         error_vs_h << 2.0/n_points << " " << linfty_vector[refinement_level] << "\n";
         n_points = 2.0 * n_points;
         if (refinement_level > 0) //Computing convergence rate.
@@ -496,26 +379,25 @@ void run_and_get_output(double n_points, double cfl,
             cout << abs(log(l1_vector[refinement_level] 
                              / l1_vector[refinement_level - 1])) / log(2.0);
             cout << endl;
-
-            cout << "Snapshot convergence rate at refinement level ";
-            cout << refinement_level << " is " ;
-            cout << abs(log(snapshot_vector[refinement_level] 
-                             / snapshot_vector[refinement_level - 1])) / log(2.0);
-            cout << endl;
+            //Temporary solution to snapshot rate, would be fine once we
+            //move run_and_get_output to solver class.
+            if (snapshot_vector.size()>0)
+            {
+              cout << "Snapshot convergence rate at refinement level ";
+              cout << refinement_level << " is " ;
+              cout << abs(log(snapshot_vector[refinement_level] 
+                              / snapshot_vector[refinement_level - 1])) / log(2.0);
+              cout << endl;
+            }
         }
         error_vs_h.close();
-    }
-    if (snapshot_vector[linfty_vector.size()-1]-(-1.0) < 1e-12)
-    {
-      cout<<"WARNING -Initial state never reached, so snapshot error not calculated.";
-      cout<<" Check if running_time is too less, or coefficient_x/coefficient_y";
-      cout<<" is irrational " <<endl;
     }
     cout << "After " << max_refinements << " refinements, l_infty error = ";
     cout << linfty_vector[linfty_vector.size()-1] << endl;
     cout << "The L2 error is " << l2_vector[linfty_vector.size()-1] << endl;
     cout << "The L1 error is " << l1_vector[linfty_vector.size()-1] << endl;
-    cout << "The L_infty snapshot error is " <<snapshot_vector[linfty_vector.size()-1]<<endl;
+    if (snapshot_vector.size()>0)
+      cout << "The L_infty snapshot error is " <<snapshot_vector[linfty_vector.size()-1]<<endl;
     cout << endl;         
 }
 
@@ -585,7 +467,27 @@ void Linear_Convection_2d::get_error(vector<double> &l1_vector,
     l1_vector.push_back(l1);
     l2_vector.push_back(l2);
     linfty_vector.push_back(linfty);
-    snapshot_vector.push_back(snapshot_error);
+        //Compute snapshot error if last final time t has even integer 
+    // t/coefficient_x, t/coefficient_y
+    //You must run the solver for longer time, or you'd get very less error.
+    if (int_tester(0.5*running_time*coefficient_x) == true &&
+        int_tester(0.5*running_time*coefficient_y) == true)
+    {
+      cout << "Snapshot error successfuly computed.\n";
+      for (unsigned int i = 0; i < n_points; i++)
+        for (unsigned int j = 0; j < n_points; j++)
+        {
+            snapshot_error = abs(solution(i,j) - initial_solution(i,j));
+        }
+      snapshot_vector.push_back(snapshot_error);
+    }
+    else 
+    {
+      {
+        cout<<"Initial state not reached on final time, so snapshot error";
+        cout<<" not calculated. \n";
+      }
+    }
 }
 
 int main(int argc, char **argv)
@@ -593,7 +495,7 @@ int main(int argc, char **argv)
     if (argc != 6)
     {
         cout << "Incorrect format, use" << endl;
-        cout << "./main upwind/lw/ct_upwind(for the respective method)";
+        cout << "./fd2d upwind/lw/ct_upwind(for the respective method)";
         cout << " sigma_x running_time initial_data_indicator " ;
         cout << "max_refinements" << endl;
         cout << "Choices for method"<<endl;
@@ -607,14 +509,14 @@ int main(int argc, char **argv)
     string method = argv[1];
     cout << "method = " << method << endl;
     double n_points = 60.0;
-    double cfl = stod(argv[2]);
-    cout << "cfl = " << cfl << endl;
+    double sigma_x = stod(argv[2]);
+    cout << "sigma_x = " << sigma_x << endl;
     double running_time = stod(argv[3]);
     cout << "running_time = " << running_time << endl;
     int initial_data_indicator = stoi(argv[4]);
     cout << "initial_data_indicator = " << initial_data_indicator << endl;
     unsigned int max_refinements = stoi(argv[5]);
     cout << "max_refinements = " << max_refinements <<endl;
-    run_and_get_output(n_points, cfl, method, running_time,
+    run_and_get_output(n_points, sigma_x, method, running_time,
                        initial_data_indicator, max_refinements);
 }

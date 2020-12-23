@@ -17,13 +17,18 @@ public:
            const int ng = 0/*Default value*/); 
    void resize (const int nx, const int ny);
    void resize (const int nx, const int ny, const int ng);
+   int a,b; //a,b are chosen such that
+   //A(i,j) = u[a + i + j*b].
+   //Actually, a = (2ng+nx+1)*ng, b = nx+2*ng
+   //It is for optimizaiton that we are storing a,b separately.
+
    int sizex() const;
    int sizey() const;
    double  operator()(const int i, const int j) const;
    double& operator()(const int i, const int j);
    Array2D& operator= (const double scalar);
    Array2D& operator= (const Array2D& u);
-   //Overloads '<<', combining it with cout prints array
+   //Overloads '<<', combining it with cout prints array without ghost cells
    //Question - Why is it inside the class?
     friend std::ostream& operator<< (std::ostream&  os,
                                      const Array2D& A) 
@@ -36,6 +41,7 @@ public:
       }
       return os;
     }
+    void print_all();
    
 private:
   //We put ghost layers, which are extra columns/rows in our array
@@ -51,9 +57,11 @@ Array2D::Array2D ()
 :
 nx (0),
 ny (0),
-ng (0),
-n  (0)
+ng (0)
 {
+  n = 0;
+  a = (2*ng+nx+1)*ng;
+  b = nx+2*ng;
 }
 //We can specify a layer of ghost cells 
 //Adding a print function.
@@ -66,33 +74,39 @@ Array2D::Array2D (const int nx, const int ny,
 //We will put the ghost cells in places like -1 and nx + 1
 nx (nx),
 ny (ny),
-ng (ng),
-n  ((nx+2*ng)*(ny+2*ng)),
-u  ((nx+2*ng)*(ny+2*ng))
+ng (ng)
 {
+  n  = (nx+2*ng)*(ny+2*ng);
+  u.resize((nx+2*ng)*(ny+2*ng));
+  a = (2*ng+nx+1)*ng;
+  b = nx+2*ng;
 }
 
 //Overload constructor.
 
 
 
-// Change size of array
+// Change size of array, keeping same ghost cell sizes.
 void Array2D::resize(const int nx1, const int ny1)
 {
   //Remember that nx, ny are sizes without ghost cells.
-   nx = nx1;
-   ny = ny1;
-   n  = (nx1+2*ng) * (ny1+2*ng);
-   u.resize (n);
+  nx = nx1;
+  ny = ny1;
+  n  = (nx1+2*ng) * (ny1+2*ng);
+  u.resize (n);
+  a = (2*ng+nx+1)*ng;
+  b = nx+2*ng;
 }
 void Array2D::resize(const int nx1, const int ny1, const int ng1)
 {
   //Remember that nx, ny are sizes without ghost cells.
-   nx = nx1;
-   ny = ny1;
-   ng = ng1;
-   n  = (nx1+2*ng) * (ny1+2*ng);
-   u.resize (n);
+  nx = nx1;
+  ny = ny1;
+  ng = ng1;
+  n  = (nx1+2*ng) * (ny1+2*ng);
+  u.resize (n);
+  a = (2*ng+nx+1)*ng;
+  b = nx+2*ng;
 }
 
 // return number of rows, size of first index
@@ -107,7 +121,7 @@ int Array2D::sizey() const
    return ny;
 }
 
-// Return value at (i,j), this is read only
+// Return value at (i,j), this is read only(Note the absence of &)
 double Array2D::operator() (const int i, const int j) const
 {
 #ifdef DEBUG /* g++ -o output main.cc -DDEBUG*/
@@ -120,7 +134,7 @@ double Array2D::operator() (const int i, const int j) const
    assert(false);
    }
 #endif
-   return u[(nx+3)*ng+ i + j*(nx+2*ng)];
+   return u[a + i + j*b];
 }
 
 // Return reference to (i,j), this can modify the value
@@ -136,7 +150,7 @@ double& Array2D::operator() (const int i, const int j)
    assert(false);
    }
 #endif
-   return u[(nx+3)*ng + i + j*(nx+2*ng)];
+   return u[a + i + j*b];
 }
 
 // Set all elements to scalar value
@@ -150,9 +164,23 @@ Array2D& Array2D::operator= (const double scalar)
 // Copy array a into this one
 Array2D& Array2D::operator= (const Array2D& a)
 {
-   u = a.u; //How is this working?
+   u = a.u; //The u on left is the local variable of LHS array
+   //while a.u prints the local variable of RHS array.
+   //C++ is allowing us to extract the private variable of 'a' because this is
+   //a class function
    return *this;
 }
 
+void Array2D::print_all()
+{
+  for (int i = -ng; i<nx+ng;i++)
+  {
+    for (int j = -ng; j<ny+ng; j++)
+      {
+        cout << u[a + i + j*b] << " ";
+      }
+    cout << endl;
+  }
+}
 
 #endif
