@@ -187,11 +187,11 @@ void Linear_Convection_2d::update_ghost_values()
 
 void Linear_Convection_2d::set_initial_solution()
 {
+  double x,y;
   for (unsigned int i = 0; i < N; i++)
     for (unsigned int j = 0; j < N; j++)
     {
-      double x = (xmin + 0.5*dx) + i*dx;
-      double y = (ymin + 0.5*dy) + j*dy;
+      x = (xmin+0.5*dx) + i*dx, y = (ymin+0.5*dy) + j*dy;
       switch (initial_data_indicator)
       {
       case 0:
@@ -226,60 +226,21 @@ void Linear_Convection_2d::upwind()
   //This loop computes the fluxes and adds them to where they are needed
   //
   solution = 0.0;
-  for (int i = -1; i < N-1; i++) 
-  {
-    x = (xmin + 0.5*dx) + i*dx;
-    for (int j = -1; j < N-1; j++)
+  //We'd do solution = solution_old - dt/dx * (f_x(i+1/2,j)-f_x(i-1/2,j))
+  //                                - dt/dx * (f_y(i,j+1/2)-f_y(i,j-1/2))
+  for (int i = 0; i < N; i++) 
+    for (int j = 0;j< N; j++)
     {
-      y = (ymin + 0.5*dy) + j*dy;
-
-      update_advection_velocity(x,y); //Updates u,v
-      update_ghost_values();//Ensures negative indices work
-      //update_flux(i,j,flux_x,flux_y); //flux_x(i+1/2,j), flux_y(i,j+1/2)
-      //computed and stored in variables flux_x,flux_y.
-      flux_x = flux_x ,flux_y = flux_y;
-      //Recall that, in FVM, solution updates as
-      //Q_{i,j}^{n+1} = Q_{i,j}^n-(flux_x(i+1/2,j)-flux_x(i-1/2,j))*(dt/dx)
-      //                         -(flux_y(i,j+1/2)-flux_y(i,j-1/2))*(dt/dy)
-      //Q_{i+1,j}^{n+1} = Q_{i+1,j}^n-(flux_x(i+3/2,j)-flux_x(i+1/2,j))*(dt/dx)
-      //                         -(flux_y(i+1,j+1/2)-flux_y(i+1,j-1/2))*(dt/dy)
-      //Q_{i,j+1}^{n+1} = Q_{i,j+1}^n-(flux_x(i+1/2,j+1)-flux_x(i-1/2,j+1))*(dt/dx)
-      //                         -(flux_y(i,j+3/2)-flux_y(i,j+1/2))*(dt/dy)
-      //Q_{i+1,j+1}^{n+1} = Q_{i+1,j+1}^n-(flux_x(i+3/2,j+1)-flux_x(i+1/2,j+1))*(dt/dx)
-      //                         -(flux_y(i+1,j+3/2) - flux_y(i+1,j+1/2))*(dt/dx)
-      //Q_{i-1,j-1}^{n+1} = Q_{i-1,j-1}^n-(flux_x(i-1/2,j-1)-flux_x(i-3/2,j-1))*(dt/dx)
-      //                                  -(flux_y(i-1,j-1/2)-flux_y(i-1,j-3/2))*(dt/dy)
-      if (i>-1 && j > -1)
-      {
-        solution(i,j)     += -flux_x*(dt/dx) - flux_y*(dt/dy);
-        solution(i,j+1)   +=  flux_y*(dt/dy);
-        solution(i+1,j)   +=  flux_x*(dt/dx);
-        solution(i,j)     +=  solution_old(i,j);
-      }
-      else if (i > -1)
-      {
-        solution(i,N-1)   += -flux_x*(dt/dx) - flux_y*(dt/dy);
-        solution(i,j+1)   +=  flux_y*(dt/dy);
-        solution(i+1,N-1) +=  flux_x*(dt/dx);
-        solution(i,N-1)   +=  solution_old(i,j);
-      }
-      else if (j > -1)
-      {
-        solution(N-1,j)   += -flux_x*(dt/dx) - flux_y*(dt/dy);
-        solution(N-1,j+1) +=  flux_y*(dt/dy);
-        solution(i+1,j)   +=  flux_x*(dt/dx);
-        solution(N-1,j)   +=  solution_old(i,j);
-      }
-      else
-      {
-        solution(N-1,N-1) += -flux_x*(dt/dx) - flux_y*(dt/dy);
-        solution(N-1,j+1) +=  flux_y*(dt/dy);
-        solution(i+1,N-1) +=  flux_x*(dt/dx);
-        solution(N-1,N-1) +=  solution_old(N-1,N-1);
-      }
+      x = (xmin + 0.5*dx) + i*dx, y = (ymin + 0.5*dy) + j*dy;
+      update_advection_velocity(x,y);
+      update_ghost_values();
+      update_flux(i,j,flux_x,flux_y);
+      solution(i,j) = solution_old(i,j) -(dt/dx)*flux_x - (dt/dx)*flux_y;
+      update_flux(i-1,j,flux_x,flux_y);
+      solution(i,j) += (dt/dx)*flux_x;
+      update_flux(i,j-1,flux_x,flux_y);
+      solution(i,j) += (dt/dx)*flux_y;
     }
-  }
-  cout << solution;
 }
 
 void Linear_Convection_2d::lw()
@@ -294,11 +255,11 @@ void Linear_Convection_2d::ct_upwind()
 
 void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_number,bool output_indicator)
 {
+  double x,y;
   for (unsigned int i = 0; i < N; i++)
     for (unsigned int j = 0; j < N; j++)
     {
-      double x = (xmin+0.5*dx) + i*dx;
-      double y = (ymin+0.5*dy) + j*dy;
+      x = (xmin+0.5*dx) + i*dx, y = (ymin+0.5*dy) + j*dy;
       switch (initial_data_indicator)
       {
       case 0:
@@ -544,7 +505,7 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    double N = 4.0;
+    double N = 30.0;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double running_time = stod(argv[3]);
