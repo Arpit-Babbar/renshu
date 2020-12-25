@@ -29,6 +29,12 @@ double f_y(double qij, double x, double y)
   return x*qij;
 }
 
+void advection_velocity(double x, double y, double& u, double& v)
+{
+  u = 1.0;
+  v = 1.0;
+}
+
 class Linear_Convection_2d
 {
 public:
@@ -55,7 +61,8 @@ private:
     double exp_func_100(double grid_point);
 
 
-    void evaluate_error_and_output_solution(const int time_step_number,bool output_indicator);
+    void evaluate_error_and_output_solution(const int time_step_number,
+                                            bool output_indicator);
     vector<double> grid_x,grid_y;
     double theta, coefficient_x, coefficient_y, x_min, x_max, y_min, y_max;
 
@@ -88,10 +95,12 @@ private:
 Linear_Convection_2d::Linear_Convection_2d(double n_points, 
                                            double lam_x,/* const double lam_y,*/
                                            string method,
-                                           double running_time, int initial_data_indicator):
+                                           double running_time, 
+                                           int initial_data_indicator):
                                            n_points(n_points), 
                                            lam_x(lam_x),
-                                           running_time(running_time), method(method),
+                                           running_time(running_time),
+                                           method(method),
                                            initial_data_indicator(initial_data_indicator)
 {
     theta = M_PI/4.0;
@@ -156,7 +165,6 @@ void Linear_Convection_2d::update_ghost_values()
   //j = -1, n_points
   for (int i = -1; i<=n_points;i++) //doing corners
   {
-    
     solution_old(i,-1) = solution_old(i,n_points-1);
     solution_old(i,n_points) = solution_old(i,0);
   }
@@ -191,15 +199,18 @@ void Linear_Convection_2d::set_initial_solution()
               cout << "You entered the wrong initial_data_indicator ";
               assert(false);
           }
-          initial_solution(i,j) = solution(i,j);
+          initial_solution(i,j) = solution(i,j); //Stored only
+          //for snapshot error
       }
 }
 
 void Linear_Convection_2d::upwind()
 {
+  double flux_x,flux_y;
   for (unsigned int i = 0; i < n_points; i++)
     for (unsigned int j = 0; j < n_points; j++)
     {
+
       update_ghost_values();
       solution(i,j) = (1.0-lam_x-lam_y)*solution_old(i,j)
                       +max(coefficient_x,0.)*(dt/dx)*solution_old(i-1,j)

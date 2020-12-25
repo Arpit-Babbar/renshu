@@ -30,6 +30,12 @@ public:
    Array2D& operator= (const Array2D& u);
    //Overloads '<<', combining it with cout prints array without ghost cells
    //Question - Why is it inside the class?
+   //'<<' overloaded as a friend so that it can access class variables.
+   //The output is std::ostream format. When you call cout, it probably creates
+   //and ostream object os which is fed to the arrows.
+   //http://www.cplusplus.com/forum/beginner/99332/#msg534235
+   //https://stackoverflow.com/questions/5508857/how-does-cout-actually-work
+   //https://www.learncpp.com/cpp-tutorial/introduction-to-iostream-cout-cin-and-endl/
     friend std::ostream& operator<< (std::ostream&  os,
                                      const Array2D& A) 
     {
@@ -158,7 +164,10 @@ Array2D& Array2D::operator= (const double scalar)
 {
    for (int i=0; i<n; ++i)
       u[i] = scalar;
-   return *this;
+   return *this; //'this' is just the pointer to the class object that is 
+   //automatically created within class functions so that the compiler
+   //knows which object the class function is working on.
+   //https://www.learncpp.com/cpp-tutorial/8-8-the-hidden-this-pointer/
 }
 
 // Copy array a into this one
