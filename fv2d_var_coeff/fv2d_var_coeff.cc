@@ -22,13 +22,6 @@ bool int_tester(double a)
     return (c<1e-4);
 }
 
-//Computes advection at x,y
-void advection_velocity(double x, double y, double& u, double& v)
-{
-  u = 1.0;
-  v = 1.0;
-}
-
 class Linear_Convection_2d
 {
 public:
@@ -45,7 +38,7 @@ private:
     void set_initial_solution();
 
     //Computes advection velocity at x,y
-    void update_advection_velocity(double x, double y);
+    void update_advection_velocity(int i, int j);
     //Computes flux_x(i+1/2,j), flux_y(i,j+1/2)
     void upwind_flux(int i, int j, double& flux_x,double& flux_y);
 
@@ -54,6 +47,7 @@ private:
     double hat_function(double grid_point);
     double step_function(double grid_point); 
     double exp_func_25(double grid_point);
+    double sine_wave(double grid_points);
     double exp_func_100(double grid_point);
 
 
@@ -102,8 +96,8 @@ Linear_Convection_2d::Linear_Convection_2d(double N,
                                            initial_data_indicator(initial_data_indicator)
 {
     theta = M_PI/4.0;
-    u = 1.0, v = 1.0;
-    //u = 1.0, v = 1.0;
+    u = 1.0, v = 1.0; //For now, setting coefficients to be their maximum value
+    //as CFL is now defined as lam_x = max()
     xmin = -1.0, xmax = 1.0, ymin = -1.0, ymax = 1.0;
     dx = (xmax - xmin) / (N), dy = (ymax-ymin)/(N);
     //In interval [0,1], if we run the loop for i = 0,1,...,n-1
@@ -140,10 +134,10 @@ Linear_Convection_2d::Linear_Convection_2d(double N,
     solution_exact.resize(N,N);
 }
 
-//Updates advection velocities at x,y, stored in class variables u,v
-void Linear_Convection_2d::update_advection_velocity(double x, double y)
+//Computes u_{i+1/2,j}, v_{i,j+1/2}
+void Linear_Convection_2d::update_advection_velocity(int i, int j)
 {
-  u = 1.0, v = 1.0;
+  u = -(ymin+dy*j), v = xmin + dx*i;
 }
 
 void Linear_Convection_2d::upwind_flux(int i, int j,
@@ -233,6 +227,9 @@ void Linear_Convection_2d::set_initial_solution()
       case 4:
         solution(i,j) = exp_func_100(x)*exp_func_100(y);
         break;
+      case 5:
+        solution(i,j) = sine_wave(x)*sine_wave(y);
+        break;
       default:
         cout << "You entered the wrong initial_data_indicator ";
         assert(false);
@@ -244,7 +241,7 @@ void Linear_Convection_2d::set_initial_solution()
 
 void Linear_Convection_2d::upwind()
 {
-  double x,y;
+  //double x,y;
   double flux_x,flux_y; //flux_x(i+1/2,j), flux_y(i,j+1/2)
   //This loop computes the fluxes and adds them to where they are needed
   
@@ -255,8 +252,9 @@ void Linear_Convection_2d::upwind()
   for (int i = 0; i < N; i++) 
     for (int j = 0;j< N; j++)
     {
-      x = (xmin + 0.5*dx) + i*dx, y = (ymin + 0.5*dy) + j*dy;
-      update_advection_velocity(x,y); //Updates u,v
+      //We need to compute u_{i+1/2,j} =-y_j and v_{i,j+1/2} = x_j
+      //x = xmin + i*dx, y = ymin + j*dy;
+      update_advection_velocity(i,j); //Updates u,v
       upwind_flux(i,j,flux_x,flux_y); //flux_x(i+1/2,j), flux_y(i,j+1/2)
       //computed and stored in variables flux_x,flux_y.
       //Recall that, in FVM, solution updates as
@@ -275,7 +273,7 @@ void Linear_Convection_2d::upwind()
       solution(i+1,j)   +=  flux_x*(dt/dx);
       solution(i,j)     +=  solution_old(i,j);  
     }
-    use_ghost_values();
+  use_ghost_values();
 }
 
 void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_number,bool output_indicator)
@@ -288,36 +286,44 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
       switch (initial_data_indicator)
       {
       case 0:
-        solution_exact(i,j) = sin(2.0 * M_PI * (x - u*t) / (xmax - xmin))
-                              * sin(2.0 * M_PI * (y - v*t) / (ymax - ymin));
+        solution_exact(i,j) = sin(2.0 * M_PI * (x*cos(t)+y*sin(t)) / (xmax - xmin))
+                              * sin(2.0 * M_PI * (-x*sin(t)+y*cos(t)) / (ymax - ymin));
         break;
       case 1:
-        solution_exact(i,j) = hat_function(x - u*t)
-                              * hat_function(y - v*t);
+        solution_exact(i,j) = hat_function(x*cos(t)+y*sin(t))
+                              * hat_function(-x*sin(t)+y*cos(t));
         break;
       case 2:
-        solution_exact(i,j) = step_function(x - u*t)
-                              * step_function(y - v*t);
+        solution_exact(i,j) = step_function(x*cos(t)+y*sin(t))
+                              * step_function(-x*sin(t)+y*cos(t));
         break;
       case 3:
-        solution_exact(i,j) = exp_func_25(x-u*t)
-                              * exp_func_25(y-v*t);
+        solution_exact(i,j) = exp_func_25(x*cos(t)+y*sin(t))
+                              * exp_func_25(-x*sin(t)+y*cos(t));
         break;
       case 4:
-        solution_exact(i,j) = exp_func_100(x-u*t)
-                              * exp_func_100(y-v*t);
+        solution_exact(i,j) = exp_func_100(x*cos(t)+y*sin(t))
+                              * exp_func_100(-x*sin(t)+y*cos(t));
+        break;
+      case 5:
+        solution_exact(i,j) = sine_wave(x*cos(t) + y*sin(t))
+                              * sine_wave(-x*sin(t)+y*cos(t));
         break;
       default:
           cout << "You entered the wrong initial_data_indicator ";
           assert(false);
       }
     }
-  if (output_indicator==true && time_step_number%5==0)
+  if (output_indicator==true/* && time_step_number%5==0*/)
   {
   vtk_anim_sol(grid_x,grid_y,
-        solution, solution_exact,
-        t, time_step_number/5,
+        solution,
+        t, time_step_number,
         "approximate_solution");
+  vtk_anim_sol(grid_x,grid_y,
+      solution_exact,
+      t, time_step_number,
+      "exact_solution");
   }
   for (unsigned int i = 0; i < N; i++)
     for (unsigned int j = 0; j < N; j++)
@@ -369,7 +375,7 @@ void run_and_output(double N, double cfl,
     //We calculate time takenṣ in our refinement.
     struct timeval begin, end; 
     gettimeofday(&begin, 0);
-    solver.run(refinement_level==max_refinements-1);//Output only last soln
+    solver.run(refinement_level==max_refinements);//Output only last soln
     gettimeofday(&end, 0);
     long seconds = end.tv_sec - begin.tv_sec;
     long microseconds = end.tv_usec - begin.tv_usec;
@@ -466,6 +472,19 @@ double Linear_Convection_2d::exp_func_100(double grid_point)
   return exp(-100.0*(grid_point-0.5)*(grid_point-0.5));
 }
 
+double Linear_Convection_2d::sine_wave(double grid_point)
+{
+    double value;
+    grid_point = interval_part(grid_point);
+    if (grid_point < xmin + (xmax - xmin) / 4.0 ||
+        grid_point > xmax - (xmax - xmin) / 4.0)
+        value = 0.0;
+    else
+        value = -sin(4.0 * M_PI * grid_point / (xmax - xmin));
+    return value;
+}
+
+
 void Linear_Convection_2d::get_error(vector<double> &l1_vector,
                                      vector<double> &l2_vector,
                                      vector<double> &linfty_vector,
@@ -522,11 +541,13 @@ int main(int argc, char **argv)
       cout << "0 - smooth_sine"<<endl<<"1 - hat"<<endl;
       cout << "2 - step"<<endl;
       cout << "3 - exp_func_25" <<endl;
+      cout << "4 - exp_func_100\n";
+      cout << "5 - cts_sine\n";
       assert(false);
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    double N = 30.0;
+    double N = 100.0;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double running_time = stod(argv[3]);

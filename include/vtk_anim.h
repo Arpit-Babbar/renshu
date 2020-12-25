@@ -36,7 +36,7 @@ string get_filename(const string base_name,
 //Solution is defined on the respective grid points.
 void write_rectilinear_grid(vector<double> &grid_x,
                             vector<double> &grid_y,
-                            Array2D &solution, Array2D &solution_exact,
+                            Array2D &solution,
                             double t,
                             int c, //Cycle number
                             string filename)
@@ -88,6 +88,7 @@ void write_rectilinear_grid(vector<double> &grid_x,
          fout << solution(i,j) << " ";
       fout << endl;
    }
+   /*
    fout << "SCALARS density_exact float" << endl;
    fout << "LOOKUP_TABLE default" << endl;
    // no need for k-loop since nk=1
@@ -98,11 +99,12 @@ void write_rectilinear_grid(vector<double> &grid_x,
       fout << endl;
    }
    fout.close();
+   */
 
    //cout << "Wrote Cartesian grid into " << filename << endl;
 }
 void vtk_anim_sol(vector<double> &grid_x,vector<double> &grid_y,
-                  Array2D& solution, Array2D &solution_exact,
+                  Array2D& solution,
                    double t,
                   double time_step_number,
                   string filename)
@@ -144,7 +146,7 @@ void vtk_anim_sol(vector<double> &grid_x,vector<double> &grid_y,
   */
   filename = filename+"_";
   filename = get_filename(filename,3,time_step_number);
-  write_rectilinear_grid(grid_x, grid_y, solution, solution_exact, t, time_step_number, filename);
+  write_rectilinear_grid(grid_x, grid_y, solution, t, time_step_number, filename);
   //t += dt;
   //++c;
 
