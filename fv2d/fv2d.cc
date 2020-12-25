@@ -47,12 +47,9 @@ private:
     //Computes advection velocity at x,y
     void update_advection_velocity(double x, double y);
     //Computes flux_x(i+1/2,j), flux_y(i,j+1/2)
-    void update_flux(int i, int j, double& flux_x,double& flux_y);
+    void upwind_flux(int i, int j, double& flux_x,double& flux_y);
 
     void upwind();
-    void lw();
-    void ct_upwind();
-    void m_roe();
 
     double hat_function(double grid_point);
     double step_function(double grid_point); 
@@ -88,6 +85,7 @@ private:
     double N, dx, dy, dt, t, running_time;
     double lam_x, lam_y, sigma_x, sigma_y;
     void update_ghost_values();
+    void use_ghost_values();
     string method;
     int initial_data_indicator;
 };
@@ -148,7 +146,7 @@ void Linear_Convection_2d::update_advection_velocity(double x, double y)
   u = 1.0, v = 1.0;
 }
 
-void Linear_Convection_2d::update_flux(int i, int j,
+void Linear_Convection_2d::upwind_flux(int i, int j,
                                        double& flux_x, double& flux_y)
 {
   //flux_x(i+1/2,j)
@@ -169,19 +167,44 @@ void Linear_Convection_2d::make_grid()
 
 void Linear_Convection_2d::update_ghost_values()
 {
-  //Will corner values in the second loop, i.e., with j
-  //or we'd end up giving outdated values to corners.
-  //i = -1, N
+  //For readability, we do corners separately.
+  solution_old(-1,-1)= solution_old(N-1,N-1);
+  solution_old(N,N)  = solution_old(0,0);
   for (int j = 0; j<N;j++) //not doing corners
   {
     solution_old(-1,j) = solution_old(N-1,j);
     solution_old(N,j)  = solution_old(0,j);
   }
   //j = -1, N
-  for (int i = -1; i<=N;i++) //doing corners
+  for (int i = 0; i<N;i++) 
   {
     solution_old(i,-1) = solution_old(i,N-1);
-    solution_old(i,N) = solution_old(i,0);
+    solution_old(i,N)  = solution_old(i,0);
+  }
+  //We also set all ghost values in solution to equal zero.
+  for (int k = -1; k<=N;k++)
+  {
+    solution(k,-1) = 0.0, solution(-1,k) = 0.0;
+    solution(k,N)  = 0.0, solution(N,k) = 0.0;
+  }
+}
+
+//This function adds anything that was added to ghost values to where it was
+//supposed to go.
+void Linear_Convection_2d::use_ghost_values()
+{
+  //Doing corners outside loop for readability
+  solution(N-1,N-1) += solution(-1,-1), solution(0,0)+=solution(N,N);
+  solution(-1,-1) = 0.0, solution(N,N) = 0;
+  for (int j = 0; j<N;j++)
+  {
+    solution(N-1,j) += solution(-1,j), solution(0,j) += solution(N,j);
+    solution(-1,j) = 0.0, solution(N,j) = 0.0;
+  }
+  for (int i = 0; i<N;i++)
+  {
+    solution(i,N-1) += solution(i,-1), solution(i,0)+=solution(i,N);
+    solution(i,-1) = 0.0, solution(i,N)=0.0;
   }
 }
 
@@ -226,31 +249,33 @@ void Linear_Convection_2d::upwind()
   //This loop computes the fluxes and adds them to where they are needed
   //
   solution = 0.0;
+  update_ghost_values();
   //We'd do solution = solution_old - dt/dx * (f_x(i+1/2,j)-f_x(i-1/2,j))
   //                                - dt/dx * (f_y(i,j+1/2)-f_y(i,j-1/2))
   for (int i = 0; i < N; i++) 
     for (int j = 0;j< N; j++)
     {
       x = (xmin + 0.5*dx) + i*dx, y = (ymin + 0.5*dy) + j*dy;
-      update_advection_velocity(x,y);
-      update_ghost_values();
-      update_flux(i,j,flux_x,flux_y);
-      solution(i,j) = solution_old(i,j) -(dt/dx)*flux_x - (dt/dx)*flux_y;
-      update_flux(i-1,j,flux_x,flux_y);
-      solution(i,j) += (dt/dx)*flux_x;
-      update_flux(i,j-1,flux_x,flux_y);
-      solution(i,j) += (dt/dx)*flux_y;
+      update_advection_velocity(x,y); //Updates u,v
+      upwind_flux(i,j,flux_x,flux_y); //flux_x(i+1/2,j), flux_y(i,j+1/2)
+      //computed and stored in variables flux_x,flux_y.
+      //Recall that, in FVM, solution updates as
+      //Q_{i,j}^{n+1} = Q_{i,j}^n-(flux_x(i+1/2,j)-flux_x(i-1/2,j))*(dt/dx)
+      //                         -(flux_y(i,j+1/2)-flux_y(i,j-1/2))*(dt/dy)
+      //Q_{i+1,j}^{n+1} = Q_{i+1,j}^n-(flux_x(i+3/2,j)-flux_x(i+1/2,j))*(dt/dx)
+      //                         -(flux_y(i+1,j+1/2)-flux_y(i+1,j-1/2))*(dt/dy)
+      //Q_{i,j+1}^{n+1} = Q_{i,j+1}^n-(flux_x(i+1/2,j+1)-flux_x(i-1/2,j+1))*(dt/dx)
+      //                         -(flux_y(i,j+3/2)-flux_y(i,j+1/2))*(dt/dy)
+      //Q_{i+1,j+1}^{n+1} = Q_{i+1,j+1}^n-(flux_x(i+3/2,j+1)-flux_x(i+1/2,j+1))*(dt/dx)
+      //                         -(flux_y(i+1,j+3/2) - flux_y(i+1,j+1/2))*(dt/dx)
+      //Q_{i-1,j-1}^{n+1} = Q_{i-1,j-1}^n-(flux_x(i-1/2,j-1)-flux_x(i-3/2,j-1))*(dt/dx)
+      //                                  -(flux_y(i-1,j-1/2)-flux_y(i-1,j-3/2))*(dt/dy)
+      solution(i,j)     += -flux_x*(dt/dx) - flux_y*(dt/dy);
+      solution(i,j+1)   +=  flux_y*(dt/dy);
+      solution(i+1,j)   +=  flux_x*(dt/dx);
+      solution(i,j)     +=  solution_old(i,j);  
     }
-}
-
-void Linear_Convection_2d::lw()
-{
-  double a = 0;
-}
-
-void Linear_Convection_2d::ct_upwind()
-{
-  double a = 0;
+    use_ghost_values();
 }
 
 void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_number,bool output_indicator)
@@ -314,10 +339,6 @@ void Linear_Convection_2d::run(bool output_indicator)
     //We should update array2d.h to change this. 
     if (method == "upwind")
       upwind();
-    else if (method == "lw")
-      lw();
-    else if (method == "ct_upwind")
-      ct_upwind();
     else
       assert(false);
     time_step_number += 1;

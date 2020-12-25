@@ -47,7 +47,7 @@ public:
       }
       return os;
     }
-    void print_all();
+    void print_all(bool label = false);
    
 private:
   //We put ghost layers, which are extra columns/rows in our array
@@ -180,15 +180,29 @@ Array2D& Array2D::operator= (const Array2D& a)
    return *this;
 }
 
-void Array2D::print_all()
+void Array2D::print_all(bool label)
 {
-  for (int i = -ng; i<nx+ng;i++)
+  if (label == true)
   {
     for (int j = -ng; j<ny+ng; j++)
-      {
-        cout << u[a + i + j*b] << " ";
-      }
-    cout << endl;
+    {
+      for (int i = -ng; i<nx+ng;i++)
+        {
+          cout << "A["<<i<<","<<j<<"]="<< u[a + i + j*b] << "   ";
+        }
+      cout << endl;
+    }
+  }
+  else
+  {
+    for (int j = -ng; j<ny+ng; j++)
+    {
+      for (int i = -ng; i<nx+ng;i++)
+        {
+          cout << u[a + i + j*b] << " ";
+        }
+      cout << endl;
+    }
   }
 }
 
