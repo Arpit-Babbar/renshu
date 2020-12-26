@@ -1,4 +1,4 @@
-//Solving Q_t + uQ_x + vQ_y = 0
+//Solving Q_t + uQ_x + vQ_y = 0;
 
 #include <cmath>
 #include <iostream>
@@ -48,8 +48,10 @@ private:
     void update_advection_velocity(double x, double y);
     //Computes flux_x(i+1/2,j), flux_y(i,j+1/2)
     void upwind_flux(int i, int j, double& flux_x,double& flux_y);
+    void lw_flux(int i, int j, double& flux_x,double& flux_y);
 
     void upwind();
+    void lw();
 
     double hat_function(double grid_point);
     double step_function(double grid_point); 
@@ -153,6 +155,12 @@ void Linear_Convection_2d::upwind_flux(int i, int j,
   flux_x = max(u,0.)*solution_old(i,j) + min(u,0.)*solution_old(i+1,j);
   //flux_y(i,j+1/2)
   flux_y = max(v,0.)*solution_old(i,j) + min(v,0.)*solution_old(i,j+1);
+}
+
+void Linear_Convection_2d::lw_flux(int i, int j, 
+                                   double & flux_x, double& flux_y)
+{
+  
 }
 
 void Linear_Convection_2d::make_grid()
@@ -278,6 +286,29 @@ void Linear_Convection_2d::upwind()
     use_ghost_values();
 }
 
+void Linear_Convection_2d::lw()
+{
+  double x,y;
+  double flux_x,flux_y; //flux_x(i+1/2,j), flux_y(i,j+1/2)
+  //This loop computes the fluxes and adds them to where they are needed
+  
+  solution = 0.0;
+  update_ghost_values();
+  //We'd do solution = solution_old - dt/dx * (f_x(i+1/2,j)-f_x(i-1/2,j))
+  //                                - dt/dx * (f_y(i,j+1/2)-f_y(i,j-1/2))
+  for (int i = 0; i < N; i++) 
+    for (int j = 0;j< N; j++)
+    {
+      x = (xmin + 0.5*dx) + i*dx, y = (ymin + 0.5*dy) + j*dy;
+      update_advection_velocity(x,y); //Updates u,v
+      lw_flux(i,j,flux_x,flux_y); //flux_x(i+1/2,j), flux_y(i,j+1/2)
+      solution(i,j+1)   +=  flux_y*(dt/dy);
+      solution(i+1,j)   +=  flux_x*(dt/dx);
+      solution(i,j)     +=  solution_old(i,j);  
+    }
+    use_ghost_values();
+}
+
 void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_number,bool output_indicator)
 {
   double x,y;
@@ -315,9 +346,13 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
   if (output_indicator==true && time_step_number%5==0)
   {
   vtk_anim_sol(grid_x,grid_y,
-        solution, solution_exact,
+        solution,
         t, time_step_number/5,
         "approximate_solution");
+    vtk_anim_sol(grid_x,grid_y,
+        solution_exact,
+        t, time_step_number/5,
+        "exact_solution");
   }
   for (unsigned int i = 0; i < N; i++)
     for (unsigned int j = 0; j < N; j++)
