@@ -1,11 +1,11 @@
-#include "array2d.h"
+#include "../include/array2d.h"
 
 using namespace std;
 
 int main()
 {
   int ng = 1;
-  double N = 2.0;
+  int N = 2;
   Array2D solution(2,2, ng);
   solution = 0.0;
    //Will corner values in the second loop, i.e., with j

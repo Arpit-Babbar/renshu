@@ -45,14 +45,14 @@ private:
     void set_initial_solution();
 
     //Computes advection velocity at x,y
-    void update_advection_velocity(double x, double y);
+    void update_advection_velocity(int i, int j);
     //Computes flux_x(i+1/2,j), flux_y(i,j+1/2)
     void (Linear_Convection_2d::*update_flux)(int i, int j,
                                               double& flux_x, double& flux_y);
     void upwind(int i, int j, double& flux_x, double& flux_y);
 
     //This will compute the flux at (i+1/2,j). 
-    void lw_flux(double w,int i, int j);
+    void lw_flux(int i, int j, int n_x, int n_y, double& flux);
     void lw(int i, int j, double& flux_x,double& flux_y);
 
     void solve();
@@ -147,7 +147,7 @@ Linear_Convection_2d::Linear_Convection_2d(double N,
 }
 
 //Updates advection velocities at x,y, stored in class variables u,v
-void Linear_Convection_2d::update_advection_velocity(double x, double y)
+void Linear_Convection_2d::update_advection_velocity(int i, int j)
 {
   u = 1.0, v = 1.0;
 }
@@ -161,21 +161,25 @@ void Linear_Convection_2d::upwind(int i, int j,
   flux_y = max(v,0.)*solution_old(i,j) + min(v,0.)*solution_old(i,j+1);
 }
 
+//Computes flux at the cell centred at $(x_i,y_j)$ in the normal direction
+//(n_x,n_y)
+void Linear_Convection_2d::lw_flux(int i, int j,int n_x, int n_y, double& flux)
+{
+  flux = 0.5*(u*n_x+v*n_y)*(solution_old(i,j) + solution_old(i+n_x,j+n_y))
+        -0.5*(u*n_x+v*n_y)*(u*n_x+v*n_y)*(dt/dx)*(solution_old(i+n_x,j+n_y)- solution_old(i,j))
+        -0.125*u*v*(dt/dx)*(solution_old(i+n_y,j+n_x)-solution_old(i-n_y,j-n_x)
+                            +solution_old(i+1,j+1)-solution_old(i+n_x-n_y,j-n_x+n_y));
+}
+
 //This function does the actual job of computing the flux.
 void Linear_Convection_2d::lw(int i, int j, 
                               double& flux_x, double& flux_y)
 {
-  flux_x = (0.5*u)*(solution_old(i,j)+solution_old(i+1,j))
-           -(0.5*u*u)*(dt/dx)*(solution_old(i+1,j)-solution_old(i,j))
-           -(0.125*u*v)*(dt/dy)*(  solution_old(i,j+1)    - solution_old(i,j-1)
-                                  +solution_old(i+1,j+1)-solution_old(i+1,j-1));
-  flux_y = (0.5*v)*(solution_old(i,j)+solution_old(i,j+1)) 
-           -(0.5*v*v)*(dt/dy)*(solution_old(i,j+1)-solution_old(i,j))
-           -(0.125*u*v)*(dt/dx)*(solution_old(i+1,j)    - solution_old(i-1,j)
-                                 +solution_old(i+1,j+1)-solution_old(i-1,j+1));
+  update_advection_velocity(i,j);
+  lw_flux(i,j,1,0,flux_x);
+  lw_flux(i,j,0,1,flux_y);
   //Since the function to compute flux_x, flux_y are very similar, we
   //create a function that does so.
-
   //This will give flux_x(i+1/2,j) or flux_y(i,j+1/2) whichever chosen
   //by the user
 
@@ -287,8 +291,6 @@ void Linear_Convection_2d::solve()
   for (int i = 0; i < N; i++) 
     for (int j = 0; j< N; j++)
     {
-      x = (xmin + 0.5*dx) + i*dx, y = (ymin + 0.5*dy) + j*dy;
-      update_advection_velocity(x,y); //Updates u,v
       (this->*update_flux)(i,j,flux_x,flux_y); //flux_x(i+1/2,j), flux_y(i,j+1/2)
       //computed and stored in variables flux_x,flux_y.
       //Recall that, in FVM, solution updates as
