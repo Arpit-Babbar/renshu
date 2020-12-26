@@ -304,7 +304,11 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
     if (output_indicator==true && time_step_number%5==0)
     {
     vtk_anim_sol(grid_x,grid_y,
-          solution, solution_exact,
+          solution,
+          t, time_step_number/5,
+          "approximate_solution");
+        vtk_anim_sol(grid_x,grid_y,
+          solution_exact,
           t, time_step_number/5,
           "approximate_solution");
     }
@@ -519,7 +523,7 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    double n_points = 60.0;
+    double n_points = 30.0;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double running_time = stod(argv[3]);

@@ -39,10 +39,13 @@ private:
 
     //Computes advection velocity at x,y
     void update_advection_velocity(int i, int j);
+    void (Linear_Convection_2d::*update_flux)(int i, int j,
+                                              double& flux_x, double& flux_y);
     //Computes flux_x(i+1/2,j), flux_y(i,j+1/2)
-    void upwind_flux(int i, int j, double& flux_x,double& flux_y);
+    void lw(int i, int j, double& flux_x,double& flux_y);
+    void upwind(int i, int j, double& flux_x,double& flux_y);
 
-    void upwind();
+    void solve();
 
     double hat_function(double grid_point);
     double step_function(double grid_point); 
@@ -140,14 +143,36 @@ void Linear_Convection_2d::update_advection_velocity(int i, int j)
   u = -(ymin+dy*j), v = xmin + dx*i;
 }
 
-void Linear_Convection_2d::upwind_flux(int i, int j,
-                                       double& flux_x, double& flux_y)
+void Linear_Convection_2d::upwind(int i, int j,
+                                  double& flux_x, double& flux_y)
 {
   //flux_x(i+1/2,j)
   flux_x = max(u,0.)*solution_old(i,j) + min(u,0.)*solution_old(i+1,j);
   //flux_y(i,j+1/2)
   flux_y = max(v,0.)*solution_old(i,j) + min(v,0.)*solution_old(i,j+1);
 }
+
+void Linear_Convection_2d::lw(int i, int j,
+                              double& flux_x, double& flux_y) 
+{
+  flux_x = (0.5*u)*(solution_old(i,j)+solution_old(i+1,j))
+           -(0.5*u*u)*(dt/dx)*(solution_old(i+1,j)-solution_old(i,j))
+           -(0.125*u*v)*(dt/dy)*(  solution_old(i,j+1)    - solution_old(i,j-1)
+                                  +solution_old(i+1,j+1)-solution_old(i+1,j-1));
+  flux_y = (0.5*v)*(solution_old(i,j)+solution_old(i,j+1)) 
+           -(0.5*v*v)*(dt/dy)*(solution_old(i,j+1)-solution_old(i,j))
+           -(0.125*u*v)*(dt/dx)*(solution_old(i+1,j) - solution_old(i-1,j)
+                                 +solution_old(i+1,j+1)-solution_old(i-1,j+1));
+  //Since the function to compute flux_x, flux_y are very similar, we
+  //create a function that does so.
+
+  //This will give flux_x(i+1/2,j) or flux_y(i,j+1/2) whichever chosen
+  //by the user
+
+  //If we make functions within function, we could make one and then for 
+  //the other use, transpose of array.
+}
+
 
 void Linear_Convection_2d::make_grid()
 {
@@ -164,6 +189,8 @@ void Linear_Convection_2d::update_ghost_values()
   //For readability, we do corners separately.
   solution_old(-1,-1)= solution_old(N-1,N-1);
   solution_old(N,N)  = solution_old(0,0);
+  solution_old(N,-1) = solution_old(0,N-1);
+  solution_old(-1,N) = solution_old(N-1,0);
   for (int j = 0; j<N;j++) //not doing corners
   {
     solution_old(-1,j) = solution_old(N-1,j);
@@ -239,7 +266,7 @@ void Linear_Convection_2d::set_initial_solution()
     }
 }
 
-void Linear_Convection_2d::upwind()
+void Linear_Convection_2d::solve()
 {
   //double x,y;
   double flux_x,flux_y; //flux_x(i+1/2,j), flux_y(i,j+1/2)
@@ -255,7 +282,7 @@ void Linear_Convection_2d::upwind()
       //We need to compute u_{i+1/2,j} =-y_j and v_{i,j+1/2} = x_j
       //x = xmin + i*dx, y = ymin + j*dy;
       update_advection_velocity(i,j); //Updates u,v
-      upwind_flux(i,j,flux_x,flux_y); //flux_x(i+1/2,j), flux_y(i,j+1/2)
+      (this->*update_flux)(i,j,flux_x,flux_y); //flux_x(i+1/2,j), flux_y(i,j+1/2)
       //computed and stored in variables flux_x,flux_y.
       //Recall that, in FVM, solution updates as
       //Q_{i,j}^{n+1} = Q_{i,j}^n-(flux_x(i+1/2,j)-flux_x(i-1/2,j))*(dt/dx)
@@ -337,16 +364,19 @@ void Linear_Convection_2d::run(bool output_indicator)
   make_grid();
   int time_step_number = 0; 
   set_initial_solution(); //sets solution to be the initial data
+  if (method == "upwind")
+    update_flux = &Linear_Convection_2d::upwind;
+  else if(method == "lw")
+    update_flux = &Linear_Convection_2d::lw;
+  else
+    assert(false);
   evaluate_error_and_output_solution(time_step_number,output_indicator);
   while (t < running_time) //compute solution at next time step using solution_old
   {        
     solution_old = solution;//update solution_old for next time_step
     //This requires puttingg ghost cells in solution
     //We should update array2d.h to change this. 
-    if (method == "upwind")
-      upwind();
-    else
-      assert(false);
+    solve();
     time_step_number += 1;
     t = t + dt; 
     evaluate_error_and_output_solution(time_step_number, output_indicator);
@@ -547,7 +577,7 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    double N = 100.0;
+    double N = 60.0;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double running_time = stod(argv[3]);
