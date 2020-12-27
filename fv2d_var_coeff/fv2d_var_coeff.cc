@@ -16,17 +16,24 @@ using namespace std;
 //Returns true if real number is integer, false otherwise.
 bool int_tester(double a)
 {
-    double dummy;
-    double c = modf(a,&a);
-    //cout << "Fractional part is "<<c<<endl;
-    return (c<1e-4);
+  double dummy;
+  double c = modf(a,&a);
+  //cout << "Fractional part is "<<c<<endl;
+  return (c<1e-4);
 }
+
+//Simply computes advection. We'd use it to compute advection speed at x,y.
+//It'd use n_x,n_y to figure whether u is needed or v or both.
+/*double advection_velocity(double x, double y, double n_x, double n_y)
+{
+  
+}*/
 
 class Linear_Convection_2d
 {
 public:
     Linear_Convection_2d(const double N,
-                         double lam_x, /*const double lam_y, */
+                         double lam, /*const double lam_y, */
                          string method, const double running_time,
                          int initial_data_indicator); 
 
@@ -82,7 +89,7 @@ private:
     //be an integer. Thus, the condition is, that u/v is a rational number
 
     double N, dx, dy, dt, t, running_time;
-    double lam_x, lam_y, sigma_x, sigma_y;
+    double lam, lam_y, sigma_x, sigma_y;
     void update_ghost_values();
     void use_ghost_values();
     string method;
@@ -90,34 +97,25 @@ private:
 };
 
 Linear_Convection_2d::Linear_Convection_2d(double N, 
-                                           double lam_x,/* const double lam_y,*/
+                                           double lam,/* const double lam_y,*/
                                            string method,
                                            double running_time, 
                                            int initial_data_indicator):
                                            N(N), 
-                                           lam_x(lam_x),
+                                           lam(lam),
                                            running_time(running_time),
                                            method(method),
                                            initial_data_indicator(initial_data_indicator)
 {
     theta = M_PI/4.0;
     u = 1.0, v = 1.0; //For now, setting coefficients to be their maximum value
-    //as CFL is now defined as lam_x = max()
+    //dt = lam*(0.72/(max(u)/dx + max(v)/dy))
     xmin = -1.0, xmax = 1.0, ymin = -1.0, ymax = 1.0;
     dx = (xmax - xmin) / (N), dy = (ymax-ymin)/(N);
     //In interval [0,1], if we run the loop for i = 0,1,...,n-1
     //and take the grid spacing to be 1/n, we won't reach the end of interval.
     t = 0.0;
-    dt = lam_x*dx/(abs(u));
-    /*//We want dt/u to be integer, this ensures it.
-    dt = dt/u; Or maybe this step is not needed since dt already
-    divided by u
-    */
-    lam_x = abs(u)*dt/dx;//lam_x updates
-    sigma_x = u*dt/(dx), sigma_y = v*dt/(dy);
-    //Since we have lam_x = |u|dt/dx,lam_y = |v|dt/dy, we can actually write
-    //Thus, dt = lam_x*dx/|u|. Thus, lam_y = |v/u|*(dx/dy) * lam_x = 
-    lam_y = abs(v/u)*dx/dy * lam_x;
+    dt = lam*(0.72/(1.0/dx+1.0/dy));
     if (method == "lw"    &&
         (dx - dy < 1e-12) && 
         (dt/dx > 1.0/sqrt(u*u + v*v)))
@@ -128,7 +126,7 @@ Linear_Convection_2d::Linear_Convection_2d(double N,
     cout << "dx = " << dx << endl;
     cout << "dy = " << dy << endl;
     cout << "dt = " << dt << endl;
-    cout << "lam_x = " <<lam_x << endl;
+    cout << "lam = " <<lam << endl;
     cout << "lam_y = " <<lam_y << endl;
     //grid.resize(N);
     error.resize(N,N);
@@ -148,6 +146,7 @@ void Linear_Convection_2d::update_advection_velocity(int i, int j)
 void Linear_Convection_2d::upwind(int i, int j,
                                   double& flux_x, double& flux_y)
 {
+  update_advection_velocity(i,j);
   //flux_x(i+1/2,j)
   flux_x = max(u,0.)*solution_old(i,j) + min(u,0.)*solution_old(i+1,j);
   //flux_y(i,j+1/2)
@@ -158,9 +157,12 @@ void Linear_Convection_2d::upwind(int i, int j,
 //(n_x,n_y)
 void Linear_Convection_2d::lw_flux(int i, int j,int n_x, int n_y, double& flux)
 {
+
   flux = 0.5*(u*n_x+v*n_y)*(solution_old(i,j) + solution_old(i+n_x,j+n_y))
-        -0.5*(u*n_x+v*n_y)*(u*n_x+v*n_y)*(dt/dx)*(solution_old(i+n_x,j+n_y)- solution_old(i,j))
-        -0.125*u*v*(dt/dx)*(solution_old(i+n_y,j+n_x)-solution_old(i-n_y,j-n_x)
+        -0.5*(u*n_x+v*n_y)*(u*n_x+v*n_y)*(n_x*dt/dx+n_y*dt/dy)
+            *(solution_old(i+n_x,j+n_y)- solution_old(i,j))
+        -0.125*u*v*(n_x*dt/dy + n_y*dt/dx)
+                  *(solution_old(i+n_y,j+n_x)-solution_old(i-n_y,j-n_x)
                             +solution_old(i+1,j+1)-solution_old(i+n_x-n_y,j-n_x+n_y));
 }
 
@@ -171,13 +173,6 @@ void Linear_Convection_2d::lw(int i, int j,
   update_advection_velocity(i,j);
   lw_flux(i,j,1,0,flux_x);
   lw_flux(i,j,0,1,flux_y);
-  //Since the function to compute flux_x, flux_y are very similar, we
-  //create a function that does so.
-  //This will give flux_x(i+1/2,j) or flux_y(i,j+1/2) whichever chosen
-  //by the user
-
-  //If we make functions within function, we could make one and then for 
-  //the other use, transpose of array.
 }
 
 
@@ -284,7 +279,7 @@ void Linear_Convection_2d::solve()
   update_ghost_values();
   //We'd do solution = solution_old - dt/dx * (f_x(i+1/2,j)-f_x(i-1/2,j))
   //                                - dt/dx * (f_y(i,j+1/2)-f_y(i,j-1/2))
-  for (int i = 0; i < N; i++) 
+  for (int i = 0; i < N; i++)
     for (int j = 0;j< N; j++)
     {
       //We need to compute u_{i+1/2,j} =-y_j and v_{i,j+1/2} = x_j
@@ -462,6 +457,7 @@ void run_and_output(double N, double cfl,
   cout << endl;         
 }
 
+//BUG FOR (xmin,xmax) != (ymin,ymax). FIX
 double Linear_Convection_2d::interval_part(double x)
 {
   if (x > xmax)
