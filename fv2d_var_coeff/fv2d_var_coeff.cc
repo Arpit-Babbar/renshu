@@ -158,7 +158,7 @@ void Linear_Convection_2d::lw(int i, int j, double n_x, double n_y,
   flux = 0.5*(u[n_x,n_y])*(solution_old(i,j) + solution_old(i+n_x,j+n_y))
         -0.5*(u[n_x,n_y])*(u[n_x,n_y])*(n_x*dt/dx+n_y*dt/dy)
             *(solution_old(i+n_x,j+n_y)- solution_old(i,j))
-        -0.125*u[n_x,n_y]*u[n_x,n_y]*(n_x*dt/dy + n_y*dt/dx)
+        -0.125*u[n_x,n_y]*u[n_y,n_x]*(n_x*dt/dy + n_y*dt/dx)
               *(solution_old(i+n_y,j+n_x)-solution_old(i-n_y,j-n_x)
                 +solution_old(i+1,j+1)-solution_old(i+n_x-n_y,j-n_x+n_y));
 }
@@ -270,7 +270,7 @@ void Linear_Convection_2d::solve()
   //We'd do solution = solution_old - dt/dx * (f_x(i+1/2,j)-f_x(i-1/2,j))
   //                                - dt/dx * (f_y(i,j+1/2)-f_y(i,j-1/2))
 
-  //flux in x direction computed
+  //flux in x direction computed and used to update solution
   //Basically, flux_x(i+1/2,j)
   for (int i = 0; i < N; i++)
     for (int j = 0;j< N; j++)
@@ -293,7 +293,7 @@ void Linear_Convection_2d::solve()
       solution(i,j)     +=  solution_old(i,j);
     }
 
-  //flux in y direction computed
+  //flux in y direction computed and used to update solution
   //Basically, flux_y(i,j+1/2)
   for (int i = 0; i < N; i++)
     for (int j = 0;j< N; j++)
