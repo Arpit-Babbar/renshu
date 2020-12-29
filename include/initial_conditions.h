@@ -62,10 +62,11 @@ double exp_func_25(double x, double xmin, double xmax)
   return exp(-25*(x-0.25)*(x-0.25));
 }
 
-double exp_func_100(double x, double xmin, double xmax)
+double exp_func_100(double x, double y, double xmin, double xmax, double ymin, double ymax)
 {
-  x = interval_part(x,xmin,xmax);
-  return exp(-100.0*(x-0.5)*(x-0.5));
+  x = interval_part(x,xmin,xmax), y = interval_part(y,ymin,ymax);
+  return 1.0 + exp(-50.0*((x-(xmin+0.25*(xmax-xmin)))*(x-(xmin+0.25*(xmax-xmin))) 
+                            + (y-(0.5*(ymax+ymin)))*(y-(0.5*(ymax+ymin)))  ));
 }
 
 double cts_sine(double x, double xmin, double xmax)
@@ -123,6 +124,8 @@ void I_Functions::set(int initial_data_indicator0, double xmin0, double xmax0,
 //BUG - This way only works for (xmin,xmax) = (ymin,ymax).
 double I_Functions::value(double x, double y)
 {
+  double val, radius;
+  radius = (x-0.5)*(x-0.5)*y*y;//centre of function, used in bump function.
   switch (initial_data_indicator)
   {
   case 0:
@@ -132,13 +135,13 @@ double I_Functions::value(double x, double y)
     return hat_function(x,xmin,xmax)*hat_function(y,ymin,ymax);
     break;
   case 2:
-    return step_function(x,xmin,xmax)*hat_function(y,ymin,ymax);
+    return step_function(x,xmin,xmax)*step_function(y,ymin,ymax);
     break;
   case 3:
     return exp_func_25(x,xmin,xmax)*exp_func_25(y,ymin,ymax);
     break;
   case 4:
-    return exp_func_100(x,xmin,xmax)*exp_func_100(y,ymin,ymax);
+    return exp_func_100(x,y,xmin,xmax,ymin,ymax);
     break;
   case 5:
     return cts_sine(x,xmin,xmax)*cts_sine(y,ymin,ymax);

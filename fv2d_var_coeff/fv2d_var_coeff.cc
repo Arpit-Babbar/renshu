@@ -437,6 +437,8 @@ void Linear_Convection_2d::run(bool output_indicator)
   }
   cout << "For N_x = " << N_x<<", N_y = "<<N_y<<", we took ";
   cout << time_step_number << " steps." << endl;
+  if (output_indicator)
+    cout <<"We produce output in this refinement level\n";
 }
 
 void run_and_output(double N_x, double N_y, double cfl,
@@ -589,14 +591,14 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    int N_x = 50, N_y = 50;
+    int N_x = 75, N_y = 75;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double running_time = stod(argv[3]);
     cout << "running_time = " << running_time << endl;
     int initial_data_indicator = stoi(argv[4]);
     cout << "initial_data_indicator = " << initial_data_indicator << endl;
-    unsigned int max_refinements = stoi(argv[5]);
+    signed int max_refinements = stoi(argv[5]);
     cout << "max_refinements = " << max_refinements <<endl;
     //Sets the numerical flux
     if (method=="upwind")
