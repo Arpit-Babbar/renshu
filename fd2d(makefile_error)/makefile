@@ -1,5 +1,6 @@
 CXX = g++ #-O3 runs faster.
 CFLAGS = -Wall -O3
+EIGEN_DIR = /mnt/c/Users/arpit/arpit_practise
 OBJ =  main.o array2d.o
 
 TARGETS = main

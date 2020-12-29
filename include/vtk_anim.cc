@@ -143,7 +143,7 @@ void write_rectilinear_grid(vector<double> &grid_x,
    fout << 0.0 << endl;
 
    fout << "POINT_DATA " << nx*ny*nz << endl;
-   fout << "SCALARS approximate float" << endl;
+   fout << "SCALARS density float" << endl;
    fout << "LOOKUP_TABLE default" << endl;
    // no need for k-loop since nk=1
    for(int j=0; j<ny; ++j)
@@ -153,7 +153,7 @@ void write_rectilinear_grid(vector<double> &grid_x,
       fout << endl;
    }
 
-   fout << "SCALARS exact float" << endl;
+   fout << "SCALARS density_exact float" << endl;
    fout << "LOOKUP_TABLE default" << endl;
    // no need for k-loop since nk=1
    for(int j=0; j<ny; ++j)

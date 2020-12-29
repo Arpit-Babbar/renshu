@@ -106,16 +106,7 @@ I_Functions::I_Functions(int initial_data_indicator,
                            double xmin, double xmax):
                           initial_data_indicator(initial_data_indicator),
                           xmin(xmin),xmax(xmax),ymin(ymin),ymax(ymax)
-{}
-
-void I_Functions::set(int initial_data_indicator0, double xmin0, double xmax0,
-                      double ymin0, double ymax0)
 {
-  initial_data_indicator = initial_data_indicator0;
-  if (initial_data_indicator0 == 0)
-    cout << "WARNING - smooth_sine doesn't work for variable coefficients\n";
-  xmin = xmin0, xmax = xmax0;
-  ymin = ymin0, ymax = ymax0;
   switch (initial_data_indicator)
   {
   case 0:
@@ -134,12 +125,22 @@ void I_Functions::set(int initial_data_indicator0, double xmin0, double xmax0,
     cout <<"exp_100 chosen for initial condition\n";
     break;
   case 5:
-    cout <<"cts_sine chosen for initial condition\n.";
+    cout <<"cts_sine chosen for initial condition \n";
     break;
   default:
     cout << "You entered the wrong initial_data_indicator ";
     assert(false);
   }
+}
+
+void I_Functions::set(int initial_data_indicator0, double xmin0, double xmax0,
+                      double ymin0, double ymax0)
+{
+  initial_data_indicator = initial_data_indicator0;
+  if (initial_data_indicator0 == 0)
+    cout << "WARNING - smooth_sine doesn't work for variable coefficients\n";
+  xmin = xmin0, xmax = xmax0;
+  ymin = ymin0, ymax = ymax0;
 }
 
 //BUG - This way only works for (xmin,xmax) = (ymin,ymax).

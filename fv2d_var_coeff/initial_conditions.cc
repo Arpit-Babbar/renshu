@@ -7,8 +7,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/array2d.h"
-#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/vtk_anim.h"
+#include "initial_conditions.h"
 using namespace std;
 
 double interval_part(double x, double xmin, double xmax)
@@ -33,13 +32,12 @@ double hat_function(double x, double xmin, double xmax)
 {
   double value;
   x = interval_part(x,xmin,xmax);
-  if (x < xmin + (xmax - xmin) / 4.0 ||
-      x > xmax - (xmax - xmin) / 4.0) //supported in (-1.5,1.5)
-    value = 0.0;
-  else if (x <= xmin+(xmax-xmin)/2.0)    //(x < 0.0)
+  if (x>= xmin + (xmax - xmin) / 4.0 && x <= xmin+(xmax-xmin)/2.0) //(-0.5,0)
     value = x -(xmin+ (xmax-xmin)/4.0);  //x + 0.5
-  else if (x > xmax-(xmax-xmin)/2.0)     //x > 0.0
+  else if (x < xmax-(xmax-xmin)/4.0 && x > xmax-(xmax-xmin)/2.0)
     value = (xmax-(xmax-xmin)/4.0) - x;  //0.5-x
+  else //(-1.0,-0.5) or (0.5,1.0)
+    value = 0.0; 
   return value;
 }
 
@@ -80,42 +78,14 @@ double cts_sine(double x, double xmin, double xmax)
     return value;
 }
 
-class I_Functions
-{
-public:
-  I_Functions();
-  I_Functions(int initial_data_indicator,double xmin, double xmax);
-  double value(double x, double y);
-
-  //Gets exact solution, depending on advection speed
-  double exact_value(double x, double y, double t, double u[2], 
-                     bool constant = false);
-  
-  //Sets initial_data_indicator, xmin,xmax
-  void set(int initial_data_indicator, double xmin, double xmax,
-           double ymin, double ymax);
-private:
-
-  int initial_data_indicator;
-  double xmin,xmax,ymin,ymax;
-};
-
 I_Functions::I_Functions(){}//Default constructor
 
 I_Functions::I_Functions(int initial_data_indicator,
-                           double xmin, double xmax):
+                           double xmin, double xmax,
+                           double ymin, double ymax):
                           initial_data_indicator(initial_data_indicator),
                           xmin(xmin),xmax(xmax),ymin(ymin),ymax(ymax)
-{}
-
-void I_Functions::set(int initial_data_indicator0, double xmin0, double xmax0,
-                      double ymin0, double ymax0)
 {
-  initial_data_indicator = initial_data_indicator0;
-  if (initial_data_indicator0 == 0)
-    cout << "WARNING - smooth_sine doesn't work for variable coefficients\n";
-  xmin = xmin0, xmax = xmax0;
-  ymin = ymin0, ymax = ymax0;
   switch (initial_data_indicator)
   {
   case 0:
@@ -134,7 +104,7 @@ void I_Functions::set(int initial_data_indicator0, double xmin0, double xmax0,
     cout <<"exp_100 chosen for initial condition\n";
     break;
   case 5:
-    cout <<"cts_sine chosen for initial condition\n.";
+    cout <<"cts_sine chosen for initial condition \n";
     break;
   default:
     cout << "You entered the wrong initial_data_indicator ";
@@ -142,11 +112,19 @@ void I_Functions::set(int initial_data_indicator0, double xmin0, double xmax0,
   }
 }
 
+void I_Functions::set(int initial_data_indicator0, double xmin0, double xmax0,
+                      double ymin0, double ymax0)
+{
+  initial_data_indicator = initial_data_indicator0;
+  if (initial_data_indicator0 == 0)
+    cout << "WARNING - smooth_sine doesn't work for variable coefficients\n";
+  xmin = xmin0, xmax = xmax0;
+  ymin = ymin0, ymax = ymax0;
+}
+
 //BUG - This way only works for (xmin,xmax) = (ymin,ymax).
 double I_Functions::value(double x, double y)
 {
-  double val, radius;
-  radius = (x-0.5)*(x-0.5)*y*y;//centre of function, used in bump function.
   switch (initial_data_indicator)
   {
   case 0:

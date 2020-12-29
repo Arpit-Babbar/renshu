@@ -9,15 +9,14 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/array2d.h"
-#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/vtk_anim.h"
-#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/initial_conditions.h"
+#include "array2d.h"
+#include "vtk_anim.h"
+#include "initial_conditions.h"
 using namespace std;
 
 //Returns true if real number is integer, false otherwise.
 bool int_tester(double a)
 {
-  double dummy;
   double c = modf(a,&a);
   //cout << "Fractional part is "<<c<<endl;
   return (c<1e-4);
@@ -34,7 +33,7 @@ void (*update_flux)(int n_x, int n_y,double vel[2],double Q_l,double Q_r, double
 void upwind(int n_x, int n_y, double vel[2], double Q_l, double Q_r, double& flux)
 {
   const double v_n = vel[0]*n_x + vel[1]*n_y;//normal velocity
-  flux = max(vel[n_x,n_y],0.0)*Q_l+ min(vel[n_x,n_y],0.)*Q_r;
+  flux = max(v_n,0.0)*Q_l+ min(v_n,0.)*Q_r;
 }
 
 //Computes advection_velocity in x direction at (x,y)
@@ -117,8 +116,8 @@ Linear_Convection_2d::Linear_Convection_2d(double N_x, double N_y,
                                            double running_time, 
                                            int initial_data_indicator):
                                            N_x(N_x), N_y(N_y), 
-                                           lam(lam),
                                            running_time(running_time),
+                                           lam(lam),
                                            method(method),
                                            initial_data_indicator(initial_data_indicator)
 {
@@ -174,24 +173,18 @@ void Linear_Convection_2d::compute_time_step()
 // (x_{i+0.5*n_x},y_{j+0.5*n_y}). In this code, we'd just have
 //(n_x,n_y) = (1,0) or (0,1), so the centres will just be 
 //(x_{i+1/2,j},y_j) or (x_i,y_{j+1/2})
-void Linear_Convection_2d::upwind(int i, int j,
-                                  int n_x,int n_y,
-                                  double& flux)
-{
-  flux = max(vel[n_x,n_y],0.)*solution_old(i,j)
-           + min(vel[n_x,n_y],0.)*solution_old(i+n_x,j+n_y);
-}
 
 //This function does the actual job of computing the flux.
 void Linear_Convection_2d::lw(int i, int j, int n_x, int n_y,
                               double& flux)
 {
-  flux = 0.5*(vel[n_x,n_y])*(solution_old(i,j) + solution_old(i+n_x,j+n_y))
-        -0.5*(vel[n_x,n_y])*(vel[n_x,n_y])*(n_x*dt/dx+n_y*dt/dy)
-            *(solution_old(i+n_x,j+n_y)- solution_old(i,j))
-        -0.125*vel[n_x,n_y]*vel[n_y,n_x]*(n_x*dt/dy + n_y*dt/dx)
-              *(solution_old(i+n_y,j+n_x)-solution_old(i-n_y,j-n_x)
-                +solution_old(i+1,j+1)-solution_old(i+n_x-n_y,j-n_x+n_y));
+  const double v_n = vel[0]*n_x + vel[1]*n_y;//normal velocity
+  const double v_t = vel[0]*n_y+vel[1]*n_x;//Tangential velocity
+  double h_1 = n_x*(dt/dx)+n_y*(dt/dy), h_2 = n_x*(dt/dy)+n_y*(dt/dx);
+  flux = 0.5*v_n*(solution(i,j) + solution(i+n_x,j+n_y))
+        -0.5*v_n*v_n*h_1*(solution(i+n_x,j+n_y)- solution(i,j))
+        -0.125*v_n*v_t*h_2*(solution(i+n_y,j+n_x)-solution(i-n_y,j-n_x)
+                       +solution(i+1,j+1)-solution(i+n_x-n_y,j-n_x+n_y));
 }
 
 
@@ -282,7 +275,7 @@ void Linear_Convection_2d::apply_fvm()
   //Basically, flux_x(i+1/2,j)
 
   //
-  for (int i = 0; i < N_x; i++)
+  for (int i = 0; i <= N_x; i++)
     for (int j = 0; j< N_y; j++)
     {
       double x = (xmin+dx)+i*dx, y = ymin+0.5*dy+j*dy; //Values on face centre
@@ -403,11 +396,11 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
       advection_velocity(x,y,vel);
       solution_exact(i,j) = initial_function.exact_value(x,y,t,vel,constant_indicator);
     }
-  if (output_indicator==true && time_step_number%5==0)
+  if (output_indicator==true && time_step_number%15==0)
   {
   vtk_anim_sol(grid_x,grid_y,
         solution, solution_exact,
-        t, time_step_number,
+        t, time_step_number/15,
         "approximate_solution");
   }
   for (unsigned int i = 0; i < N_x; i++)
@@ -591,7 +584,7 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    int N_x = 75, N_y = 75;
+    int N_x = 100, N_y = 100;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double running_time = stod(argv[3]);
