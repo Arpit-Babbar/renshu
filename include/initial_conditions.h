@@ -47,7 +47,6 @@ double step_function(double x, double xmin, double xmax)
 {
   double value;
   x = interval_part(x,xmin,xmax);
-  x = x +(xmax-xmin)/4.0;//This will shift the centre.
   if (x < xmin + (xmax - xmin) / 4.0 || 
     x > xmax - (xmax - xmin) / 4.0)
     value = 0.0;
