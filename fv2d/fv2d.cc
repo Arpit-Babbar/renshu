@@ -498,7 +498,8 @@ double Linear_Convection_2d::step_function(double grid_point)
 double Linear_Convection_2d::exp_func_25(double grid_point)
 {
   grid_point = interval_part(grid_point);
-  return exp(-25*grid_point*grid_point);
+
+  return exp(-25*(grid_point-0.25)*(grid_point-0.25));
 }
 
 double Linear_Convection_2d::exp_func_100(double grid_point)
@@ -567,7 +568,7 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    double N = 30.0;
+    double N = 50.0;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double running_time = stod(argv[3]);

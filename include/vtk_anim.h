@@ -50,11 +50,6 @@ void write_rectilinear_grid(vector<double> &grid_x,
       assert(false);
     }
    int nz = 1; // We have a 2d grid
-  /*  fout.open(filename)
-      write_grid(fout,nx,ny,dx,dy)
-      write_sol(fout,nxny,solution,"solution")
-      write_sol(fout,nx,ny,solution_exact,"solution_exact")
-  */
    ofstream fout;
    fout.open(filename);
    fout << "# vtk DataFile Version 3.0" << endl;
@@ -88,8 +83,77 @@ void write_rectilinear_grid(vector<double> &grid_x,
          fout << solution(i,j) << " ";
       fout << endl;
    }
-   /*
-   fout << "SCALARS density_exact float" << endl;
+}
+void vtk_anim_sol(vector<double> &grid_x,vector<double> &grid_y,
+                  Array2D& solution,
+                   double t,
+                  double time_step_number,
+                  string filename)
+{
+  filename = filename+"_";
+  filename = get_filename(filename,3,time_step_number);
+  write_rectilinear_grid(grid_x, grid_y, solution, t, time_step_number, filename);
+}
+
+
+//Double input 
+
+void write_rectilinear_grid(vector<double> &grid_x,
+                            vector<double> &grid_y,
+                            Array2D& solution, Array2D& solution_exact,
+                            double t,
+                            int c, //Cycle number
+                            string filename)
+{
+   const int nx = solution.sizex(),ny = solution.sizey();
+   if ( (grid_x.size() != nx) || (grid_y.size() != ny))
+    {
+      cout << "Grid and solution sizes don't match." <<endl;
+      cout << "grid.sizex = "<< grid_x.size() << ", solution.sizex = "<<nx;
+      cout << "grid.sizey = "<< grid_y.size() << ", solution.sizey = "<<ny;
+      assert(false);
+    }
+   int nz = 1; // We have a 2d grid
+  /*  fout.open(filename)
+      write_grid(fout,nx,ny,dx,dy)
+      write_sol(fout,nxny,solution,"solution")
+      write_sol(fout,nx,ny,solution_exact,"solution_exact")
+  */
+   ofstream fout;
+   fout.open(filename);
+   fout << "# vtk DataFile Version 3.0" << endl;
+   fout << "Cartesian grid" << endl;
+   fout << "ASCII" << endl;
+   fout << "DATASET RECTILINEAR_GRID" << endl;
+   fout << "FIELD FieldData 2" << endl;
+   fout << "TIME 1 1 double" << endl;
+   fout << t << endl;
+   fout << "CYCLE 1 1 int" << endl;
+   fout << c << endl;
+   fout << "DIMENSIONS " << nx << " " << ny << " " << nz << endl;
+   fout << "X_COORDINATES " << nx << " float" << endl;
+   for(int i=0; i<nx; ++i)
+      fout << grid_x[i] << " ";
+   fout << endl;
+   fout << "Y_COORDINATES " << ny << " float" << endl;
+   for(int j=0; j<ny; ++j)
+      fout << grid_y[j] << " ";
+   fout << endl;
+   fout << "Z_COORDINATES " << nz << " float" << endl;
+   fout << 0.0 << endl;
+
+   fout << "POINT_DATA " << nx*ny*nz << endl;
+   fout << "SCALARS approximate float" << endl;
+   fout << "LOOKUP_TABLE default" << endl;
+   // no need for k-loop since nk=1
+   for(int j=0; j<ny; ++j)
+   {
+      for(int i=0; i<nx; ++i)
+         fout << solution(i,j) << " ";
+      fout << endl;
+   }
+
+   fout << "SCALARS exact float" << endl;
    fout << "LOOKUP_TABLE default" << endl;
    // no need for k-loop since nk=1
    for(int j=0; j<ny; ++j)
@@ -99,63 +163,15 @@ void write_rectilinear_grid(vector<double> &grid_x,
       fout << endl;
    }
    fout.close();
-   */
-
-   //cout << "Wrote Cartesian grid into " << filename << endl;
 }
 void vtk_anim_sol(vector<double> &grid_x,vector<double> &grid_y,
-                  Array2D& solution,
+                  Array2D& solution, Array2D& solution_exact,
                    double t,
                   double time_step_number,
                   string filename)
 {
-  //cout << "Saving rectilinear grid\n";
-  /*
-  const int nx = solution.sizex(), ny = solution.sizey();
-  const double xmin = -1.0, xmax = 1.0;
-  const double ymin = -1.0, ymax = 1.0;
-  const double dx = (xmax-xmin)/(nx);
-  const double dy = (ymax-ymin)/(ny);
-  */
-  /*double *x, *y;
-
-  x = new double[nx];
-  y = new double[ny];
-
-  for(int i=0; i<nx; ++i)
-    x[i] = xmin + i*dx;
-
-  for(int j=0; j<ny; ++j)
-    y[j] = ymin + j*dy;
-  */
-  /*
-  var = new double*[nx];
-  for(int i=0; i<nx; ++i)
-    var[i] = new double[ny];
-  */
-  //double u = 1.0, v = 1.0;
-  //double t = 0.0, dt = 0.1, Tf = 10.0;
-  /*
-  for(int i=0; i<nx; ++i)
-      for(int j=0; j<ny; ++j)
-      {
-        //double xx = x[i] - u*t;
-        //double yy = y[j] - v*t;
-        var[i][j] = solution(i,j);
-      }
-  */
   filename = filename+"_";
   filename = get_filename(filename,3,time_step_number);
-  write_rectilinear_grid(grid_x, grid_y, solution, t, time_step_number, filename);
-  //t += dt;
-  //++c;
-
-   // Deallocate memory here
-   /*delete[] x;
-   delete[] y;*/
-   /*for(int i=0; i<nx; ++i)
-      delete[] var[i];
-   delete[] var;*/
-
+  write_rectilinear_grid(grid_x, grid_y, solution, solution_exact, t, time_step_number, filename);
 }
 #endif

@@ -11,6 +11,7 @@
 
 #include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/array2d.h"
 #include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/vtk_anim.h"
+#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/initial_conditions.h"
 using namespace std;
 
 //Returns true if real number is integer, false otherwise.
@@ -22,145 +23,37 @@ bool int_tester(double a)
   return (c<1e-4);
 }
 
-//Computes advection_velocity in x direction at (x,y)
-void advection_velocity(double x, double y, double u[2])
+double reconstruct(double Qm1,double Q0)
 {
-  u[0] = -y, u[1] = x;
-}
-
-class I_Functions
-{
-public:
-  I_Functions();
-  I_Functions(int initial_data_indicator,double xmin, double xmax);
-  double (I_Functions::*value)(double x);
-private:
-  double smooth_sine(double x);
-  double interval_part(double x);
-  double hat_function(double x);
-  double step_function(double x);
-  double exp_func_25(double x);
-  double exp_func_100(double x);
-  double cts_sine(double x);
-
-  int initial_data_indicator;
-  double xmin,xmax;
-};
-
-//Default constructor
-I_Functions::I_Functions()
-{
-
-}
-
-I_Functions::I_Functions(int initial_data_indicator,
-                           double xmin, double xmax):
-                          initial_data_indicator(initial_data_indicator),
-                          xmin(xmin),xmax(xmax)
-{
-  switch (initial_data_indicator)
-    {
-    case 0:
-      cout << "smooth_sine won't work, case 0 not added\n";
-      assert(false);
-      break;
-    case 1:
-      value = &I_Functions::hat_function;
-      break;
-    case 2:
-      value = &I_Functions::step_function;
-      break;
-    case 3:
-      value = &I_Functions::exp_func_25;
-      break;
-    case 4:
-      value = &I_Functions::exp_func_100;
-      break;
-    case 5:
-      value = &I_Functions::cts_sine;
-      break;
-    default:
-      cout << "You entered the wrong initial_data_indicator ";
-      assert(false);
-    }
+  return Q0;
 }
 
 
-double I_Functions::interval_part(double x)
-{
-  if (x > xmax)
-    return x - ceil((x - xmax) / (xmax - xmin)) * (xmax - xmin);
-  else if (x < xmin)
-    return x + ceil((xmin - x) / (xmax - xmin)) * (xmax - xmin);
-  else
-    return x;
-}
+void (*update_flux)(int n_x, int n_y,double vel[2],double Q_l,double Q_r, double &flux);
 
-double I_Functions::smooth_sine(double x)
+void upwind(int n_x, int n_y, double vel[2], double Q_l, double Q_r, double& flux)
 {
-  double value;
-  value = sin(2.0 * M_PI * x / (xmax - xmin));
-  return value;
+  const double v_n = vel[0]*n_x + vel[1]*n_y;//normal velocity
+  flux = max(vel[n_x,n_y],0.0)*Q_l+ min(vel[n_x,n_y],0.)*Q_r;
 }
-
-//More testing needed before trying for different xmin,xmax
-double I_Functions::hat_function(double x)
-{
-  double value;
-  x = interval_part(x);
-  if (x < xmin + (xmax - xmin) / 4.0 ||
-      x > xmax - (xmax - xmin) / 4.0) //supported in (-1.5,1.5)
-    value = 0.0;
-  else if (x <= xmin+(xmax-xmin)/2.0)    //(x < 0.0)
-    value = x -(xmin+ (xmax-xmin)/4.0);  //x + 0.5
-  else if (x > xmax-(xmax-xmin)/2.0)     //x > 0.0
-    value = (xmax-(xmax-xmin)/4.0) - x;  //0.5-x
-  return value;
-}
-
-double I_Functions::step_function(double x)
-{
-  double value;
-  x = interval_part(x);
-  if (x < xmin + (xmax - xmin) / 4.0 || 
-    x > xmax - (xmax - xmin) / 4.0)
-    value = 0.0;
-  else
-    value = 1.0;
-  return value;
-}
-
-double I_Functions::exp_func_25(double x)
-{
-  x = interval_part(x);
-  return exp(-25*x*x);
-}
-
-double I_Functions::exp_func_100(double x)
-{
-  x = interval_part(x);
-  return exp(-100.0*(x-0.5)*(x-0.5));
-}
-
-double I_Functions::cts_sine(double x)
-{
-    double value;
-    x = interval_part(x);
-    if (x < xmin + (xmax - xmin) / 4.0 ||
-        x > xmax - (xmax - xmin) / 4.0)
-        value = 0.0;
-    else
-        value = -sin(4.0 * M_PI * x / (xmax - xmin));
-    return value;
-}
-
 
 //Computes advection_velocity in x direction at (x,y)
+void rotational_velocity(double x, double y, double vel[2])
+{
+  vel[0] = -y, vel[1] = x;
+}
+
+void constant_velocity(double x, double y, double vel[2])
+{
+  vel[0] = 1.0, vel[1] = 1.0;
+}
+
+void (*advection_velocity)(double, double, double vel[2]) = &rotational_velocity;
 
 class Linear_Convection_2d
 {
 public:
-    Linear_Convection_2d(const double N,
+    Linear_Convection_2d(double N_x, double N_y,
                          double lam,
                          string method, const double running_time,
                          int initial_data_indicator); 
@@ -174,31 +67,21 @@ private:
 
     void compute_time_step();//This computes the time step dt.
 
-    void (Linear_Convection_2d::*update_flux)(int i, int j, int n_x, int n_y,
-                                              double &flux);
     //Computes flux_x(i+1/2,j), flux_y(i,j+1/2)
     void lw_normal_flux();
     void lw_flux(int i, int j,int n_x, int n_y, double& flux);
     void lw(int i, int j, int n_x, int n_y, double& flux);
     void upwind(int i, int j, int n_x, int n_y, double& flux);
 
-    void solve();
-
-    double hat_function(double grid_point);
-    double step_function(double grid_point); 
-    double exp_func_25(double grid_point);
-    double sine_wave(double grid_points);
-    double exp_func_100(double grid_point);
-
+    void apply_fvm();
+    void apply_lw();
 
     void evaluate_error_and_output_solution(const int time_step_number,
                                             bool output_indicator);
     vector<double> grid_x,grid_y;
     
-    double u[2]; //advection velocity vector
+    double vel[2]; //advection velocity vector
     double theta, xmin, xmax, ymin, ymax;
-
-    double interval_part(double);
 
     Array2D solution_old; //Solution at previous step
     Array2D solution; //Solution at present step
@@ -219,22 +102,21 @@ private:
     //to be an integer, we need t = m/sqrt(2), but then v*t cannot 
     //be an integer. Thus, the condition is, that u/v is a rational number
 
-    double N, dx, dy, dt, t, running_time;
+    double N_x,N_y, dx, dy, dt, t, running_time;
     double lam, sigma_x, sigma_y;
     void update_ghost_values();
     void use_ghost_values();
     string method;
     int initial_data_indicator;
-    //I_Functions initial_x,initial_y;
-
+    I_Functions initial_function;
 };
 
-Linear_Convection_2d::Linear_Convection_2d(double N, 
+Linear_Convection_2d::Linear_Convection_2d(double N_x, double N_y, 
                                            double lam,
                                            string method,
                                            double running_time, 
                                            int initial_data_indicator):
-                                           N(N), 
+                                           N_x(N_x), N_y(N_y), 
                                            lam(lam),
                                            running_time(running_time),
                                            method(method),
@@ -242,39 +124,37 @@ Linear_Convection_2d::Linear_Convection_2d(double N,
 {
     theta = M_PI/4.0;
     xmin = -1.0, xmax = 1.0, ymin = -1.0, ymax = 1.0;
-    dx = (xmax - xmin) / (N), dy = (ymax-ymin)/(N);
+    dx = (xmax - xmin) / (N_x), dy = (ymax-ymin)/(N_y);
     //In interval [0,1], if we run the loop for i = 0,1,...,n-1
     //and take the grid spacing to be 1/n, we won't reach the end of interval.
     t = 0.0;
-    /*
-    I_Functions initial_x(initial_data_indicator,xmin,xmax);
-    I_Functions initial_y(initial_data_indicator,ymin,ymax);
-    */
+    
+    initial_function.set(initial_data_indicator,xmin,xmax,ymin,ymax);
     snapshot_error = -1.0; //Put bad value for testing success.
     cout << "dx = " << dx << endl;
     cout << "dy = " << dy << endl;
     cout << "lam = " <<lam << endl;
 
-    error.resize(N,N);
-    grid_x.resize(N),grid_y.resize(N);
-    initial_solution.resize(N,N);
-    solution_old.resize(N,N,1);
-    solution.resize(N,N,1);
-    residual.resize(N,N,1);
-    solution_exact.resize(N,N);
+    error.resize(N_x,N_y);
+    grid_x.resize(N_x),grid_y.resize(N_y);
+    initial_solution.resize(N_x,N_y);
+    solution_old.resize(N_x,N_y,1);
+    solution.resize(N_x,N_y,1);
+    residual.resize(N_x,N_y,1);
+    solution_exact.resize(N_x,N_y);
 
 }
 
 void Linear_Convection_2d::compute_time_step()
 {
-  double umax=0.,vmax=0.;
-  double u,v;
-  for (int i = 0; i<N; i++)
-    for (int j = 0; j<N;j++) //Loop over all cell centers.
+  double u0max=0.,u1max=0.;
+  double vel[2];
+  for (int i = 0; i<N_x; i++)
+    for (int j = 0; j<N_y;j++) //Loop over all cell centers.
     {
       double x = xmin + 0.5*dx + i*dx, y = ymin + 0.5*dy + j*dy;
-      u = -y,v=x;
-      umax = max(umax,abs(u)), vmax = max(vmax,abs(v));
+      (*advection_velocity)(x,y,vel);
+      u0max = max(u0max,abs(vel[0])), u1max = max(u1max,abs(vel[1]));
     }
   double c;
   if (method == "upwind")
@@ -286,7 +166,7 @@ void Linear_Convection_2d::compute_time_step()
     cout << "Incorrect method"<<endl;
     assert(false);
   }
-  dt = lam*c/(umax/dx+vmax/dy);
+  dt = lam*c/(u0max/dx+u1max/dy);
   cout << "dt = "<<dt <<endl;
 }
 
@@ -298,18 +178,18 @@ void Linear_Convection_2d::upwind(int i, int j,
                                   int n_x,int n_y,
                                   double& flux)
 {
-  flux = max(u[n_x,n_y],0.)*solution_old(i,j)
-         + min(u[n_x,n_y],0.)*solution_old(i+n_x,j+n_y);
+  flux = max(vel[n_x,n_y],0.)*solution_old(i,j)
+           + min(vel[n_x,n_y],0.)*solution_old(i+n_x,j+n_y);
 }
 
 //This function does the actual job of computing the flux.
 void Linear_Convection_2d::lw(int i, int j, int n_x, int n_y,
                               double& flux)
 {
-  flux = 0.5*(u[n_x,n_y])*(solution_old(i,j) + solution_old(i+n_x,j+n_y))
-        -0.5*(u[n_x,n_y])*(u[n_x,n_y])*(n_x*dt/dx+n_y*dt/dy)
+  flux = 0.5*(vel[n_x,n_y])*(solution_old(i,j) + solution_old(i+n_x,j+n_y))
+        -0.5*(vel[n_x,n_y])*(vel[n_x,n_y])*(n_x*dt/dx+n_y*dt/dy)
             *(solution_old(i+n_x,j+n_y)- solution_old(i,j))
-        -0.125*u[n_x,n_y]*u[n_y,n_x]*(n_x*dt/dy + n_y*dt/dx)
+        -0.125*vel[n_x,n_y]*vel[n_y,n_x]*(n_x*dt/dy + n_y*dt/dx)
               *(solution_old(i+n_y,j+n_x)-solution_old(i-n_y,j-n_x)
                 +solution_old(i+1,j+1)-solution_old(i+n_x-n_y,j-n_x+n_y));
 }
@@ -319,131 +199,100 @@ void Linear_Convection_2d::lw(int i, int j, int n_x, int n_y,
 void Linear_Convection_2d::make_grid()
 {
   //Note that you must run two for loops for a rectangular grid.
-  for (unsigned int i = 0; i < N; i++)
-  {
+  for (unsigned int i = 0; i < N_x; i++)
     grid_x[i] = (xmin+0.5*dx) + i * dx;
-    grid_y[i] = (ymin+0.5*dy) + i * dy;
-  }
+  for (unsigned int j = 0; j<N_y; j++)
+    grid_y[j] = (ymin+0.5*dy) + j * dy;
 }
 
 void Linear_Convection_2d::update_ghost_values()
 {
   //For readability, we do corners separately.
-  solution_old(-1,-1)= solution_old(N-1,N-1);
-  solution_old(N,N)  = solution_old(0,0);
-  solution_old(N,-1) = solution_old(0,N-1);
-  solution_old(-1,N) = solution_old(N-1,0);
-  for (int j = 0; j<N;j++) //not doing corners
+  solution_old(-1,-1)= solution_old(N_x-1,N_y-1);
+  solution_old(N_x,N_y)  = solution_old(0,0);
+  solution_old(N_x,-1) = solution_old(0,N_y-1);
+  solution_old(-1,N_y) = solution_old(N_x-1,0);
+
+  solution(-1,-1)= solution(N_x-1,N_y-1);
+  solution(N_x,N_y)  = solution(0,0);
+  solution(N_x,-1) = solution(0,N_y-1);
+  solution(-1,N_y) = solution(N_x-1,0);
+  for (int j = 0; j<N_y;j++) //not doing corners
   {
-    solution_old(-1,j) = solution_old(N-1,j);
-    solution_old(N,j)  = solution_old(0,j);
+    solution_old(-1,j) = solution_old(N_x-1,j);
+    solution_old(N_x,j)  = solution_old(0,j);
+    solution(-1,j)   = solution(N_x-1,j);
+    solution(N_x,j)  = solution(0,j);
   }
   //j = -1, N
-  for (int i = 0; i<N;i++)  //not doing corners
+  for (int i = 0; i<N_x;i++)  //not doing corners
   {
-    solution_old(i,-1) = solution_old(i,N-1);
-    solution_old(i,N)  = solution_old(i,0);
-  }
-  //We also set all ghost values in solution to equal zero.
-  //We will use these ghost entries in cases where the scheme attempts to
-  //update solution calling solution(-1,j) or solution(i,N) type of things
-  for (int k = -1; k<=N;k++)
-  {
-    solution(k,-1) = 0.0, solution(-1,k) = 0.0;
-    solution(k,N)  = 0.0, solution(N,k) = 0.0;
-  }
-}
-
-//If our scheme updates solution calling solution(-1,j) or solution(i,N),
-//use_ghost_values() moves them to the right place
-void Linear_Convection_2d::use_ghost_values()
-{
-  //Doing corners outside loop for readability
-  solution(N-1,N-1) += solution(-1,-1), solution(0,0)+=solution(N,N);
-  solution(-1,-1) = 0.0, solution(N,N) = 0;
-  for (int j = 0; j<N;j++)
-  {
-    solution(N-1,j) += solution(-1,j), solution(0,j) += solution(N,j);
-    solution(-1,j) = 0.0, solution(N,j) = 0.0;
-  }
-  for (int i = 0; i<N;i++)
-  {
-    solution(i,N-1) += solution(i,-1), solution(i,0)+=solution(i,N);
-    solution(i,-1) = 0.0, solution(i,N)=0.0;
+    solution_old(i,-1) = solution_old(i,N_y-1);
+    solution_old(i,N_y)  = solution_old(i,0);
+    solution(i,-1) = solution(i,N_y-1);
+    solution(i,N_y)  = solution(i,0);
   }
 }
 
 void Linear_Convection_2d::set_initial_solution()
 {
   double x,y;
-
-  for (unsigned int i = 0; i < N; i++)
-    for (unsigned int j = 0; j < N; j++)
+  for (unsigned int i = 0; i < N_x; i++)
+    for (unsigned int j = 0; j < N_y; j++)
     {
       x = (xmin+0.5*dx) + i*dx, y = (ymin+0.5*dy) + j*dy;
-      switch (initial_data_indicator)
-      {
-      case 0:
-        cout << "smooth_sine won't work, case 0 not added\n";
-        assert(false);
-        break;
-      case 1:
-        solution(i,j) = hat_function(x)*hat_function(y);
-        break;
-      case 2:
-        solution(i,j) = step_function(x)*step_function(y);
-        break;
-      case 3:
-        solution(i,j) = exp_func_25(x)*exp_func_25(y);
-        break;
-      case 4:
-        solution(i,j) = exp_func_100(x)*exp_func_100(y);
-        break;
-      case 5:
-        solution(i,j) = sine_wave(x)*sine_wave(y);
-        break;
-      default:
-        cout << "You entered the wrong initial_data_indicator ";
-        assert(false);
-      }
+      solution(i,j) = initial_function.value(x,y);
       initial_solution(i,j) = solution(i,j); //Stored only
       //for snapshot error
     }
 }
 
-void Linear_Convection_2d::solve()
+//dy/dt = res(u) 
+//where the residual coming from FVM is given by
+//res(u)_{i,j}^{n}=-(flux_x(i+1/2,j)-flux_x(i-1/2,j))/dx
+//                 -(flux_y(i,j+1/2)-flux_y(i,j-1/2))/dy
+//res(u)_{i+1,j}^{n}=-(flux_x(i+3/2,j)-flux_x(i+1/2,j))/dx
+//                   -(flux_y(i+1,j+1/2)-flux_y(i+1,j-1/2))/dy
+//res(u)_{i,j+1}^{n}=-(flux_x(i+1/2,j+1)-flux_x(i-1/2,j+1))/dx
+//                   -(flux_y(i,j+3/2)-flux_y(i,j+1/2))/dy
+//res(u)_{i+1,j+1}^{n}=-(flux_x(i+3/2,j+1)-flux_x(i+1/2,j+1))/dx
+//                     -(flux_y(i+1,j+3/2) - flux_y(i+1,j+1/2))/dx
+//We will run loops over faces centred at (x_{i+1/2},y_j) and (x_i,y_{j+1/2})
+//to compute flux_x(i+1/2,j), flux_y(i,j+1/2) and move it to the respective
+//values of the residual.
+//We avoid repetetion of faces in two ways - 1)one flux shows up in two places
+//with opposite signs(look at values above), we only compute it once and move it to 
+//the correct place 2) Last and 0th flux are the same, that flux shows up twice
+//with opposite signs and we handle it accordingly.
+
+void Linear_Convection_2d::apply_fvm()
 {
   //double x,y;
   double flux; //flux_x(i+1/2,j), flux_y(i,j+1/2)
   //This loop computes the fluxes and adds them to where they are needed
-  
-  solution = 0.0;
   update_ghost_values();
   residual = 0.0;//For different time integration
   lam = dt/(dx*dy);
   //We'd do solution = solution_old - dt/dx * (f_x(i+1/2,j)-f_x(i-1/2,j))
   //                                - dt/dx * (f_y(i,j+1/2)-f_y(i,j-1/2))
 
+  //dy/dt = res(u)
+
   //flux in x direction computed and used to update solution
   //Basically, flux_x(i+1/2,j)
-  for (int i = 0; i < N; i++)
-    for (int j = 0;j< N; j++)
-    {
-      double x = (xmin+0.5*dx)+i*dx, y = ymin+j*dy; //Values on face centre.
-      advection_velocity(x,y,u);
-      (this->*update_flux)(i,j,1,0,flux); //flux_x(i+1/2,j)
 
-      //Recall that, in FVM, solution updates as
-      //Q_{i,j}^{n+1} = Q_{i,j}^n-(flux_x(i+1/2,j)-flux_x(i-1/2,j))*(dt/dx)
-      //                         -(flux_y(i,j+1/2)-flux_y(i,j-1/2))*(dt/dy)
-      //Q_{i+1,j}^{n+1} = Q_{i+1,j}^n-(flux_x(i+3/2,j)-flux_x(i+1/2,j))*(dt/dx)
-      //                         -(flux_y(i+1,j+1/2)-flux_y(i+1,j-1/2))*(dt/dy)
-      //Q_{i,j+1}^{n+1} = Q_{i,j+1}^n-(flux_x(i+1/2,j+1)-flux_x(i-1/2,j+1))*(dt/dx)
-      //                         -(flux_y(i,j+3/2)-flux_y(i,j+1/2))*(dt/dy)
-      //Q_{i+1,j+1}^{n+1} = Q_{i+1,j+1}^n-(flux_x(i+3/2,j+1)-flux_x(i+1/2,j+1))*(dt/dx)
-      //                         -(flux_y(i+1,j+3/2) - flux_y(i+1,j+1/2))*(dt/dx)
+  //
+  for (int i = 0; i < N_x; i++)
+    for (int j = 0; j< N_y; j++)
+    {
+      double x = (xmin+dx)+i*dx, y = ymin+0.5*dy+j*dy; //Values on face centre
+      //(x_{i+1/2},y_j)
+      (*advection_velocity)(x,y,vel);
+      const double Q_l = reconstruct(solution(i-1,j),solution(i,j));
+      const double Q_r = reconstruct(solution(i,j),solution(i+1,j));
+      (*update_flux)(1,0,vel,Q_l,Q_r,flux);
       residual(i,j)     += -flux*dy;
-      if (i==N-1)
+      if (i==N_x-1)
         residual(0,j)   +=  flux*dy;
       else
         residual(i+1,j) +=  flux*dy;
@@ -451,13 +300,69 @@ void Linear_Convection_2d::solve()
 
   //flux in y direction computed and used to update solution
   //Basically, flux_y(i,j+1/2)
-  for (int i = 0; i < N; i++)
-    for (int j = 0;j< N; j++)
+  for (int i = 0; i < N_x; i++)
+    for (int j = 0;j< N_y; j++)
     {
-      double x = (xmin+0.5*dx)+i*dx, y = ymin+j*dy; //Values on face centre.
-      advection_velocity(x,y,u);
-      (this->*update_flux)(i,j,0,1,flux); //flux_y(i,j+1/2)
+      double x = (xmin+0.5*dx)+i*dx, y = (ymin+dy)+j*dy; //Values on face centre.
+      //(x_i,y_{j+1/2})
+      (*advection_velocity)(x,y,vel);
+      const double Q_l = reconstruct(solution(i-1,j),solution(i,j));
+      const double Q_r = reconstruct(solution(i,j),solution(i,j+1));
+      (*update_flux)(0,1,vel,Q_l,Q_r,flux);
+      residual(i,j)     += -flux*dx;
+      if (j==N_y-1)
+        residual(i,0)   +=  flux*dx;
+      else
+        residual(i,j+1) +=  flux*dx;
+    }
 
+  for (int i = 0; i<N_x; i++)
+    for (int j = 0; j<N_y; j++)
+    {
+      solution(i,j) = solution_old(i,j) + lam*residual(i,j);
+    }
+}
+
+void Linear_Convection_2d::apply_lw()
+{
+  //double x,y;
+  double flux; //flux_x(i+1/2,j), flux_y(i,j+1/2)
+  //This loop computes the fluxes and adds them to where they are needed
+  update_ghost_values();
+  residual = 0.0;//For different time integration
+  lam = dt/(dx*dy);
+  //We'd do solution = solution_old - dt/dx * (f_x(i+1/2,j)-f_x(i-1/2,j))
+  //                                - dt/dx * (f_y(i,j+1/2)-f_y(i,j-1/2))
+
+  //dy/dt = res(u)
+
+  //flux in x direction computed and used to update solution
+  //Basically, flux_x(i+1/2,j)
+
+  //
+  for (int i = 0; i < N_x; i++)
+    for (int j = 0; j< N_y; j++)
+    {
+      double x = (xmin+dx)+i*dx, y = ymin+0.5*dy+j*dy; //Values on face centre
+      //(x_{i+1/2},y_j)
+      (*advection_velocity)(x,y,vel);
+      lw(i,j,1,0,flux); //flux_x(i+1/2,j)
+      residual(i,j)     += -flux*dy;
+      if (i==N_x-1)
+        residual(0,j)   +=  flux*dy;
+      else
+        residual(i+1,j) +=  flux*dy;
+    }
+
+  //flux in y direction computed and used to update solution
+  //Basically, flux_y(i,j+1/2)
+  for (int i = 0; i < N_x; i++)
+    for (int j = 0;j< N_y; j++)
+    {
+      double x = (xmin+0.5*dx)+i*dx, y = (ymin+dy)+j*dy; //Values on face centre.
+      //(x_i,y_{j+1/2})
+      (*advection_velocity)(x,y,vel);
+      lw(i,j,0,1,flux);//flux_y(i,j+1/2)
       //Recall that, in FVM, solution updates as
       //Q_{i,j}^{n+1} = Q_{i,j}^n-(flux_x(i+1/2,j)-flux_x(i-1/2,j))*(dt/dx)
       //                         -(flux_y(i,j+1/2)-flux_y(i,j-1/2))*(dt/dy)
@@ -468,71 +373,45 @@ void Linear_Convection_2d::solve()
       //Q_{i+1,j+1}^{n+1} = Q_{i+1,j+1}^n-(flux_x(i+3/2,j+1)-flux_x(i+1/2,j+1))*(dt/dx)
       //                         -(flux_y(i+1,j+3/2) - flux_y(i+1,j+1/2))*(dt/dx)
       residual(i,j)     += -flux*dx;
-      if (j==N-1)
+      if (j==N_y-1)
         residual(i,0)   +=  flux*dx;
       else
         residual(i,j+1) +=  flux*dx;
     }
 
-  for (int i = 0; i<N; i++)
-    for (int j = 0; j<N; j++)
+  for (int i = 0; i<N_x; i++)
+    for (int j = 0; j<N_y; j++)
     {
       solution(i,j) = solution_old(i,j) + lam*residual(i,j);
     }
 }
 
+
 void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_number,bool output_indicator)
 {
-  double x,y;
-  for (unsigned int i = 0; i < N; i++)
-    for (unsigned int j = 0; j < N; j++)
+  double x=0.0,y=0.0;
+  bool constant_indicator=false;//This indicates whether the coefficients are 
+  //constant or not, to help compute exact solution. We set it to false by 
+  //default, it'd be updated to true if next condition is true
+  advection_velocity(x,y,vel);
+  if (vel[0]==1.0&&vel[1]==1.0)
+    constant_indicator = true;
+  for (unsigned int i = 0; i < N_x; i++)
+    for (unsigned int j = 0; j < N_y; j++)
     {
       x = (xmin+0.5*dx) + i*dx, y = (ymin+0.5*dy) + j*dy;
-      
-      switch (initial_data_indicator)
-      {
-      case 0:
-        solution_exact(i,j) = sin(2.0 * M_PI * (x*cos(t)+y*sin(t)) / (xmax - xmin))
-                              * sin(2.0 * M_PI * (-x*sin(t)+y*cos(t)) / (ymax - ymin));
-        break;
-      case 1:
-        solution_exact(i,j) = hat_function(x*cos(t)+y*sin(t))
-                              * hat_function(-x*sin(t)+y*cos(t));
-        break;
-      case 2:
-        solution_exact(i,j) = step_function(x*cos(t)+y*sin(t))
-                              * step_function(-x*sin(t)+y*cos(t));
-        break;
-      case 3:
-        solution_exact(i,j) = exp_func_25(x*cos(t)+y*sin(t))
-                              * exp_func_25(-x*sin(t)+y*cos(t));
-        break;
-      case 4:
-        solution_exact(i,j) = exp_func_100(x*cos(t)+y*sin(t))
-                              * exp_func_100(-x*sin(t)+y*cos(t));
-        break;
-      case 5:
-        solution_exact(i,j) = sine_wave(x*cos(t) + y*sin(t))
-                              * sine_wave(-x*sin(t)+y*cos(t));
-        break;
-      default:
-          cout << "You entered the wrong initial_data_indicator\n";
-          assert(false);
-      }
+      advection_velocity(x,y,vel);
+      solution_exact(i,j) = initial_function.exact_value(x,y,t,vel,constant_indicator);
     }
-  if (output_indicator==true/* && time_step_number%5==0*/)
+  if (output_indicator==true && time_step_number%5==0)
   {
   vtk_anim_sol(grid_x,grid_y,
-        solution,
+        solution, solution_exact,
         t, time_step_number,
         "approximate_solution");
-  vtk_anim_sol(grid_x,grid_y,
-      solution_exact,
-      t, time_step_number,
-      "exact_solution");
   }
-  for (unsigned int i = 0; i < N; i++)
-    for (unsigned int j = 0; j < N; j++)
+  for (unsigned int i = 0; i < N_x; i++)
+    for (unsigned int j = 0; j < N_y; j++)
     {
       error(i,j) = abs(solution(i,j) - solution_exact(i,j));
     }
@@ -541,31 +420,26 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
 void Linear_Convection_2d::run(bool output_indicator)
 {
   make_grid();
-  int time_step_number = 0; 
+  int time_step_number = 0;
   compute_time_step();//Computes dt
   set_initial_solution(); //sets solution to be the initial data
-  if (method == "upwind")
-    update_flux = &Linear_Convection_2d::upwind;
-  else if(method == "lw")
-    update_flux = &Linear_Convection_2d::lw;
-  else
-    assert(false);
   evaluate_error_and_output_solution(time_step_number,output_indicator);
   while (t < running_time) //compute solution at next time step using solution_old
   {
     solution_old = solution;//update solution_old for next time_step
-    //This requires puttingg ghost cells in solution
-    //We should update array2d.h to change this. 
-    solve();
+    if (method == "lw")
+      apply_lw();
+    else 
+      apply_fvm();
     time_step_number += 1;
     t = t + dt; 
     evaluate_error_and_output_solution(time_step_number, output_indicator);
   }
-  cout << "For N = " << N<<", we took ";
+  cout << "For N_x = " << N_x<<", N_y = "<<N_y<<", we took ";
   cout << time_step_number << " steps." << endl;
 }
 
-void run_and_output(double N, double cfl,
+void run_and_output(double N_x, double N_y, double cfl,
                     string method, double running_time,
                     int initial_data_indicator,
                     unsigned int max_refinements)
@@ -580,7 +454,7 @@ void run_and_output(double N, double cfl,
   for (unsigned int refinement_level = 0; refinement_level <= max_refinements;
       refinement_level++)
   {
-    Linear_Convection_2d solver(N, cfl, method, running_time,
+    Linear_Convection_2d solver(N_x, N_y, cfl, method, running_time,
                                 initial_data_indicator);
     //We calculate time takenṣ in our refinement.
     struct timeval begin, end; 
@@ -590,10 +464,11 @@ void run_and_output(double N, double cfl,
     long seconds = end.tv_sec - begin.tv_sec;
     long microseconds = end.tv_usec - begin.tv_usec;
     double elapsed = seconds + microseconds * 1e-6;
-    cout << "Time taken by this iteration is " << elapsed << " seconds." << endl;
+    cout << "Time taken by this refinement level is " << elapsed << " seconds." << endl;
     solver.get_error(l1_vector,l2_vector,linfty_vector,snapshot_vector);//push_back resp. error.
-    error_vs_h << 2.0/N << " " << linfty_vector[refinement_level] << "\n";
-    N = 2.0 * N;
+    double h = 2.*sqrt(1./(N_x*N_x) +1./(N_y*N_y));
+    error_vs_h << h << " " << linfty_vector[refinement_level] << "\n";
+    N_x = 2.0 * N_x,N_y = 2.0*N_y;
     if (refinement_level > 0) //Computing convergence rate.
     {
       cout << "Linfty convergence rate at refinement level ";
@@ -635,66 +510,6 @@ void run_and_output(double N, double cfl,
   cout << endl;         
 }
 
-double Linear_Convection_2d::interval_part(double x)
-{
-  if (x > xmax)
-    return x - ceil((x - xmax) / (xmax - xmin)) * (xmax - xmin);
-  else if (x < xmin)
-    return x + ceil((xmin - x) / (xmax - xmin)) * (xmax - xmin);
-  else
-    return x;
-}
-
-double Linear_Convection_2d::hat_function(double grid_point)
-{
-  double value;
-  grid_point = interval_part(grid_point);
-  if (grid_point < -0.5 || grid_point > 0.5)
-    value = 0.0;
-  else if (grid_point <= 0.0)
-    value = grid_point + 0.5;
-  else if (grid_point >= 0.0)
-    value = 0.5 - grid_point;
-  return value;
-}
-
-double Linear_Convection_2d::step_function(double grid_point)
-{
-  double value;
-  grid_point = interval_part(grid_point);
-  if (grid_point < xmin + (xmax - xmin) / 4.0 || 
-    grid_point > xmax - (xmax - xmin) / 4.0)
-    value = 0.0;
-  else
-    value = 1.0;
-  return value;
-}
-
-double Linear_Convection_2d::exp_func_25(double grid_point)
-{
-  grid_point = interval_part(grid_point);
-  return exp(-25*grid_point*grid_point);
-}
-
-double Linear_Convection_2d::exp_func_100(double grid_point)
-{
-  grid_point = interval_part(grid_point);
-  return exp(-100.0*(grid_point-0.5)*(grid_point-0.5));
-}
-
-double Linear_Convection_2d::sine_wave(double grid_point)
-{
-    double value;
-    grid_point = interval_part(grid_point);
-    if (grid_point < xmin + (xmax - xmin) / 4.0 ||
-        grid_point > xmax - (xmax - xmin) / 4.0)
-        value = 0.0;
-    else
-        value = -sin(4.0 * M_PI * grid_point / (xmax - xmin));
-    return value;
-}
-
-
 void Linear_Convection_2d::get_error(vector<double> &l1_vector,
                                      vector<double> &l2_vector,
                                      vector<double> &linfty_vector,
@@ -703,8 +518,8 @@ void Linear_Convection_2d::get_error(vector<double> &l1_vector,
     double l1 = 0.0;
     double l2 = 0.0;
     double linfty = 0.0;
-    for (int j = 0; j < N; j++) 
-      for (int i = 0; i < N; i++)
+    for (int j = 0; j < N_y; j++) 
+      for (int i = 0; i < N_x; i++)
       {
         l1 = l1 + error(i,j)  * dx * dy;           // L1 error
         l2 = l2 + error(i,j) * error(i,j)  * dx * dy;// L2 error
@@ -722,8 +537,8 @@ void Linear_Convection_2d::get_error(vector<double> &l1_vector,
         int_tester(running_time/(2.0*M_PI)) == true)
     {
       cout << "Snapshot error successfuly computed.\n";
-      for (unsigned int i = 0; i < N; i++)
-        for (unsigned int j = 0; j < N; j++)
+      for (unsigned int i = 0; i < N_x; i++)
+        for (unsigned int j = 0; j < N_y; j++)
         {
           snapshot_error = abs(solution(i,j) - initial_solution(i,j));
         }
@@ -740,10 +555,10 @@ void Linear_Convection_2d::get_error(vector<double> &l1_vector,
 
 int main(int argc, char **argv)
 {
-    if (argc != 6)
+    if (argc != 6 && argc != 7)
     {
       cout << "Incorrect format, use" << endl;
-      cout << "./fd2d upwind/lw/ct_upwind(for the respective method)";
+      cout << "./fd2d method";
       cout << " sigma_x running_time initial_data_indicator " ;
       cout << "max_refinements" << endl;
       cout << "Choices for method"<<endl;
@@ -754,11 +569,27 @@ int main(int argc, char **argv)
       cout << "3 - exp_func_25" <<endl;
       cout << "4 - exp_func_100\n";
       cout << "5 - cts_sine\n";
+      cout << "You can add a 'constant' at the end of above to test";
+      cout << "constant coefficients case. \n";
       assert(false);
+    }
+    if (argc == 7)
+    {
+      if (string(argv[6]) != "constant")
+      {
+        cout <<"Last argument must be constant.\n";
+        cout << "You put "<< argv[6] <<endl;
+        assert(false);
+      }
+      else
+      {
+        advection_velocity = &constant_velocity;
+        cout <<"Scheme will be run with constant (u,v)=(1,1)"<<endl;
+      }
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    int N = 60;
+    int N_x = 50, N_y = 50;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double running_time = stod(argv[3]);
@@ -767,6 +598,14 @@ int main(int argc, char **argv)
     cout << "initial_data_indicator = " << initial_data_indicator << endl;
     unsigned int max_refinements = stoi(argv[5]);
     cout << "max_refinements = " << max_refinements <<endl;
-    run_and_output(N, sigma_x, method, running_time,
+    //Sets the numerical flux
+    if (method=="upwind")
+      update_flux=&upwind;
+    else if(method != "lw")
+    {
+      cout <<"You incorrectly put method = "<<method<<endl;
+      assert(false);
+    }
+    run_and_output(N_x, N_y, sigma_x, method, running_time,
                        initial_data_indicator, max_refinements);
 }
