@@ -23,6 +23,11 @@ void write_rectilinear_grid(vector<double> &grid_x,
                             int c, //Cycle number
                             string filename);
 
+void vtk_anim_sol(vector<double> &grid_x,vector<double> &grid_y,
+                  Array2D& solution,
+                   double t,
+                  int time_step_number,
+                  string filename);
 
 //Double input 
 
@@ -36,6 +41,6 @@ void write_rectilinear_grid(vector<double> &grid_x,
 void vtk_anim_sol(vector<double> &grid_x,vector<double> &grid_y,
                   Array2D& solution, Array2D& solution_exact,
                    double t,
-                  double time_step_number,
+                  int time_step_number,
                   string filename);
 #endif

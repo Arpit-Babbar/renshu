@@ -148,6 +148,7 @@ double I_Functions::value(double x, double y)
   default:
     cout << "You entered the wrong initial_data_indicator ";
     assert(false);
+    return 0.0;
   }
 }
 

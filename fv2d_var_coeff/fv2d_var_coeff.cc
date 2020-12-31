@@ -24,6 +24,7 @@ bool int_tester(double a)
 
 double reconstruct(double Qm1,double Q0)
 {
+  (void)Qm1;
   return Q0;
 }
 
@@ -44,6 +45,7 @@ void rotational_velocity(double x, double y, double vel[2])
 
 void constant_velocity(double x, double y, double vel[2])
 {
+  (void)x,(void)y;
   vel[0] = 1.0, vel[1] = 1.0;
 }
 
@@ -52,7 +54,7 @@ void (*advection_velocity)(double, double, double vel[2]) = &rotational_velocity
 class Linear_Convection_2d
 {
 public:
-    Linear_Convection_2d(double N_x, double N_y,
+    Linear_Convection_2d(int N_x, int N_y,
                          double lam,
                          string method, const double running_time,
                          int initial_data_indicator); 
@@ -101,14 +103,15 @@ private:
     //to be an integer, we need t = m/sqrt(2), but then v*t cannot 
     //be an integer. Thus, the condition is, that u/v is a rational number
 
-    double N_x,N_y, dx, dy, dt, t, running_time;
-    double lam, sigma_x, sigma_y;
+    int N_x,N_y;
+    double dx, dy, dt, t, running_time;
+    double lam;
     string method;
     int initial_data_indicator;
     I_Functions initial_function;
 };
 
-Linear_Convection_2d::Linear_Convection_2d(double N_x, double N_y, 
+Linear_Convection_2d::Linear_Convection_2d(int N_x, int N_y, 
                                            double lam,
                                            string method,
                                            double running_time, 
@@ -131,7 +134,7 @@ Linear_Convection_2d::Linear_Convection_2d(double N_x, double N_y,
     cout << "dx = " << dx << endl;
     cout << "dy = " << dy << endl;
     cout << "lam = " <<lam << endl;
-
+    compute_time_step();
     error.resize(N_x,N_y);
     grid_x.resize(N_x),grid_y.resize(N_y);
     initial_solution.resize(N_x,N_y);
@@ -159,9 +162,11 @@ void Linear_Convection_2d::compute_time_step()
     c = 0.72;
   else 
   {
+    c = 0.;
     cout << "Incorrect method"<<endl;
     assert(false);
   }
+  u0max = max(1.0,u0max),u1max=max(1.0,u1max);
   dt = lam*c/(u0max/dx+u1max/dy);
   cout << "dt = "<<dt <<endl;
 }
@@ -188,17 +193,17 @@ void Linear_Convection_2d::lw(int i, int j, int n_x, int n_y,
 void Linear_Convection_2d::make_grid()
 {
   //Note that you must run two for loops for a rectangular grid.
-  for (unsigned int i = 0; i < N_x; i++)
+  for (int i = 0; i < N_x; i++)
     grid_x[i] = (xmin+0.5*dx) + i * dx;
-  for (unsigned int j = 0; j<N_y; j++)
+  for (int j = 0; j<N_y; j++)
     grid_y[j] = (ymin+0.5*dy) + j * dy;
 }
 
 void Linear_Convection_2d::set_initial_solution()
 {
   double x,y;
-  for (unsigned int i = 0; i < N_x; i++)
-    for (unsigned int j = 0; j < N_y; j++)
+  for (int i = 0; i < N_x; i++)
+    for (int j = 0; j < N_y; j++)
     {
       x = (xmin+0.5*dx) + i*dx, y = (ymin+0.5*dy) + j*dy;
       solution(i,j) = initial_function.value(x,y);
@@ -355,8 +360,8 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
   advection_velocity(x,y,vel);
   if (vel[0]==1.0&&vel[1]==1.0)
     constant_indicator = true;
-  for (unsigned int i = 0; i < N_x; i++)
-    for (unsigned int j = 0; j < N_y; j++)
+  for (int i = 0; i < N_x; i++)
+    for (int j = 0; j < N_y; j++)
     {
       x = (xmin+0.5*dx) + i*dx, y = (ymin+0.5*dy) + j*dy;
       advection_velocity(x,y,vel);
@@ -369,8 +374,8 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
         t, time_step_number/15,
         "approximate_solution");
   }
-  for (unsigned int i = 0; i < N_x; i++)
-    for (unsigned int j = 0; j < N_y; j++)
+  for (int i = 0; i < N_x; i++)
+    for (int j = 0; j < N_y; j++)
     {
       error(i,j) = abs(solution(i,j) - solution_exact(i,j));
     }
@@ -400,7 +405,7 @@ void Linear_Convection_2d::run(bool output_indicator)
     cout <<"We produce output in this refinement level\n";
 }
 
-void run_and_output(double N_x, double N_y, double cfl,
+void run_and_output(int N_x, int N_y, double cfl,
                     string method, double running_time,
                     int initial_data_indicator,
                     unsigned int max_refinements)
@@ -424,12 +429,12 @@ void run_and_output(double N_x, double N_y, double cfl,
     gettimeofday(&end, 0);
     long seconds = end.tv_sec - begin.tv_sec;
     long microseconds = end.tv_usec - begin.tv_usec;
-    double elapsed = seconds + microseconds * 1e-6;
+    double elapsed = double(seconds) + double(microseconds) * 1e-6;
     cout << "Time taken by this refinement level is " << elapsed << " seconds." << endl;
     solver.get_error(l1_vector,l2_vector,linfty_vector,snapshot_vector);//push_back resp. error.
     double h = 2.*sqrt(1./(N_x*N_x) +1./(N_y*N_y));
     error_vs_h << h << " " << linfty_vector[refinement_level] << "\n";
-    N_x = 2.0 * N_x,N_y = 2.0*N_y;
+    N_x = 2 * N_x,N_y = 2*N_y;
     if (refinement_level > 0) //Computing convergence rate.
     {
       cout << "Linfty convergence rate at refinement level ";
@@ -498,8 +503,8 @@ void Linear_Convection_2d::get_error(vector<double> &l1_vector,
         int_tester(running_time/(2.0*M_PI)) == true)
     {
       cout << "Snapshot error successfuly computed.\n";
-      for (unsigned int i = 0; i < N_x; i++)
-        for (unsigned int j = 0; j < N_y; j++)
+      for (int i = 0; i < N_x; i++)
+        for (int j = 0; j < N_y; j++)
         {
           snapshot_error = abs(solution(i,j) - initial_solution(i,j));
         }
@@ -550,7 +555,7 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    int N_x = 100, N_y = 100;
+    int N_x = 2, N_y = 2;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double running_time = stod(argv[3]);

@@ -40,15 +40,17 @@ void write_rectilinear_grid(vector<double> &grid_x,
                             int c, //Cycle number
                             string filename)
 {
-   const long unsigned int nx = solution.sizex();
-   const long unsigned int ny = solution.sizey();
-   if ( (grid_x.size() != nx) || (grid_y.size() != ny))
+   const int nx = solution.sizex();
+   const int ny = solution.sizey();
+   /*if ( static_cast<int>(grid_x.ssize()) != nx || 
+        static_cast<int>(grid_y.ssize()) != ny)
     {
       cout << "Grid and solution sizes don't match." <<endl;
-      cout << "grid.sizex = "<< grid_x.size() << ", solution.sizex = "<<nx;
-      cout << "grid.sizey = "<< grid_y.size() << ", solution.sizey = "<<ny;
+      cout << "grid.sizex = "<< grid_x.ssize() << ", solution.sizex = "<<nx;
+      cout << "grid.sizey = "<< grid_y.ssize() << ", solution.sizey = "<<ny;
       assert(false);
     }
+  */
    int nz = 1; // We have a 2d grid
    ofstream fout;
    fout.open(filename);
@@ -63,11 +65,11 @@ void write_rectilinear_grid(vector<double> &grid_x,
    fout << c << endl;
    fout << "DIMENSIONS " << nx << " " << ny << " " << nz << endl;
    fout << "X_COORDINATES " << nx << " float" << endl;
-   for(long unsigned int i=0; i<nx; ++i)
+   for(int i=0; i<nx; ++i)
       fout << grid_x[i] << " ";
    fout << endl;
    fout << "Y_COORDINATES " << ny << " float" << endl;
-   for(long unsigned int j=0; j<ny; ++j)
+   for(int j=0; j<ny; ++j)
       fout << grid_y[j] << " ";
    fout << endl;
    fout << "Z_COORDINATES " << nz << " float" << endl;
@@ -77,9 +79,9 @@ void write_rectilinear_grid(vector<double> &grid_x,
    fout << "SCALARS density float" << endl;
    fout << "LOOKUP_TABLE default" << endl;
    // no need for k-loop since nk=1
-   for(long unsigned int j=0; j<ny; ++j)
+   for(int j=0; j<ny; ++j)
    {
-      for(long unsigned int i=0; i<nx; ++i)
+      for(int i=0; i<nx; ++i)
          fout << solution(i,j) << " ";
       fout << endl;
    }
@@ -87,7 +89,7 @@ void write_rectilinear_grid(vector<double> &grid_x,
 void vtk_anim_sol(vector<double> &grid_x,vector<double> &grid_y,
                   Array2D& solution,
                    double t,
-                  double time_step_number,
+                  int time_step_number,
                   string filename)
 {
   filename = filename+"_";
@@ -105,15 +107,16 @@ void write_rectilinear_grid(vector<double> &grid_x,
                             int c, //Cycle number
                             string filename)
 {
-   const long unsigned int nx = solution.sizex();
-   const long unsigned int ny = solution.sizey();
-   if ( (grid_x.size() != nx) || (grid_y.size() != ny))
+   const int nx = solution.sizex();
+   const int ny = solution.sizey();
+   /*if ( (grid_x.size() != nx) || (grid_y.size() != ny))
     {
       cout << "Grid and solution sizes don't match." <<endl;
       cout << "grid.sizex = "<< grid_x.size() << ", solution.sizex = "<<nx;
       cout << "grid.sizey = "<< grid_y.size() << ", solution.sizey = "<<ny;
       assert(false);
     }
+  */
    int nz = 1; // We have a 2d grid
   /*  fout.open(filename)
       write_grid(fout,nx,ny,dx,dy)
@@ -133,11 +136,11 @@ void write_rectilinear_grid(vector<double> &grid_x,
    fout << c << endl;
    fout << "DIMENSIONS " << nx << " " << ny << " " << nz << endl;
    fout << "X_COORDINATES " << nx << " float" << endl;
-   for(long unsigned int i=0; i<nx; ++i)
+   for(int i=0; i<nx; ++i)
       fout << grid_x[i] << " ";
    fout << endl;
    fout << "Y_COORDINATES " << ny << " float" << endl;
-   for(long unsigned int j=0; j<ny; ++j)
+   for(int j=0; j<ny; ++j)
       fout << grid_y[j] << " ";
    fout << endl;
    fout << "Z_COORDINATES " << nz << " float" << endl;
@@ -147,9 +150,9 @@ void write_rectilinear_grid(vector<double> &grid_x,
    fout << "SCALARS density float" << endl;
    fout << "LOOKUP_TABLE default" << endl;
    // no need for k-loop since nk=1
-   for(long unsigned int j=0; j<ny; ++j)
+   for(int j=0; j<ny; ++j)
    {
-      for(long unsigned int i=0; i<nx; ++i)
+      for(int i=0; i<nx; ++i)
          fout << solution(i,j) << " ";
       fout << endl;
    }
@@ -157,9 +160,9 @@ void write_rectilinear_grid(vector<double> &grid_x,
    fout << "SCALARS density_exact float" << endl;
    fout << "LOOKUP_TABLE default" << endl;
    // no need for k-loop since nk=1
-   for(long unsigned int j=0; j<ny; ++j)
+   for(int j=0; j<ny; ++j)
    {
-      for(long unsigned int i=0; i<nx; ++i)
+      for(int i=0; i<nx; ++i)
          fout << solution_exact(i,j) << " ";
       fout << endl;
    }
@@ -168,7 +171,7 @@ void write_rectilinear_grid(vector<double> &grid_x,
 void vtk_anim_sol(vector<double> &grid_x,vector<double> &grid_y,
                   Array2D& solution, Array2D& solution_exact,
                    double t,
-                  double time_step_number,
+                  int time_step_number,
                   string filename)
 {
   filename = filename+"_";

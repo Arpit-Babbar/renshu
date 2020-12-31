@@ -18,6 +18,7 @@ class Initial_Data
   double hat_function(double grid_point);
   double step_function(double grid_point);
   double sine_wave(double grid_point);
+  double exp_func_100(double grid_point);
 };
 
 
