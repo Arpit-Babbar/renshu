@@ -1,4 +1,7 @@
 """
+Code taken from
+https://github.com/cpraveen/numpde/blob/master/linhyp1d/ho.py
+
 Solve u_t + u_x = 0 with periodic bc
 Finite volume scheme with different reconstruction schemes
 like first order, minmod, weno5, mp5. Time integration is first order
@@ -83,6 +86,8 @@ def mp5(um2,um1,u0,up1,up2):
 
 
 # Compute left state at interface b/w uj and ujp1
+# This is actually computing v_{i+1/2}^L, but we'd use it to compute 
+# v_{i-1/2}^L later.
 def reconstruct(ujm2, ujm1, uj, ujp1, ujp2):
     if scheme == IFO: # first order
         return uj
@@ -109,7 +114,7 @@ def compute_residual(u):
     # to compute it again. Note that res[-1] is residual of last cell
     # etc.
     for f in range(n-1):
-        ul = reconstruct(u[f-3], u[f-2], u[f-1], u[f], u[f+1])
+        ul = reconstruct(u[f-3], u[f-2], u[f-1], u[f], u[f+1]) #u_{i-1/2}^L
         flux = a * ul
         res[f-1] += flux
         res[f]   -= flux
