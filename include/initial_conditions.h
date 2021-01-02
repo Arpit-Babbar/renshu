@@ -18,7 +18,7 @@ double hat_function(double x, double xmin, double xmax);
 double step_function(double x, double xmin, double xmax);
 
 double exp_func_25(double x, double xmin, double xmax);
-double exp_func_100(double x, double y, double xmin, double xmax, double ymin, double ymax);
+double exp_func_50(double x, double y, double xmin, double xmax, double ymin, double ymax);
 
 double cts_sine(double x, double xmin, double xmax);
 

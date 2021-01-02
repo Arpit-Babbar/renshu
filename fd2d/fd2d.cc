@@ -8,13 +8,14 @@
 #include <sys/time.h>
 
 #include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/array2d.h"
+#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/array2d.cc"
 #include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/vtk_anim.h"
+#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/vtk_anim.cc"
 using namespace std;
 
 //Returns true if real number is integer, false otherwise.
 bool int_tester(double a)
 {
-    double dummy;
     double c = modf(a,&a);
     //cout << "Fractional part is "<<c<<endl;
     return (c<1e-4);
@@ -58,7 +59,14 @@ private:
     double hat_function(double grid_point);
     double step_function(double grid_point); 
     double exp_func_25(double grid_point);
-    double exp_func_100(double grid_point);
+    double exp_func_100(double x, double y)
+    {
+      x = interval_part(x), y = interval_part(y);
+      /*return 1.0 + exp(-50.0*((x-(xmin+0.25*(xmax-xmin)))*(x-(xmin+0.25*(xmax-xmin))) 
+                                + (y-(0.5*(ymax+ymin)))*(y-(0.5*(ymax+ymin)))  ));*/
+      return 1.0 + exp(-100.0*((x-0.5)*(x-0.5)+ y*y  ));
+    }
+
 
 
     void evaluate_error_and_output_solution(const int time_step_number,
@@ -87,7 +95,6 @@ private:
 
     double n_points, dx, dy, dt, t, running_time;
     double lam_x,lam_y, sigma_x,sigma_y;
-    void update_ghost_values();
     string method;
     int initial_data_indicator;
 };
@@ -152,24 +159,6 @@ void Linear_Convection_2d::make_grid()
   }
 }
 
-void Linear_Convection_2d::update_ghost_values()
-{
-  //Will corner values in the second loop, i.e., with j
-  //or we'd end up giving outdated values to corners.
-  //i = -1, n_points
-  for (int j = 0; j<n_points;j++) //not doing corners
-  {
-    solution_old(-1,j) = solution_old(n_points-1,j);
-    solution_old(n_points,j) = solution_old(0,j);
-  }
-  //j = -1, n_points
-  for (int i = -1; i<=n_points;i++) //doing corners
-  {
-    solution_old(i,-1) = solution_old(i,n_points-1);
-    solution_old(i,n_points) = solution_old(i,0);
-  }
-}
-
 void Linear_Convection_2d::set_initial_solution()
 {
     for (unsigned int i = 0; i < n_points; i++)
@@ -193,7 +182,7 @@ void Linear_Convection_2d::set_initial_solution()
               solution(i,j) = exp_func_25(x)*exp_func_25(y);
               break;
           case 4:
-              solution(i,j) = exp_func_100(x)*exp_func_100(y);
+              solution(i,j) = exp_func_100(x,y);
               break;
           default:
               cout << "You entered the wrong initial_data_indicator ";
@@ -211,7 +200,7 @@ void Linear_Convection_2d::upwind()
     for (unsigned int j = 0; j < n_points; j++)
     {
 
-      update_ghost_values();
+      solution_old.update_fluff();
       solution(i,j) = (1.0-lam_x-lam_y)*solution_old(i,j)
                       +max(coefficient_x,0.)*(dt/dx)*solution_old(i-1,j)
                       +max(coefficient_y,0.)*(dt/dy)*solution_old(i,j-1)
@@ -225,7 +214,7 @@ void Linear_Convection_2d::ct_upwind()
   for (unsigned int i = 0; i < n_points; i++)
     for (unsigned int j = 0; j < n_points; j++)
     {
-      update_ghost_values();
+      solution_old.update_fluff();
       solution(i,j) = (1.0-sigma_x)*(1.0-sigma_y)*solution_old(i,j)
                       +sigma_x*(1-sigma_y)*solution_old(i-1,j)
                       +(1-sigma_x)*sigma_y*solution_old(i,j-1)
@@ -235,7 +224,7 @@ void Linear_Convection_2d::ct_upwind()
 
 void Linear_Convection_2d::lw()
 {
-  update_ghost_values();
+  solution_old.update_fluff();
   for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j < n_points; j++)
       {
@@ -262,8 +251,8 @@ void Linear_Convection_2d::m_roe()
     for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j < n_points;j++)
       {
-        update_ghost_values();
-        solution(i,j) = solution(i,j);
+        solution_old.update_fluff();
+        solution(i,j) = solution_old(i,j);
       }
 }
 
@@ -293,8 +282,7 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
                                     * exp_func_25(y-coefficient_y*t);
               break;
           case 4:
-              solution_exact(i,j) = exp_func_100(x-coefficient_x*t)
-                                    * exp_func_100(y-coefficient_y*t);
+              solution_exact(i,j) = exp_func_100(x-coefficient_x*t,y-coefficient_y*t);
               break;
           default:
               cout << "You entered the wrong initial_data_indicator ";
@@ -304,13 +292,13 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
     if (output_indicator==true && time_step_number%5==0)
     {
     vtk_anim_sol(grid_x,grid_y,
-          solution,
+          solution, solution_exact,
           t, time_step_number/5,
           "approximate_solution");
-        vtk_anim_sol(grid_x,grid_y,
+        /*vtk_anim_sol(grid_x,grid_y,
           solution_exact,
           t, time_step_number/5,
-          "approximate_solution");
+          "exact_solution");*/
     }
     for (unsigned int i = 0; i < n_points; i++)
       for (unsigned int j = 0; j < n_points; j++)
@@ -366,7 +354,7 @@ void run_and_get_output(double n_points, double cfl,
         //We calculate time takenṣ in our refinement.
         struct timeval begin, end; 
         gettimeofday(&begin, 0);
-        solver.run(refinement_level==max_refinements-1);//Output only last soln
+        solver.run(refinement_level==max_refinements);//Output only last soln
         gettimeofday(&end, 0);
         long seconds = end.tv_sec - begin.tv_sec;
         long microseconds = end.tv_usec - begin.tv_usec;
@@ -457,12 +445,6 @@ double Linear_Convection_2d::exp_func_25(double grid_point)
   return exp(-25*grid_point*grid_point);
 }
 
-double Linear_Convection_2d::exp_func_100(double grid_point)
-{
-  grid_point = interval_part(grid_point);
-  return exp(-100.0*(grid_point-0.5)*(grid_point-0.5));
-}
-
 void Linear_Convection_2d::get_error(vector<double> &l1_vector,
                                      vector<double> &l2_vector,
                                      vector<double> &linfty_vector,
@@ -523,7 +505,7 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    double n_points = 30.0;
+    double n_points = 100.0;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double running_time = stod(argv[3]);

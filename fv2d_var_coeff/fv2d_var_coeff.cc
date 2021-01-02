@@ -6,6 +6,7 @@
 #include <vector>
 #include <cassert>
 #include <string>
+#include <cstring>
 #include <stdio.h>
 #include <sys/time.h>
 
@@ -56,12 +57,12 @@ class Linear_Convection_2d
 public:
     Linear_Convection_2d(int N_x, int N_y,
                          double lam,
-                         string method, const double running_time,
+                         string method, const double final_time,
                          int initial_data_indicator); 
 
     void run(bool output_indicator);
     void get_error(vector<double> &l1_vector, vector<double> &l2_vector, 
-                   vector<double> &linfty_vector, vector<double> &snapshot_error);
+                   vector<double> &linfty_vector);
 private:
     void make_grid();
     void set_initial_solution();
@@ -93,7 +94,6 @@ private:
     Array2D solution_exact; //Exact solution at present time step
 
     Array2D error;
-    double snapshot_error;
     //After a certain time, by periodicity, the solution equals the initial soln
     //For the PDE qt + uqx + vqy = 0, the exact solution is q(x,y,t)=f(x-ut,y-vt)
     //Since we are assuming periodicity in both $x$ and $y$ directions with
@@ -104,7 +104,7 @@ private:
     //be an integer. Thus, the condition is, that u/v is a rational number
 
     int N_x,N_y;
-    double dx, dy, dt, t, running_time;
+    double dx, dy, dt, t, final_time;
     double lam;
     string method;
     int initial_data_indicator;
@@ -114,10 +114,10 @@ private:
 Linear_Convection_2d::Linear_Convection_2d(int N_x, int N_y, 
                                            double lam,
                                            string method,
-                                           double running_time, 
+                                           double final_time, 
                                            int initial_data_indicator):
                                            N_x(N_x), N_y(N_y), 
-                                           running_time(running_time),
+                                           final_time(final_time),
                                            lam(lam),
                                            method(method),
                                            initial_data_indicator(initial_data_indicator)
@@ -130,7 +130,6 @@ Linear_Convection_2d::Linear_Convection_2d(int N_x, int N_y,
     t = 0.0;
     
     initial_function.set(initial_data_indicator,xmin,xmax,ymin,ymax);
-    snapshot_error = -1.0; //Put bad value for testing success.
     cout << "dx = " << dx << endl;
     cout << "dy = " << dy << endl;
     cout << "lam = " <<lam << endl;
@@ -222,10 +221,10 @@ void Linear_Convection_2d::set_initial_solution()
 //                   -(flux_y(i,j+3/2)-flux_y(i,j+1/2))/dy
 //res(u)_{i+1,j+1}^{n}=-(flux_x(i+3/2,j+1)-flux_x(i+1/2,j+1))/dx
 //                     -(flux_y(i+1,j+3/2) - flux_y(i+1,j+1/2))/dx
-//We will run loops over faces centred at (x_{i+1/2},y_j) and (x_i,y_{j+1/2})
+//We will run loops over faces centered at (x_{i+1/2},y_j) and (x_i,y_{j+1/2})
 //to compute flux_x(i+1/2,j), flux_y(i,j+1/2) and move it to the respective
 //values of the residual.
-//We avoid repetetion of faces in two ways - 1)one flux shows up in two places
+//We avoid repetition of faces in two ways - 1)one flux shows up in two places
 //with opposite signs(look at values above), we only compute it once and move it to 
 //the correct place 2) Last and 0th flux are the same, that flux shows up twice
 //with opposite signs and we handle it accordingly.
@@ -311,16 +310,31 @@ void Linear_Convection_2d::apply_lw()
       double x = (xmin+dx)+i*dx, y = ymin+0.5*dy+j*dy; //Values on face centre
       //(x_{i+1/2},y_j)
       (*advection_velocity)(x,y,vel);
-      //lw(i,j,1,0,flux); //flux_x(i+1/2,j)
-      flux = 0.5*vel[0]*(solution(i,j) + solution(i+1,j))
+      lw(i,j,1,0,flux); //flux_x(i+1/2,j)
+      /*flux = 0.5*vel[0]*(solution(i,j) + solution(i+1,j))
         -0.5*vel[0]*vel[0]*(dt/dx)*(solution(i+1,j)- solution(i,j))
         -0.125*vel[0]*vel[1]*(dt/dy)*(solution(i,j+1)-solution(i,j-1)
-                       +solution(i+1,j+1)-solution(i+1,j-1));
+                       +solution(i+1,j+1)-solution(i+1,j-1));*/
       residual(i,j)     += -flux*dy;
       if (i==N_x-1)
         residual(0,j)   +=  flux*dy;
       else
         residual(i+1,j) +=  flux*dy;
+      /*if (i==j && abs(flux-0.324)>1e-6)
+      {
+    	  cout << "Time is "<<t<<endl;
+    	  cout << "i = "<<i<<", j = "<<j<<endl;
+    	  cout << "flux = "<<flux<<endl;
+    	  assert(false);
+      }
+      if(i!=j && abs(flux+0.324)>1e-6)
+      {
+    	  cout << t<<endl;
+    	  cout << "i = "<<i<<", j = "<<j<<endl;
+    	  cout << "flux = "<<flux<<endl;
+    	  cout << "flux = "<<flux;
+    	  assert(false);
+      }*/
     }
 
   //flux in y direction computed and used to update solution
@@ -336,13 +350,13 @@ void Linear_Convection_2d::apply_lw()
         -0.5*vel[1]*vel[1]*(dt/dy)*(solution(i,j+1)- solution(i,j))
         -0.125*vel[0]*vel[1]*(dt/dx)*(solution(i+1,j)-solution(i-1,j)
                        +solution(i+1,j+1)-solution(i-1,j+1));
+
       residual(i,j)     += -flux*dx;
       if (j==N_y-1)
         residual(i,0)   +=  flux*dx;
       else
         residual(i,j+1) +=  flux*dx;
     }
-
   for (int i = 0; i<N_x; i++)
     for (int j = 0; j<N_y; j++)
     {
@@ -374,6 +388,9 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
         t, time_step_number/15,
         "approximate_solution");
   }
+  //There is a separate function for outputting the error. This is because the
+  //error can be used for reasons other than outputting, like adaptive grid
+  //refinement.
   for (int i = 0; i < N_x; i++)
     for (int j = 0; j < N_y; j++)
     {
@@ -388,15 +405,25 @@ void Linear_Convection_2d::run(bool output_indicator)
   compute_time_step();//Computes dt
   set_initial_solution(); //sets solution to be the initial data
   evaluate_error_and_output_solution(time_step_number,output_indicator);
-  while (t < running_time) //compute solution at next time step using solution_old
+  while (t < final_time) //compute solution at next time step using solution_old
   {
     solution_old = solution;//update solution_old for next time_step
+    //At t = 2*pi, exact_solution(x,y,t)=initial_solution(x,y). So, at
+    //this t, we would like to compute error as 
+    //error(x_i,y_j) = |initial_solution(x_i,y_j)-solution(x_i,y_j)|
+    //For that, when t+dt is just about to overstep 2*pi, we would change
+    //our dt. Note that it is important to change dt BEFORE applying the
+    //solver as the solver will be updating solution using the dt. This
+    //would be the last update in our scheme.
+    if (t+dt > final_time)
+      dt = final_time-t;
     if (method == "lw")
       apply_lw();
     else 
       apply_fvm();
     time_step_number += 1;
-    t = t + dt; 
+ //Ensure we end at final_time
+    t = t + dt;
     evaluate_error_and_output_solution(time_step_number, output_indicator);
   }
   cout << "For N_x = " << N_x<<", N_y = "<<N_y<<", we took ";
@@ -406,7 +433,7 @@ void Linear_Convection_2d::run(bool output_indicator)
 }
 
 void run_and_output(int N_x, int N_y, double cfl,
-                    string method, double running_time,
+                    string method, double final_time,
                     int initial_data_indicator,
                     unsigned int max_refinements)
 {
@@ -415,12 +442,11 @@ void run_and_output(int N_x, int N_y, double cfl,
   vector<double> linfty_vector;
   vector<double> l2_vector;
   vector<double> l1_vector;
-  vector<double> snapshot_vector;
 
   for (unsigned int refinement_level = 0; refinement_level <= max_refinements;
       refinement_level++)
   {
-    Linear_Convection_2d solver(N_x, N_y, cfl, method, running_time,
+    Linear_Convection_2d solver(N_x, N_y, cfl, method, final_time,
                                 initial_data_indicator);
     //We calculate time takenṣ in our refinement.
     struct timeval begin, end; 
@@ -431,7 +457,7 @@ void run_and_output(int N_x, int N_y, double cfl,
     long microseconds = end.tv_usec - begin.tv_usec;
     double elapsed = double(seconds) + double(microseconds) * 1e-6;
     cout << "Time taken by this refinement level is " << elapsed << " seconds." << endl;
-    solver.get_error(l1_vector,l2_vector,linfty_vector,snapshot_vector);//push_back resp. error.
+    solver.get_error(l1_vector,l2_vector,linfty_vector);//push_back resp. error.
     double h = 2.*sqrt(1./(N_x*N_x) +1./(N_y*N_y));
     error_vs_h << h << " " << linfty_vector[refinement_level] << "\n";
     N_x = 2 * N_x,N_y = 2*N_y;
@@ -454,16 +480,6 @@ void run_and_output(int N_x, int N_y, double cfl,
       cout << abs(log(l1_vector[refinement_level] 
                         / l1_vector[refinement_level - 1])) / log(2.0);
       cout << endl;
-      //Temporary solution to snapshot rate, would be fine once we
-      //move run_and_output to solver class.
-      if (snapshot_vector.size()>0)
-      {
-        cout << "Snapshot convergence rate at refinement level ";
-        cout << refinement_level << " is " ;
-        cout << abs(log(snapshot_vector[refinement_level] 
-                        / snapshot_vector[refinement_level - 1])) / log(2.0);
-        cout << endl;
-      }
     }
     error_vs_h.close();
   }
@@ -471,19 +487,26 @@ void run_and_output(int N_x, int N_y, double cfl,
   cout << linfty_vector[linfty_vector.size()-1] << endl;
   cout << "The L2 error is " << l2_vector[linfty_vector.size()-1] << endl;
   cout << "The L1 error is " << l1_vector[linfty_vector.size()-1] << endl;
-  if (snapshot_vector.size()>0)
-    cout << "The L_infty snapshot error is " <<snapshot_vector[linfty_vector.size()-1]<<endl;
-  cout << endl;         
 }
 
 void Linear_Convection_2d::get_error(vector<double> &l1_vector,
                                      vector<double> &l2_vector,
-                                     vector<double> &linfty_vector,
-                                     vector<double> &snapshot_vector)
+                                     vector<double> &linfty_vector)
 {
-    double l1 = 0.0;
-    double l2 = 0.0;
-    double linfty = 0.0;
+    //Check if initial_state=final_state. If it is, we will discard the 
+    //error from exact solution, and compute error using initial_data
+    if (int_tester(final_time/(2.0*M_PI)) == true &&
+        int_tester(final_time/(2.0*M_PI)) == true)
+    {
+    cout << "Final state = initial state, so error = |solution - initial_data|";
+    for (int i = 0; i < N_x; i++)
+      for (int j = 0; j < N_y; j++)
+        {
+          error(i,j) = abs(solution(i,j) - initial_solution(i,j));
+        }
+    }
+    double l1,l2,linfty;
+    //Outputting errro.
     for (int j = 0; j < N_y; j++) 
       for (int i = 0; i < N_x; i++)
       {
@@ -491,32 +514,12 @@ void Linear_Convection_2d::get_error(vector<double> &l1_vector,
         l2 = l2 + error(i,j) * error(i,j)  * dx * dy;// L2 error
         linfty = max(linfty, error(i,j));            // L_infty error
       }
-    l2 = sqrt(l2);
+    double area = N_x*N_y*dx*dy;//dx*dy = area of a cell, N_x*N_y = #cells
+    l1 = l1/area;
+    l2 = sqrt(l2/area);
     l1_vector.push_back(l1);
     l2_vector.push_back(l2);
     linfty_vector.push_back(linfty);
-    //Compute snapshot error if last final time t has even integer 
-    // t/u, t/v
-    //You must run the solver for longer time, or you'd get very less error.
-    //DOESN'T WORK FOR THIS, NEED 2pi period logic here
-    if (int_tester(running_time/(2.0*M_PI)) == true &&
-        int_tester(running_time/(2.0*M_PI)) == true)
-    {
-      cout << "Snapshot error successfuly computed.\n";
-      for (int i = 0; i < N_x; i++)
-        for (int j = 0; j < N_y; j++)
-        {
-          snapshot_error = abs(solution(i,j) - initial_solution(i,j));
-        }
-      snapshot_vector.push_back(snapshot_error);
-    }
-    else 
-    {
-      {
-        cout<<"Initial state not reached on final time, so snapshot error";
-        cout<<" not calculated. \n";
-      }
-    }
 }
 
 int main(int argc, char **argv)
@@ -525,7 +528,7 @@ int main(int argc, char **argv)
     {
       cout << "Incorrect format, use" << endl;
       cout << "./fd2d method";
-      cout << " sigma_x running_time initial_data_indicator " ;
+      cout << " sigma_x final_time initial_data_indicator " ;
       cout << "max_refinements" << endl;
       cout << "Choices for method"<<endl;
       cout << "upwind, lw, ct_upwind, m_roe"<<endl;
@@ -533,7 +536,7 @@ int main(int argc, char **argv)
       cout << "0 - smooth_sine"<<endl<<"1 - hat"<<endl;
       cout << "2 - step"<<endl;
       cout << "3 - exp_func_25" <<endl;
-      cout << "4 - exp_func_100\n";
+      cout << "4 - exp_func_50\n";
       cout << "5 - cts_sine\n";
       cout << "You can add a 'constant' at the end of above to test";
       cout << "constant coefficients case. \n";
@@ -555,11 +558,15 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    int N_x = 2, N_y = 2;
+    int N_x = 100, N_y = 100;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
-    double running_time = stod(argv[3]);
-    cout << "running_time = " << running_time << endl;
+    double final_time;
+    if (strcmp(argv[3],"2pi")==0) 
+      final_time = 6.0*M_PI;
+    else
+      final_time = stod(argv[3]);
+    cout << "final_time = " << final_time << endl;
     int initial_data_indicator = stoi(argv[4]);
     cout << "initial_data_indicator = " << initial_data_indicator << endl;
     signed int max_refinements = stoi(argv[5]);
@@ -572,6 +579,6 @@ int main(int argc, char **argv)
       cout <<"You incorrectly put method = "<<method<<endl;
       assert(false);
     }
-    run_and_output(N_x, N_y, sigma_x, method, running_time,
+    run_and_output(N_x, N_y, sigma_x, method, final_time,
                        initial_data_indicator, max_refinements);
 }
