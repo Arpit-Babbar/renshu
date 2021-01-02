@@ -145,3 +145,6 @@ fd2d/output
 include/test.cc
 fd2d_var_coeff/output
 fd2d/output
+fd2d_var_coeff/output
+fd2d/output
+.cproject
