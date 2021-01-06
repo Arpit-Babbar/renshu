@@ -64,7 +64,7 @@ double exp_func_50(double x, double y, double xmin, double xmax, double ymin, do
   x = interval_part(x,xmin,xmax), y = interval_part(y,ymin,ymax);
   /*return 1.0 + exp(-50.0*((x-(xmin+0.25*(xmax-xmin)))*(x-(xmin+0.25*(xmax-xmin))) 
                             + (y-(0.5*(ymax+ymin)))*(y-(0.5*(ymax+ymin)))  ));*/
-  return 1.0 + exp(-50.0*((x-0.5)*(x-0.5)+ y*y  ));
+  return 1.0 + exp(-100.0*((x-0.5)*(x-0.5)+ y*y  ));
 }
 
 double cts_sine(double x, double xmin, double xmax)
