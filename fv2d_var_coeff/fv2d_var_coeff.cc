@@ -246,7 +246,7 @@ void Linear_Convection_2d::apply_fvm()
   //Basically, flux_x(i+1/2,j)
 
   //
-  for (int i = 0; i <= N_x; i++)
+  for (int i = 0; i < N_x; i++)
     for (int j = 0; j< N_y; j++)
     {
       double x = (xmin+dx)+i*dx, y = ymin+0.5*dy+j*dy; //Values on face centre
@@ -530,7 +530,7 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    int N_x = 100, N_y = 100;
+    int N_x = 10, N_y = 10;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double final_time;

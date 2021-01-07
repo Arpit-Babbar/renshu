@@ -32,11 +32,6 @@
 *.out
 *.app
 
-# Files without extension
-*
-!*/
-!*.*
-
 a
 .vscode/settings.json
 .vscode/launch.json
@@ -102,7 +97,6 @@ bvp2d/bvp2d/slides/tifr.png
 bvp2d/bvp2d/step-01/array2d.cc
 bvp2d/bvp2d/step-01/array2d.h
 bvp2d/bvp2d/step-01/contour.gnu
-bvp2d/bvp2d/step-01/makefile
 bvp2d/bvp2d/step-01/poisson1.cc
 bvp2d/bvp2d/step-01/poisson2.cc
 bvp2d/bvp2d/step-01/README.md
@@ -148,3 +142,18 @@ fd2d/output
 fd2d_var_coeff/output
 fd2d/output
 .cproject
+fv2d_dirichlet/rm
+fv2d_var_coeff/rm
+Test/output
+fv2d_dirichlet/fv2d_dirichlet
+fv2d_var_coeff/fv2d_var_coeff
+include(old_backup)/output
+fv2d_dirichlet/debug.ipynb
+fv2d_dirichlet/.ipynb_checkpoints/debug-checkpoint.ipynb
+fv2d/output
+fd2d_var_coefficients/rm
+fd2d_var_coefficients/output
+fd2d_var_coeff/output
+fd2d/output
+fd2d/fd2d
+bvp2d/bvp2d/step-01/makefile

@@ -12,7 +12,6 @@
 
 #include "../include/array2d.h"
 #include "../include/vtk_anim.h"
-#include "../include/initial_conditions.h"
 using namespace std;
 
 //Returns true if real number is integer, false otherwise.                     
@@ -30,10 +29,11 @@ double reconstruct(double Qm1,double Q0)
 }
 
 
-void (*update_flux)(int nx, int ny,double vel[2],double Q_l,double Q_r,
+void (*update_flux)(double nx, double ny,double vel[2],double Q_l,double Q_r,
                     double &flux);
 
-void upwind(int nx, int ny, double vel[2], double Q_l, double Q_r, double& flux)
+void upwind(double nx, double ny, double vel[2], double Q_l, double Q_r,
+            double& flux)
 {
   const double v_n = vel[0]*nx + vel[1]*ny;//normal velocity
   flux = max(v_n,0.0)*Q_l+ min(v_n,0.)*Q_r;
@@ -76,14 +76,9 @@ private:
 
     void compute_time_step();//This computes the time step dt.
 
-    //Computes flux_x(i+1/2,j), flux_y(i,j+1/2)
-    void lw_normal_flux();
-    void lw_flux(int i, int j,int nx, int ny, double& flux);
-    void lw(int i, int j, int nx, int ny, double& flux);
     void upwind(int i, int j, int nx, int ny, double& flux);
 
     void apply_fvm();
-    void apply_lw();
 
     void evaluate_error_and_output_solution(const int time_step_number,
                                             bool output_indicator);
@@ -106,8 +101,6 @@ private:
     double dx, dy, dt, t, final_time;
     double cfl;
     string method;
-    int initial_data_indicator;
-    I_Functions initial_function;
 };
 
 Linear_Convection_2d::Linear_Convection_2d(int N_x, int N_y, 
@@ -118,8 +111,7 @@ Linear_Convection_2d::Linear_Convection_2d(int N_x, int N_y,
                                            N_x(N_x), N_y(N_y), 
                                            final_time(final_time),
                                            cfl(cfl),
-                                           method(method),
-                                           initial_data_indicator(initial_data_indicator)
+                                           method(method)
 {
     theta = M_PI/4.0;
     xmin = 0.0, xmax = 1.0, ymin = 0.0, ymax = 1.0;
@@ -127,9 +119,8 @@ Linear_Convection_2d::Linear_Convection_2d(int N_x, int N_y,
     //In interval [0,1], if we run the loop for i = 0,1,...,n-1
     //and take the grid spacing to be 1/n, we won't reach the end of interval.
     t = 0.0;
-    
-    //initial_function.set(initial_data_indicator,xmin,xmax,ymin,ymax);
-    initial_function.set(initial_data_indicator,-1.,1.,-1.,1.);
+    initial_data_indicator = 4;
+    (void)initial_data_indicator;
     cout << "dx = " << dx << endl;
     cout << "dy = " << dy << endl;
     cout << "cfl = " <<cfl << endl;
@@ -259,7 +250,7 @@ void Linear_Convection_2d::apply_fvm()
       x = (xmin+0.5*dx)+i*dx, y = (ymin+dy)+j*dy; //Values on face centre.
       //(x_i,y_{j+1/2})
       (*advection_velocity)(x,y,vel);
-      const double Q_l = reconstruct(solution(i-1,j),solution(i,j));
+      const double Q_l = reconstruct(solution(i,j-1),solution(i,j));
       const double Q_r = reconstruct(solution(i,j),solution(i,j+1));
       (*update_flux)(0,1,vel,Q_l,Q_r,flux);
       residual(i,j)     += -flux*dx;
@@ -268,62 +259,64 @@ void Linear_Convection_2d::apply_fvm()
 
   //Now, we do the exterior faces which will have 
   //x = xmax,xmin or y = ymax, ymin
+
+  //Note that we are always computing flux in direction that is going out of 
+  //the cell. In our definition of residual dy/dt = res(Q), note that 
+  //we always subtracted the flux going out. So, we shall do the same this
+  //time.
   
-  double nx,ny,vn;//Normal vector and normal velocity
+  //To use flux = max(v_n,0.)*Q_int + min(v_n, 0.)*qb
+  double Q_int,Q_b;
 
   //x = xmax. Counting from -1, this is i=Nx-1 face.
   //normal is (nx,ny)=(1,0)
-  nx = 1.,ny = 0.;
   for (int j = 0;j<N_y;j++)
   {
     //As always, we put (x,y) to be face centers and compute
     //velocity there
     x = xmax, y = (ymin+0.5*dy)+j*dy;
     (*advection_velocity)(x,y,vel);//Velocity at face centers
-    vn = vel[0]*nx+vel[1]*ny;
+    //vn = vel[0]*nx+vel[1]*ny;
     //Now, use flux = max(v_n,0.)*Q_int + min(v_n, 0.)*qb
-    flux = max(vn,0.)*solution(N_x-1,j)
-           +min(vn,0.)*exact_soln(x+0.5*dx,y,t);
-    residual(N_x-1,j)-=flux*dy;
+    Q_int = solution(N_x-1,j),Q_b=exact_soln(x,y,t);
+    (*update_flux)(1,0,vel,Q_int,Q_b,flux);
+    residual(N_x-1,j)+= -flux*dy;
   }
 
   //x = xmin. This is the first vertical face, corresponds to i = -1
   //normal is (nx,ny) = (-1,0)
-  nx = -1.,ny = 0.;
   for (int j = 0;j<N_y;j++)
   {
     x = xmin, y= (ymin+0.5*dy)+j*dy;
     (*advection_velocity)(x,y,vel);
-    vn = vel[0]*nx+vel[1]*ny;
-    flux = max(vn,0.)*solution(0,j)
-           + min(vn,0.)*exact_soln(x-0.5*dx,y,t);
-    residual(0,j) +=flux*dy;
+    Q_int = solution(0,j), Q_b = exact_soln(x,y,t);
+    (*update_flux)(-1.,0.,vel,Q_int,Q_b,flux);
+    residual(0,j) += -flux*dy;
   }
 
   //y = ymax. Counting from j = -1, this is the face j = Ny-1
   //(nx,ny)=(0,1)
-  nx = 0.,ny=1.;
   for (int i = 0; i<N_x;i++)
   {
     x = (xmin+0.5*dx)+i*dx,y=ymax;
     (*advection_velocity)(x,y,vel);
-    vn = vel[0]*nx+vel[1]*ny;
-    flux = max(vn,0.)*solution(i,N_y-1)
-           + min(vn,0.)*exact_soln(x,y+0.5*dy,t);
-    residual(i,N_y-1) -= flux*dx;
+    Q_int = solution(i,N_y-1),Q_b = exact_soln(x,y,t);
+    (*update_flux)(0,1,vel,Q_int,Q_b,flux);
+    residual(i,N_y-1) += -flux*dx;
   }
-
+  
   //y = ymin. This is the first horizontal face
-  nx = 0.,ny=-1.;
+  
   for (int i = 0;i<N_x;i++)
   {
     x = (xmin+0.5*dx)+i*dx,y=ymin;
     (*advection_velocity)(x,y,vel);
-    vn = vel[0]*nx+vel[1]*ny;
-    flux = max(vn,0.)*solution(i,0)
-           + min(vn,0.)*exact_soln(x,y-0.5*dy,t);
-    residual(i,0) += flux*dx;
+    Q_int = solution(i,0),Q_b = exact_soln(x,y,t);
+    (*update_flux)(0,-1,vel,Q_int,Q_b,flux);
+    residual(i,0) +=  -flux*dx;
   }
+  
+  
   for (int i = 0; i<N_x; i++)
     for (int j = 0; j<N_y; j++)
     {
@@ -333,13 +326,7 @@ void Linear_Convection_2d::apply_fvm()
 
 void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_number,bool output_indicator)
 {
-  double x=0.0,y=0.0;
-  bool constant_indicator=false;//This indicates whether the coefficients are 
-  //constant or not, to help compute exact solution. We set it to false by 
-  //default, it'd be updated to true if next condition is true
-  advection_velocity(x,y,vel);
-  if (vel[0]==1.0&&vel[1]==1.0)
-    constant_indicator = true;
+  double x,y;
   for (int i = 0; i < N_x; i++)
     for (int j = 0; j < N_y; j++)
     {
@@ -383,10 +370,7 @@ void Linear_Convection_2d::run(bool output_indicator)
     //would be the last update in our scheme.
     if (t+dt > final_time)
       dt = final_time-t;
-    if (method == "lw")
-      apply_lw();
-    else 
-      apply_fvm();
+    apply_fvm();
     //Should the flux be computed with old time or new time?
     time_step_number += 1;
     //Ensure we end at final_time
