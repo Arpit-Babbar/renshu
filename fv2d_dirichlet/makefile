@@ -43,4 +43,5 @@ clean:
 	rm -f approximate_solution*.vtk
 
 run:
+#	$(MAKE)
 	./fv2d_dirichlet upwind 0.9 1.0 4 0 

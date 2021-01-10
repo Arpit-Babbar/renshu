@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 
+#include "../include/initial_conditions.h"
 #include "../include/array2d.h"
 #include "../include/vtk_anim.h"
 using namespace std;
@@ -76,9 +77,12 @@ private:
 
     void compute_time_step();//This computes the time step dt.
 
-    void upwind(int i, int j, int nx, int ny, double& flux);
+    void lw(int i, int j, int nx, int ny, double& flux);
+    void lw_x(int j, double &flux);
+    void lw_y(int i, double &flux);
 
     void apply_fvm();
+    void apply_lw();
 
     void evaluate_error_and_output_solution(const int time_step_number,
                                             bool output_indicator);
@@ -113,7 +117,6 @@ Linear_Convection_2d::Linear_Convection_2d(int N_x, int N_y,
                                            cfl(cfl),
                                            method(method)
 {
-    theta = M_PI/4.0;
     xmin = 0.0, xmax = 1.0, ymin = 0.0, ymax = 1.0;
     dx = (xmax - xmin) / (N_x), dy = (ymax-ymin)/(N_y);
     //In interval [0,1], if we run the loop for i = 0,1,...,n-1
@@ -183,7 +186,67 @@ void Linear_Convection_2d::set_initial_solution()
     }
 }
 
-//dy/dt = res(u) 
+//Computes flux at at the face with centre
+// (x_{i+0.5*nx},y_{j+0.5*ny}). In this code, we'd just have
+//(nx,ny) = (1,0) or (0,1), so the centres will just be 
+//(x_{i+1/2,j},y_j) or (x_i,y_{j+1/2})
+
+//This function does the actual job of computing the flux.
+void Linear_Convection_2d::lw(int i, int j, int nx, int ny,
+                              double& flux)
+{
+  const double vn = vel[0]*nx + vel[1]*ny;//normal velocity
+  const double vt = vel[0]*ny + vel[1]*nx;//Tangential velocity
+  double lam_x = dt/dx,lam_y = dt/dy;
+  double hn = nx*lam_x+ny*lam_y;
+  double ht = nx*lam_y+ny*lam_x;
+  //We illustrate the formula in special case of flux_x = F
+  //F_{i+0.5,j} = (uQ+0.5*dt*u*Q_t)_{i+0.5,j}
+
+  //(uQ)_{i+0.5,j}=u_{i+0.5,j}(Q_{i,j}+Q_{i+1,j})/2
+  flux  =  0.5*vn*(solution(i,j) + solution(i+nx,j+ny));
+  //(uQ_t)_{i+0.5,j} = 
+  //u_{i+0.5,j}[-u_{i+0.5,j}*(Q_{i+1,j}-Q_{i,j})/dx
+  //-v_{i+0.5,j}*((Q_{i,j+1}-Q_{i,j-1})+(Q_{i+1,j+1}-Q_{i+1,j+1}-Q_{i+1,j-1}))
+  flux += -0.5*vn*vn*hn*(solution(i+nx,j+ny)- solution(i,j));
+  flux += -0.125*vn*vt*ht*(solution(i+ny,j+nx)-solution(i-ny,j-nx)
+                       +solution(i+1,j+1)-solution(i+nx-ny,j-nx+ny));
+}
+
+//This is used to compute the Lax-Wendroff flux at the outflow face x=xmin
+void Linear_Convection_2d::lw_x(int j,double &flux)
+{
+  double q,qt; //Recall F_{i+1/2,j} = (uQ+0.5*dt*uQ_t)_{i+1/2,j}
+  //Q_{i+1/2,j} = 2Q_{i+1,j}-Q_{i+2,j}
+  q = 2.*solution(0,j)-solution(1,j); //y=-1
+  //Q_t = -u_{i+1/2,j}(Q(i+2,j)-Q(i+1/2))/dx -v_{i+1/2,j}(Q(i+1,j+1)-Q(i+1,j-1))/(2dy)
+  qt = -vel[0]*(solution(1,j)-solution(0,j))/dx; //i = -1
+  if (j == 0)
+    qt += -vel[1]*(solution(0,1)-solution(0,0))/dy;//(f(x+h)-f(x))/h
+  else if (j==N_y-1)
+    qt += -vel[1]*(solution(0,N_y-1)-solution(0,N_y-2))/dy;//(f(x)-f(x-h))/h
+  else
+    qt += -vel[1]*(solution(0,j+1)-solution(0,j-1))/(2.*dy);
+  flux = vel[0]*(q+0.5*dt*qt);
+}
+
+void Linear_Convection_2d::lw_y(int i, double &flux)
+{
+  double q,qt;//Recall G_{i,j+1/2} = (vQ+0.5*dt*vQ_t)_{i,j+1/2}
+  //Q_{i,j+1/2} = 2Q(i,j)-Q(i,j-1)
+  q = 2.*solution(i,N_y-1)-solution(i,N_y-2);//j=N_y-1
+  //Q_t(i,j+1/2) = -v(Q(i,j)-Q(i,j-1))-u(Q(i+1,j)-Q(i-1,j))
+  qt = -vel[1]*(solution(i,N_y-1)-solution(i,N_y-2))/dy;
+  if (i==0)
+    qt += -vel[0]*(solution(1,N_y-1)-solution(0,N_y-1))/dx;//(f(x+h)-f(x))/h
+  else if (i==N_x-1)
+    qt += -vel[0]*(solution(N_x-1,N_y-1)-solution(N_x-2,N_y-1))/dx;//(f(x)-f(x-h))/h
+  else 
+    qt += -vel[0]*(solution(i+1,N_y-1)-solution(i-1,N_y-1))/(2*dx);
+  flux = vel[1]*(q+0.5*dt*qt);
+}
+
+//dy/dt = res(u)
 //where the residual coming from FVM is given by
 //res(u)_{i,j}^{n}=-(flux_x(i+1/2,j)-flux_x(i-1/2,j))/dx
 //                 -(flux_y(i,j+1/2)-flux_y(i,j-1/2))/dy
@@ -324,6 +387,134 @@ void Linear_Convection_2d::apply_fvm()
     }
 }
 
+
+
+void Linear_Convection_2d::apply_lw()
+{
+  double x,y;
+  double flux; //flux_x(i+1/2,j), flux_y(i,j+1/2)
+  //This loop computes the fluxes and adds them to where they are needed
+  solution.update_fluff();
+  residual = 0.0;//For different time integration
+  double lam = dt/(dx*dy);
+  //We'd do solution = solution_old - dt/dx * (f_x(i+1/2,j)-f_x(i-1/2,j))
+  //                                - dt/dx * (f_y(i,j+1/2)-f_y(i,j-1/2))
+
+  //dy/dt = res(u)
+
+  //flux in x direction computed and used to update solution
+  //Basically, flux_x(i+1/2,j)
+
+  //
+  for (int i = 0; i < N_x-1; i++)
+    for (int j = 0; j< N_y; j++)
+    {
+      x = (xmin+dx)+i*dx, y = (ymin+0.5*dy)+j*dy; //Values on face centre
+      //(x_{i+1/2},y_j)
+      (*advection_velocity)(x,y,vel);
+      lw(i,j,1,0,flux); //flux_x(i+1/2,j)
+      residual(i,j)     += -flux*dy;
+      residual(i+1,j) +=  flux*dy;
+    }
+
+  //flux in y direction computed and used to update solution
+  //Basically, flux_y(i,j+1/2)
+  for (int i = 0; i < N_x; i++)
+    for (int j = 0;j< N_y-1; j++)
+    {
+      double x = (xmin+0.5*dx)+i*dx, y = (ymin+dy)+j*dy; //Values on face centre.
+      //(x_i,y_{j+1/2})
+      (*advection_velocity)(x,y,vel);
+      lw(i,j,0,1,flux);//flux_y(i,j+1/2)
+
+      residual(i,j)     += -flux*dx;
+      residual(i,j+1)   +=  flux*dx;
+    }
+  
+  
+  //Now, we do the exterior faces which will have 
+  //x = xmax,xmin or y = ymax, ymin
+
+  //Note that we are always computing flux in direction that is going out of 
+  //the cell. In our definition of residual dy/dt = res(Q), note that 
+  //we always subtracted the flux going out. So, we shall do the same this
+  //time.
+  
+  int nx,ny;
+  double vn;//Normal velocity
+
+  //x = xmax. Counting from -1, this is i=Nx-1 face.
+  //normal is (nx,ny)=(1,0)
+  nx = 1,ny=0;
+  for (int j = 0;j<N_y;j++)
+  {
+    //As always, we put (x,y) to be face centers and compute
+    //velocity there
+    x = xmax, y = (ymin+0.5*dy)+j*dy;
+    (*advection_velocity)(x,y,vel);//Velocity at face centers
+    vn = vel[0]*nx+vel[1]*ny;
+    if (vn<=0.-1e-12) //Check if boundary is inflow or outflow
+    {
+      flux = 0.5*vel[0]*(exact_soln(x,y,t+dt)+exact_soln(x,y,t));
+    }
+    else
+    {
+      cout << "Incorrect velocity computed"<<endl;
+      assert(false);
+    }
+    //Now, use flux = max(v_n,0.)*Q_int + min(v_n, 0.)*qb
+    //(*update_flux)(1,0,vel,Q_int,Q_b,flux);
+    residual(N_x-1,j)+= -flux*dy;
+  }
+
+  //y = ymin. This is the first horizontal face
+  nx = 0,ny=-1;
+  for (int i = 0;i<N_x;i++)
+  {
+    x = (xmin+0.5*dx)+i*dx,y=ymin;
+    (*advection_velocity)(x,y,vel);
+    vn = vel[0]*nx+vel[1]*ny;
+    if (vn<=0.-1e-12) //Check if boundary is inflow or outflow
+    {
+      flux = 0.5*vel[1]*(exact_soln(x,y,t+dt)+exact_soln(x,y,t));
+    }
+    else
+    {
+      cout << "Incorrect velocity computed"<<endl;
+      assert(false);
+    }
+    residual(i,0) +=  flux*dx;
+  }
+
+  //x = xmin. This is the first vertical face, corresponds to i = -1
+  //normal is (nx,ny) = (-1,0)
+  nx = -1,ny=0;
+  for (int j = 0; j<N_y; j++)
+  {
+    x = xmin, y= (ymin+0.5*dy)+j*dy;
+    (*advection_velocity)(x,y,vel);
+    lw_x(j,flux);
+    residual(0,j) += flux*dy;
+  }
+
+  nx = 0,ny=1;
+  //y = ymax. Counting from j = -1, this is the face j = Ny-1
+  //(nx,ny)=(0,1)
+  for (int i = 0; i<N_x;i++)
+  {
+    x = (xmin+0.5*dx)+i*dx,y=ymax;
+    (*advection_velocity)(x,y,vel);
+    lw_y(i,flux);
+    residual(i,N_y-1) += -flux*dx;
+  }
+    
+  for (int i = 0; i<N_x; i++)
+    for (int j = 0; j<N_y; j++)
+    {
+      solution(i,j) = solution_old(i,j) + lam*residual(i,j);
+    }
+}
+
 void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_number,bool output_indicator)
 {
   double x,y;
@@ -370,7 +561,10 @@ void Linear_Convection_2d::run(bool output_indicator)
     //would be the last update in our scheme.
     if (t+dt > final_time)
       dt = final_time-t;
-    apply_fvm();
+    if (method == "lw")
+      apply_lw();
+    else
+      apply_fvm();
     //Should the flux be computed with old time or new time?
     time_step_number += 1;
     //Ensure we end at final_time

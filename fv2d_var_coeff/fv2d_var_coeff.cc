@@ -70,8 +70,6 @@ private:
     void compute_time_step();//This computes the time step dt.
 
     //Computes flux_x(i+1/2,j), flux_y(i,j+1/2)
-    void lw_normal_flux();
-    void lw_flux(int i, int j,int nx, int ny, double& flux);
     void lw(int i, int j, int nx, int ny, double& flux);
     void upwind(int i, int j, int nx, int ny, double& flux);
 
