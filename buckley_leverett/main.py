@@ -55,9 +55,10 @@ def initial_condition(x):
             f[i] = 1.0
     return f
 
+#u = np.ones(N)
 u = initial_condition(x)
 t, it = 0.0, 0
-Tf = 0.25
+Tf = 1.0
 
 uold = np.empty_like(u)
 fig = plt.figure()
