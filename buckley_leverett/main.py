@@ -2,13 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-
-a_buck = 1.0
-u_buck = 0.5
-#u_t + f(u)_x = 0, f(u) = u^2/(u^2+a(1-u)^2), i.e., the Buckley-Leverett model
-
-import numpy as np
-import matplotlib.pyplot as plt
+import argparse
 
 a_buck = 1.0 #The constant a in definition of flux
 u_buck = 0.5 #Depends on a, we have f convex in (0,u_buck),concave in (u_buck,1)
@@ -39,12 +33,18 @@ def compute_residual(u):
   res[n-1] -= flux
   res[0]   += flux
   return res
-
-N= 300
-dx = 1./N;cfl = 0.4;dt = cfl*dx
+# Get arguments
+parser = argparse.ArgumentParser()
+parser.add_argument('-N', type=int, help='Number of cells', default=100)
+parser.add_argument('-cfl', type=float, help='CFL number', default=0.4)
+parser.add_argument('-Tf', type=float, help='Final time', default=1.0)
+args = parser.parse_args()
+N= args.N
+dx = 1./N;cfl = args.cfl;dt = cfl*dx
 xmin,xmax = -1,1.
 
 x = np.linspace(xmin,xmax,N)
+'''
 def initial_condition(x):
     f = np.empty_like(x)
     length = xmax-xmin
@@ -54,22 +54,45 @@ def initial_condition(x):
         else:
             f[i] = 1.0
     return f
+'''
+
+def initial_condition(x):
+    f = np.empty_like(x)
+    length = xmax-xmin
+    for i,xx in enumerate(x):
+        if xx < xmin + 0.5*length:
+            f[i] = 1.0
+        else:
+            f[i] = 0.0
+    return f
+  
+def exact_soln(x,t):
+  f = np.empty_like(x)
+  u_star = 1.2071067811865481
+  for i,xx in enumerate(x):
+    if xx <= 0.*t:#x<f'(1)t
+      f[i] = 1.
+    elif xx > 0.*t and xx < u_star*t:
+      f[i] = 1.*(xx-u_star*t)/(0.*t-u_star*t)#Not correct, temporary
+    elif xx > u_star*t:
+      f[i] = 0.
+  return f
 
 #u = np.ones(N)
 u = initial_condition(x)
 t, it = 0.0, 0
-Tf = 1.0
+Tf = args.Tf
 
 uold = np.empty_like(u)
 fig = plt.figure()
 ax = fig.add_subplot(111)
 line1, = ax.plot(x, u, 'ro')
-#line2, = ax.plot(x, u, 'b')
+line2, = ax.plot(x, u, 'b')
 ax.set_xlabel('x'); ax.set_ylabel('u')
 plt.legend(('Numerical','Exact'))
 plt.title('N='+str(N)+', CFL='+str(cfl)+', Scheme= Godunov')
 plt.axis([xmin, xmax, u.min()-0.1, u.max()+0.1])
-plt.grid(True); plt.draw(); plt.pause(0.1)
+plt.grid(True); plt.draw(); plt.pause(0.5/N)
 wait = input("Press enter to continue ")
 lam = dt/dx
 while t < Tf:
@@ -78,7 +101,7 @@ while t < Tf:
     u = uold + lam*res
     t += dt; it += 1
     line1.set_ydata(u)
-    #line2.set_ydata(uinit(x-a*t))
+    line2.set_ydata(exact_soln(x,t))
     plt.draw(); plt.pause(0.05)
 plt.show()
 
