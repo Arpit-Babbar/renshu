@@ -65,16 +65,18 @@ def initial_condition(x):
         else:
             f[i] = 0.0
     return f
-  
+
+#Not exact soln, but has shock and rarefaction at same place
 def exact_soln(x,t):
   f = np.empty_like(x)
-  u_star = 1.2071067811865481
+  f_u_star = 1.2071067811865481 #f'(u_star)
   for i,xx in enumerate(x):
     if xx <= 0.*t:#x<f'(1)t
       f[i] = 1.
-    elif xx > 0.*t and xx < u_star*t:
-      f[i] = 1.*(xx-u_star*t)/(0.*t-u_star*t)#Not correct, temporary
-    elif xx > u_star*t:
+    elif xx > 0.*t and xx < f_u_star*t:
+      f[i] = 1.*(xx-f_u_star*t)/(0.*t-f_u_star*t)\
+             +(1./np.sqrt(2.))*(xx-0.*t)/(f_u_star*t-0.*t) #Not correct, temporary
+    elif xx > f_u_star*t:
       f[i] = 0.
   return f
 
@@ -104,9 +106,3 @@ while t < Tf:
     line2.set_ydata(exact_soln(x,t))
     plt.draw(); plt.pause(0.05)
 plt.show()
-
-def flux_buck(u):
-  a = a_buck
-  num = u**2;denom=u**2+a*(1.-u)**2
-  return num/denom
-
