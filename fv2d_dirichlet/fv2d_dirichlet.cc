@@ -454,9 +454,7 @@ void Linear_Convection_2d::apply_lw()
     (*advection_velocity)(x,y,vel);//Velocity at face centers
     vn = vel[0]*nx+vel[1]*ny;
     if (vn<=0.-1e-12) //Check if boundary is inflow or outflow
-    {
       flux = 0.5*vel[0]*(exact_soln(x,y,t+dt)+exact_soln(x,y,t));
-    }
     else
     {
       cout << "Incorrect velocity computed"<<endl;
@@ -471,13 +469,11 @@ void Linear_Convection_2d::apply_lw()
   nx = 0,ny=-1;
   for (int i = 0;i<N_x;i++)
   {
-    x = (xmin+0.5*dx)+i*dx,y=ymin;
+    x = (xmin+0.5*dx)+i*dx, y=ymin;
     (*advection_velocity)(x,y,vel);
     vn = vel[0]*nx+vel[1]*ny;
     if (vn<=0.-1e-12) //Check if boundary is inflow or outflow
-    {
       flux = 0.5*vel[1]*(exact_soln(x,y,t+dt)+exact_soln(x,y,t));
-    }
     else
     {
       cout << "Incorrect velocity computed"<<endl;
