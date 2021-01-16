@@ -18,19 +18,27 @@ def fprime(u):
     L = u**2 + a*(1.0-u)**2
     return 2.0*a*u*(1.0-u) / L**2
 
-#Inverse of restriction of f' to [1/sqrt(2),1]
+#Inverse of f' restricted to [0.5,1], the interval that contains u_s = 1/sqrt(2)
 def inv_f_s(v):
     def f(x):
         p = 4.*v*x**4-8.*v*x**3+(8.*v+2.)*x**2+(-4.*v-2.)*x+v
         return p
-    return optimize.brentq(f, u_s, 1.,xtol=2e-12, rtol=8.881784197001252e-16)
-#Inverse of restriction of f' to [0.,1-1/sqrt(2)]
+    if f(0.5)*1.<= 0.:
+        output = optimize.brentq(f, 0.5, 1.,xtol=2e-12, rtol=8.881784197001252e-16)
+    else: 
+        print('Inverse of f\' cannot be computed for v = ',v)
+        print('Please give values in [0,2] only')
+    return output
+#Inverse of f' restricted to [0,0.5], the interval that contains u_ss = 1-1/sqrt(2)
 def inv_f_ss(v):
     def f(x):
         p = 4.*v*x**4-8.*v*x**3+(8.*v+2.)*x**2+(-4.*v-2.)*x+v
         return p
-    return optimize.brentq(f, 0., u_ss,xtol=2e-12, rtol=8.881784197001252e-16)
-
+    if f(0.)*f(0.5)<=0.:
+        output = optimize.brentq(f, 0., 0.5,xtol=2e-12, rtol=8.881784197001252e-16)
+    else: 
+        print('Inverse of f\' cannot be computed for v = ',v)
+    return output
 def num_flux(ul,ur):
   return flux(ul)#Since flux is increasing
 
@@ -45,10 +53,7 @@ def rh(shock,t):#rankine hugoniot condition to be used as right hand side of ode
   return dsdt
 def update_shock(shock,t):#Updates shock to position t if previous position was t-dt
     if t>=1./(2.*fprime(u_ss)):
-      print ('shock updated')
       output = shock + dt*rh(shock,t)
-      if output > 0.:
-        print ('shock updated')
       return output
     else:
       return 0.
@@ -112,7 +117,7 @@ else:
         if xx>= shock:
           f[i] = inv_f_s(xx/t)
         else:
-          f[i] = inv_f_ss(xx/t)
+          f[i] = inv_f_ss((xx-(-0.5))/t)
       else:
         f[i] = 0.
     return f
@@ -145,7 +150,7 @@ fig = plt.figure()
 ax = fig.add_subplot(111)
 line1, = ax.plot(x, u, 'ro')
 if args.bc == 'dirichlet':
-  line2, = ax.plot(x, u, 'b')
+  line2, = ax.plot(x, u, 'bo')
 ax.set_xlabel('x'); ax.set_ylabel('u')
 plt.legend(('Numerical','Exact'))
 plt.axis([xmin, xmax, u.min()-0.1, u.max()+0.1])
