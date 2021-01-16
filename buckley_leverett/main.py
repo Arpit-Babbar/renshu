@@ -33,18 +33,25 @@ def inv_f_ss(v):
 
 def num_flux(ul,ur):
   return flux(ul)#Since flux is increasing
-  '''
-  if ul <= ur:
-    #z = np.linspace(ul,ur,100)
-    return flux(ul)
-  else:
-    #z = np.linspace(ur,ul,100)
-    return flux(ul)
-  '''
-    
 
 
-
+#Used in computing exact solution with Dirichlet Hatbuck initial data
+def rh(shock,t):#rankine hugoniot condition to be used as right hand side of ode
+  u_l = inv_f_ss((shock+0.5)/t)
+  u_r = inv_f_s(shock/t)
+  f_l = flux(u_l)
+  f_r = flux(u_r)
+  dsdt = (f_l-f_r)/(u_l-u_r)
+  return dsdt
+def update_shock(shock,t):#Updates shock to position t if previous position was t-dt
+    if t>=1./(2.*fprime(u_ss)):
+      print ('shock updated')
+      output = shock + dt*rh(shock,t)
+      if output > 0.:
+        print ('shock updated')
+      return output
+    else:
+      return 0.
 
 # Get arguments
 parser = argparse.ArgumentParser()
@@ -72,17 +79,7 @@ def initial_condition(x):
         else:
             f[i] = 1.0
     return f
-'''
-def initial_condition(x):
-    f = np.empty_like(x)
-    length = xmax-xmin
-    for i,xx in enumerate(x):
-        if xx < xmin + 0.5*length:
-            f[i] = 1.0
-        else:
-            f[i] = 0.0
-    return f
-'''
+
 if args.ic=='step':
   #Not exact soln, but has shock and rarefaction at same place
   def exact_soln(x,t):
@@ -111,8 +108,11 @@ else:
         f[i] = inv_f_ss((xx-(-0.5))/t)
       elif xx>=-0.5+f_u_ss*t and xx <= 0.:
         f[i] = 1.
-      elif xx>=0 and xx>= -0.5+f_u_ss*t and xx<=f_u_s*t:
-        f[i] = inv_f_s(xx/t)
+      elif xx>=0 and xx <=f_u_s*t:
+        if xx>= shock:
+          f[i] = inv_f_s(xx/t)
+        else:
+          f[i] = inv_f_ss(xx/t)
       else:
         f[i] = 0.
     return f
@@ -127,14 +127,15 @@ def compute_residual(u):
   for j in range(1,n-1): #each j computes flux g_{j+1/2}
     flux      = num_flux(u[j],u[j+1])
     res[j]   -= flux
-    res[j+1] +=flux
+    res[j+1] += flux
   #last face
-  flux      = num_flux(u[n-2],u[n-1])#f_{n-1/2}
+  flux      = num_flux(u[n-1],u[0])#f_{n-1/2}
   res[n-1] -= flux
   res[0]   += flux
   return res
 
 #u = np.ones(N)
+shock = 0.
 u = exact_soln(x,0.)
 t, it = 0.0, 0
 Tf = args.Tf
@@ -151,12 +152,13 @@ plt.axis([xmin, xmax, u.min()-0.1, u.max()+0.1])
 plt.grid(True); plt.draw(); plt.pause(0.1/N)
 wait = input("Press enter to continue ")
 lam = dt/dx
+ #Initial value of shock
 while t < Tf:
     uold[:] = u
+    shock = update_shock(shock,t)#Gives shock for solution at time t+dt
     exact = exact_soln(x,t+dt)
     if args.bc == 'dirichlet':
       u[0] = exact[0]
-      u[-1] = u[-2]
     res = compute_residual(u)
     u = uold + lam*res
     t += dt; it += 1
