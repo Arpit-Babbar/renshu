@@ -134,7 +134,7 @@ def solve(xmin,xmax,N,cfl,Tf,bc):
   fig = plt.figure()
   ax = fig.add_subplot(111)
   line1, = ax.plot(x, u, 'ro')
-  if bc == 'dirichlet' or 'periodic_exact':
+  if bc == 'dirichlet' or bc == 'periodic_exact':
     line2, = ax.plot(x, u, 'b')
   ax.set_xlabel('x'); ax.set_ylabel('u')
   plt.legend(('Numerical','Exact'))
@@ -154,7 +154,7 @@ def solve(xmin,xmax,N,cfl,Tf,bc):
       t += dt; it += 1
       plt.title('N='+str(N)+', CFL='+str(cfl)+', Scheme= Godunov, '+'t='+str(round(t,3)))
       line1.set_ydata(u)
-      if bc == 'dirichlet' or 'periodic_exact':
+      if bc == 'dirichlet' or bc == 'periodic_exact':
         line2.set_ydata(exact)
       plt.draw(); plt.pause(0.1/N)
   plt.show()

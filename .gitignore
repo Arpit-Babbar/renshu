@@ -157,3 +157,7 @@ fd2d_var_coeff/output
 fd2d/output
 fd2d/fd2d
 bvp2d/bvp2d/step-01/makefile
+buckley_leverett/.vscode/.ropeproject/config.py
+buckley_leverett/.vscode/.ropeproject/objectdb
+fd2d/output
+fd2d_var_coeff/output
