@@ -1,5 +1,7 @@
 #u_t + f(u)_x = 0, f(u) = u^2/(u^2+a(1-u)^2), i.e., the Buckley-Leverett model
 
+#Need to change it to compute exact solution upto Tf at the beginning for easy plotting.
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import optimize
