@@ -49,8 +49,9 @@ function compute_exact_soln!(eq, grid, t, initial_condition, Ue)
    xc = grid.xc
    fp = eq.fprime(Ue, 1.0) # 1.0 is dummy
    eigen_decomp = eigen(fp)
-   eige_vals, eigen_vecs = eigen_decomp.values, eigen_decomp.vectors
-   
+   lam, eigen_vecs = eigen_decomp.values, eigen_decomp.vectors
+   Ue = inv(eigen_vecs) * initial_condition(xc .- lam[i] * t)
+   return nothing
 end
 
 gArray(nx, nvar) = OffsetArray(zeros(nx+2, nvar), 
