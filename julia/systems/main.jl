@@ -20,40 +20,66 @@ function compute_lam_dt(Ua, grid)
    return lam, dt
 end
 
-function set_initial_condition!(grid, U1)
+function set_initial_condition!(grid, U, initial_condition)
    nx = grid.nx
    for i=1:nx
-      U1[:,i] = initial_condition(xc[i])
+      U[:,i] = initial_condition(xc[i])
    end
 end
 
-function set_initial_plot(grid,U1)
+function plot_solution(grid, U, t)
    xc = grid.xc
-   @views plot(xc, U1[1,:], xc, U1[2,:], xc, U1[3,:])
+   figure(figsize=(15,5))
+   title("Solutions plot at time $t")
+   subplot(131)
+   @views plot(xc, U[1,:])
+   xlabel("x")
+   ylabel("\$U_1\$")
+   subplot(132)
+   @views plot(xc, U[2,:])
+   xlabel("x")
+   ylabel("\$U_2\$")
+   subplot(133)
+   @views plot(xc, U[3,:])
+   xlabel("x")
+   ylabel("\$U_3\$")
+end
+
+function compute_exact_soln!(eq, grid, t, initial_condition, Ue)
+   xc = grid.xc
+   fp = eq.fprime(Ue, 1.0) # 1.0 is dummy
+   eigen_decomp = eigen(fp)
+   eige_vals, eigen_vecs = eigen_decomp.values, eigen_decomp.vectors
+   
 end
 
 gArray(nx, nvar) = OffsetArray(zeros(nx+2, nvar), 
                               OffsetArrays.Origin(0, 1))
 
-function solve!(Grid, nvar)
+function solve!(eq, Grid, nvar)
    nx = Grid.nx
    dx = Grid.dx
    xf = Grid.xf
    # Allocating variables
-   U1  = gArray(nvar, nx)
+   U   = gArray(nvar, nx)
+   Ue  = zeros(nvar, nx)
    res = gArray(nvar, nx) # dU/dt + res(U) = 0
-   Ua  = U1 # ua is just Ua for this first order method,
+   Ua  = U # ua is just Ua for this first order method,
             # storing for clarity
-   set_initial_condition!(grid, U1)
-   set_inial_plot(grid,U1)
+   set_initial_condition!(grid, U, initial_condition)
+   set_inial_plot(grid,U)
+   it, t = 0, 0.0
    while t < Tf
       lam, dt = compute_lam_dt(Ua, grid)
       # loop over faces
       for i=1:nx+1
-         Ul, Ur .= U1[:,i-1], U1[:,i]
+         Ul, Ur .= U[:,i-1], U[:,i]
          flux    = num_flux(Ul, Ur, eq, xf[i])
          @. res[:, i-1] += flux/dx[i]
          @. res[:, i]   -= flux/dx[i]
+         plot_solution(grid, U,t)
       end
-      U1 -= dt*res
+      U -= dt*res
+      it += 1
+      t  += dt
 end
