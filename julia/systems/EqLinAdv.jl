@@ -8,9 +8,13 @@ flux(x, U, eq::LinAdv) = eq.fprime(U,x) * U
                         # matrix multiplication
 
 function lax_friedrich(eq, lam, Ul, Ur, x) # Numerical flux of face at x
-   Fl, Fr = eq.flux(x, Ul, eq), eq.flux(x, Ur, eq)
+   Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
    value  = 0.5*(Fl+Fr) - 0.5 * lam * (Ur - Ul)
    return value
 end
+
+export LinAdv
+export flux
+export lax_friedrich
 
 end

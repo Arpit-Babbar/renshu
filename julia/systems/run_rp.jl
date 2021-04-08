@@ -3,8 +3,9 @@
 
 push!(LOAD_PATH,".")
 using main
-using VTK_OUT
+using Grid
 using EqLinAdv
+using LinearAlgebra
 
 nx = 50 # number of cells
 
@@ -15,11 +16,16 @@ nx = 50 # number of cells
 
 xmin, xmax   = 0.0, 1.0 # domain
 nvar         = 3        # number of variables
-fprime(U,x) = Diagonal([1.0,2.0,3.0]) # The matrix given by F'(U)
+fprime(U,x)  = Diagonal([1.0,2.0,3.0]) # The matrix given by F'(U)
 # initial condition
 Ul, Ur       = [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]
 initial_condition(x) = (x <= 0) ? Ul : Ur
 num_flux     = lax_friedrich
 
+Tf = 1.0
+
+grid = make_grid(xmin, xmax, nx)
+
 # -----------------------------------
 eq = LinAdv(fprime)
+solve(eq, grid, initial_condition, num_flux, Tf, nvar)
