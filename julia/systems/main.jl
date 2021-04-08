@@ -19,7 +19,8 @@ function compute_lam_dt(eq, grid, Ua)
       lam  = max(lam, lam0)
       dt   = min(dt, dx[i]/lam0)
    end
-   return lam, dt
+   println("dt = ", dt)
+   return lam, 0.5*dt
 end
 
 function set_initial_condition!(grid, U, initial_condition)
@@ -30,21 +31,27 @@ function set_initial_condition!(grid, U, initial_condition)
    end
 end
 
-function plot_solution(grid, U, t)
+function plot_solution(grid, U, Ue, t)
    plt. clf()
    xc = grid.xc
    nx = grid.nx
    title("Solutions plot at time $t")
    subplot(131)
    @views plot(xc, U[1,1:nx])
+   @views plot(xc, Ue[1,:])
+   legend(("Approximate", "Exact"))
    xlabel("x")
    ylabel("\$U_1\$")
    subplot(132)
    @views plot(xc, U[2,1:nx])
+   @views plot(xc, Ue[2,:])
+   legend(("Approximate", "Exact"))
    xlabel("x")
    ylabel("\$U_2\$")
    subplot(133)
    @views plot(xc, U[3,1:nx])
+   @views plot(xc, Ue[3,:])
+   legend(("Approximate", "Exact"))
    xlabel("x")
    ylabel("\$U_3\$")
    plt.pause(0.1)
@@ -63,13 +70,16 @@ function compute_exact_soln!(eq, grid, t, initial_condition, nvar, Ue)
          Ue[i,j] = (inv(eigen_vecs) * initial_condition(xc[j] - lam[i] * t))[i]
       end
    end
+   for j=1:nx
+      Ue[:,j] = eigen_vecs * Ue[:,j]
+   end
    return nothing
 end
 
 function update_ghost!(grid, U, Ue)
    nx = grid.nx
-   U[:, 0]    = Ue[:, 1]
-   U[:, nx+1] = Ue[:, nx]
+   U[:, 0]    .= Ue[:, 1]
+   U[:, nx+1] .= Ue[:, nx]
    return nothing
 end
 
@@ -99,16 +109,16 @@ function solve(eq, grid, initial_condition, num_flux, Tf, nvar)
    Ua  = U # ua is just Ua for this first order method,
             # storing for clarity
    set_initial_condition!(grid, U, initial_condition)
-                                                          # using exact solution
    it, t = 0, 0.0
    figure(figsize=(15,5))
    while t < Tf
-      lam, dt = compute_lam_dt(eq, grid, Ua)
+      # lam, dt = compute_lam_dt(eq, grid, Ua)
+      lam, dt = 3.0, dx[1]/10.0
       compute_exact_soln!(eq, grid, t, initial_condition, nvar, Ue)
       update_ghost!(grid, U, Ue)                            # Fills ghost cells
       compute_residual!(eq, grid, lam, U, num_flux, res)
-      plot_solution(grid, U, t)
       @. U -= dt*res
+      plot_solution(grid, U, Ue, t)
       t += dt; it += 1
    end
 end

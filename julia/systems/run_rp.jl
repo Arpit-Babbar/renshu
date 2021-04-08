@@ -19,8 +19,9 @@ nvar         = 3        # number of variables
 fprime(U,x)  = Diagonal([1.0,2.0,3.0]) # The matrix given by F'(U)
 # initial condition
 Ul, Ur       = [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]
-initial_condition(x) = (x <= 0) ? Ul : Ur
-num_flux     = lax_friedrich
+# initial_condition(x) = (x <= 0) ? Ul : Ur
+initial_condition(x) = [sin(2.0*pi*x),sin(2.0*pi*x),sin(2.0*pi*x)]
+num_flux     = upwind
 
 Tf = 1.0
 

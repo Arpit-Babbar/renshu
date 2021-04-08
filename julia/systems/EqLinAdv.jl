@@ -13,8 +13,15 @@ function lax_friedrich(eq, lam, Ul, Ur, x) # Numerical flux of face at x
    return value
 end
 
+function upwind(eq, lam, Ul, Ur, x) # Numerical flux of face at x
+   Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
+   value  = Fl
+   return value
+end
+
 export LinAdv
 export flux
 export lax_friedrich
+export upwind
 
 end

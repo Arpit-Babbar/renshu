@@ -4,7 +4,7 @@ using Printf
 
 struct CartesianGrid
    domain::Tuple{Float64,Float64}  # xmin,xmax
-   nx::Int64  # nx - number of points
+   nx::Int64                 # nx - number of points
    xc::Array{Float64,1}      # cell centers
    xf::Array{Float64,1}      # cell faces
    dx::Array{Float64,1}      # cell sizes
