@@ -6,6 +6,9 @@ using VTK_OUT
 using LinearAlgebra
 using OffsetArrays
 
+gArray(nx, nvar) = OffsetArray(zeros(nx+2, nvar), 
+                              OffsetArrays.Origin(0, 1))
+
 # TODO - Add safety CFL
 function compute_lam_dt(Ua, grid)
    nx, dx = grid.nx, grid.dx
@@ -54,8 +57,23 @@ function compute_exact_soln!(eq, grid, t, initial_condition, Ue)
    return nothing
 end
 
-gArray(nx, nvar) = OffsetArray(zeros(nx+2, nvar), 
-                              OffsetArrays.Origin(0, 1))
+function update_ghost!(grid, U, Ue)
+   nx = grid.nx
+   U[0]    = Ue[1]
+   U[nx+1] = Ue[nx]
+   return nothing
+end
+
+function compute_residual!(grid, U, res)
+   nx = grid.nx
+   # loop over faces
+   for i=1:nx+1
+      Ul, Ur .= U[:,i-1], U[:,i]
+      flux    = num_flux(Ul, Ur, eq, xf[i])
+      @views res[:, i-1] += flux/dx[i]
+      @views res[:, i]   -= flux/dx[i]
+   end
+end
 
 function solve!(eq, Grid, nvar)
    nx = Grid.nx
@@ -68,19 +86,14 @@ function solve!(eq, Grid, nvar)
    Ua  = U # ua is just Ua for this first order method,
             # storing for clarity
    set_initial_condition!(grid, U, initial_condition)
+                                                          # using exact solution
    set_inial_plot(grid,U)
    it, t = 0, 0.0
    while t < Tf
       lam, dt = compute_lam_dt(Ua, grid)
-      # loop over faces
-      for i=1:nx+1
-         Ul, Ur .= U[:,i-1], U[:,i]
-         flux    = num_flux(Ul, Ur, eq, xf[i])
-         @. res[:, i-1] += flux/dx[i]
-         @. res[:, i]   -= flux/dx[i]
-         plot_solution(grid, U,t)
-      end
-      U -= dt*res
-      it += 1
-      t  += dt
+      compute_exact_soln!(eq, grid, t, initial_condition, Ue)
+      update_ghost!(grid, U, Ue)                             # Fills ghost cells
+      plot_solution(grid, U,t)
+      @. U -= dt*res
+      t += dt; iter += 1
 end

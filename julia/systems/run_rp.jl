@@ -21,6 +21,5 @@ Ul, Ur       = [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]
 initial_condition(x) = (x <= 0) ? Ul : Ur
 num_flux     = lax_friedrich
 
-
 # -----------------------------------
 eq = LinAdv(fprime)
