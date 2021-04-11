@@ -53,6 +53,7 @@ end
 function compute_exact_soln!(eq, grid, t, initial_condition, nvar, Ue)
    nx = grid.nx
    xc = grid.xc
+
    fp = eq.fprime(Ue, 1.0) # 1.0 is dummy
    eigen_decomp = eigen(fp)
    lam, eigen_vecs = eigen_decomp.values, eigen_decomp.vectors
@@ -76,7 +77,7 @@ function compute_residual!(eq, grid, lam, U, num_flux, res)
    nx = grid.nx
    xf = grid.xf
    dx = grid.dx
-   dx0 = zeros(nx+2)
+   dx0 =  OffsetArray(zeros(nx+2), OffsetArrays.Origin(0))
    dx0[1:nx] .= dx
    # loop over faces
    for i=1:nx+1
