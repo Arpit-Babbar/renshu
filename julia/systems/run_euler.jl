@@ -4,7 +4,7 @@
 push!(LOAD_PATH,".")
 using FV
 using Grid
-using EqLinAdv
+using EqEuler
 using LinearAlgebra
 
 grid_size = 50 # number of cells
@@ -16,29 +16,27 @@ grid_size = 50 # number of cells
 
 xmin, xmax   = 0.0, 1.0 # domain
 nvar         = 3        # number of variables
-fprime(U,x,eq)  = [1.0 2.0 3.0;
-                   0.0 -2.0 3.0;
-                   0.0 0.0 3.0] # The matrix given by F'(U)
-                # The last argument is absolutely dummy to solve
-                # Euler with the same code. Should we make `eq` an 
-                # optional argument?
-final_time = 1.0
+final_time   = 1.0
+gamma = 2.0
 
-num_flux   = upwind
+num_flux   = lax_friedrich
 
 # initial condition
-Ul, Ur       = [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]
+# Specify Ul, Ur in primitive coordinates and make a function that
+# converts primitives to the usual format and another function that
+# brings them back. The other function will be used for plotting
+Ul, Ur       = [2.0, 2.0, 2.0], [1.0, 1.0, 1.0]
 initial_value(x) = (x <= 0) ? Ul : Ur
 boundary_value(x) = 0.0 # Dummy
 boundary_condition = "Dirichlet"
 # initial_value(x) = [sin(2.0*pi*x),sin(2.0*pi*x),sin(2.0*pi*x)]
 
-save_time_interval = 0.1
+save_time_interval = 0.0
 
 cfl = 0.0
 
 # -----------------------------------
-equation = get_equation(fprime)
+equation = get_equation(gamma)
 problem = Problem((xmin,xmax), nvar, initial_value, boundary_value,
                   boundary_condition, final_time)
 param = Parameters(grid_size, cfl, save_time_interval)

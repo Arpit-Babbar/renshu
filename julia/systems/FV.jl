@@ -76,14 +76,16 @@ end
 
 # TODO - Add safety CFL
 function compute_lam_dt(equation, grid, Ua)
-   eq = equation["eq"]
+   fprime = equation["fprime"]
+   eq     = equation["eq"]
    nx, dx = grid.nx, grid.dx
    xc     = grid.xc
    lam = 0.0
    dt  = 1.0
    for i=1:nx
       ua   = Ua[:, i]
-      lam0 = maximum(abs.(eigvals(eq.fprime(ua, xc[i])))) # CHECK xc[i]!
+      lam0 = maximum(abs.(eigvals(fprime(xc[i], ua, eq))))
+      # lam0 = maximum(abs.(eigvals(fprime(ua, xc[i])))) # CHECK xc[i]!
       lam  = max(lam, lam0)
       dt   = min(dt, dx[i]/lam0)
    end
@@ -99,46 +101,13 @@ function set_initial_value!(grid, U, problem)
    end
 end
 
-function plot_solution(grid, U, Ue, t, it, param)
-   save_time_interval = param["save_time_interval"]
-   if save_time_interval > 0.0
-      k1, k2 = ceil(t/save_time_interval), floor(t/save_time_interval)
-      if (abs(t-k1*save_time_interval) < 1e-10 ||
-          abs(t-k2*save_time_interval) < 1e-10)
-         nothing
-      else
-         return nothing
-      end
-   end
-   plt. clf()
-   xc = grid.xc
+# function update_ghost!(grid, U, Ue)
+function update_ghost!(grid, U, initial_value)
    nx = grid.nx
-   suptitle("Iteration $it, time $t")
-   subplot(131)
-   @views plot(xc, U[1,1:nx])
-   @views plot(xc, Ue[1,:])
-   legend(("Approximate", "Exact"))
-   xlabel("x")
-   ylabel("\$U_1\$")
-   subplot(132)
-   @views plot(xc, U[2,1:nx])
-   @views plot(xc, Ue[2,:])
-   legend(("Approximate", "Exact"))
-   xlabel("x")
-   ylabel("\$U_2\$")
-   subplot(133)
-   @views plot(xc, U[3,1:nx])
-   @views plot(xc, Ue[3,:])
-   legend(("Approximate", "Exact"))
-   xlabel("x")
-   ylabel("\$U_3\$")
-   plt.pause(0.1)
-end
-
-function update_ghost!(grid, U, Ue)
-   nx = grid.nx
-   U[:, 0]    .= Ue[:, 1]
-   U[:, nx+1] .= Ue[:, nx]
+   # U[:, 0]    .= Ue[:, 1]
+   # U[:, nx+1] .= Ue[:, nx]
+   U[:, 0]   .= initial_value(-1.0)
+   U[:,nx+1] .= initial_value(1.0)
    return nothing
 end
 
@@ -152,11 +121,14 @@ function compute_residual!(equation, grid, lam, U, scheme, res)
    dx0[1:nx] .= dx
    dx0[0] = dx[nx]
    dx0[nx+1] = dx[1]
-   res[:,:] .= 0.0
+   res[:,:] .= 0.0 # Shouldn't we be able to avoid this?
+                   # Something like this?
+                   #      @views res[:, i-1] += f/ dx0[i-1]
+                   #      @views res[:, i]   = f/ dx0[i]
    # loop over faces
    for i=1:nx+1
       @views Ul, Ur  = U[:,i-1], U[:,i]
-      f    = num_flux(eq, lam, Ul, Ur, xf[i])
+      f    = num_flux(equation, lam, Ul, Ur, xf[i])
       @views res[:, i-1] += f/ dx0[i-1]
       @views res[:, i]   -= f/ dx0[i]
    end
@@ -164,7 +136,7 @@ end
 
 function solve(equation, problem, scheme, param)
    grid = make_grid(problem, param)
-   compute_exact_soln! = equation["compute_exact_soln!"]
+   plot_solution = equation["plot_solution"]
    nvar = problem["nvar"]
    Tf = problem["final_time"]
    nx = grid.nx
@@ -181,14 +153,19 @@ function solve(equation, problem, scheme, param)
    figure(figsize=(15,5))
    while t < Tf
       lam, dt = compute_lam_dt(equation, grid, Ua)
+      println("dt = ", dt)
       adjust_time_step(problem, param, dt, t)
-      compute_exact_soln!(equation["eq"], grid, t, problem, nvar, Ue)
-      update_ghost!(grid, U, Ue)                            # Fills ghost cells
+      # compute_exact_soln!(equation["eq"], grid, t, problem, nvar, Ue)
+      update_ghost!(grid, U, problem["initial_value"])
+      # update_ghost!(grid, U, Ue)                            # Fills ghost cells
       compute_residual!(equation, grid, lam, U, scheme, res)
       @. U -= dt*res
-      plot_solution(grid, U, Ue, t, it, param)
+      plot_solution(grid, equation, problem, U, t, it, param)
       t += dt; it += 1
    end
+   show() # This ensures that the last window stays open
+          # Keeping it inside the loop will keep it frozen
+          # at the very first time step.
 end
 
 export Problem
