@@ -45,6 +45,20 @@ function lax_friedrich(equation, lam, Ul, Ur, x) # Numerical flux of face at x
    return value
 end
 
+# function converting primitive variables to PDE variables
+function primitive2pde(prim, gamma) # primitive, viscosity
+   U = [prim[1], prim[1]*prim[2], prim[3]/(gamma-1.0) + prim[1]*prim[2]^2/2.0]
+      # rho    ,     rho*u     ,        p/(gamma-1.0) +     rho*u^2/2.0
+   return U
+end
+
+# function converting pde variables to primitive variables
+function pde2primitive(U, gamma)
+   prim = [U[1], U[2]/U[1], (gamma-1.0)*(U[3]-U[2]^2/(2.0*U[1])) ]
+   # prim = [rho, u, p]
+   return prim
+end
+
 # Fix - Make the plot_solution a part of PDE. And, in the plot function
 # compute exact solution. And, create a boundary_value function for Dirichlet bc
 # function plot_solution(grid, U, Ue, t, it, param)
@@ -64,22 +78,24 @@ function plot_solution(grid, equation, problem, U, t, it, param)
    plt. clf()
    xc = grid.xc
    nx = grid.nx
+   eq = equation["eq"]
+   Up = copy(U)
+   for j=1:nx
+      @views Up[:, j] = pde2primitive(U[:,j],eq.gamma)
+   end
    suptitle("Iteration $it, time $t")
    subplot(131)
-   @views plot(xc, U[1,1:nx])
-   legend(("Approximate", "Exact"))
+   @views plot(xc, Up[1,1:nx])
    xlabel("x")
-   ylabel("\$U_1\$")
+   ylabel("Density")
    subplot(132)
-   @views plot(xc, U[2,1:nx])
-   legend(("Approximate", "Exact"))
+   @views plot(xc, Up[2,1:nx])
    xlabel("x")
-   ylabel("\$U_2\$")
+   ylabel("Velocity")
    subplot(133)
-   @views plot(xc, U[3,1:nx])
-   legend(("Approximate", "Exact"))
+   @views plot(xc, Up[3,1:nx])
    xlabel("x")
-   ylabel("\$U_3\$")
+   ylabel("Pressure")
    plt.pause(0.1)
 end
 
@@ -89,7 +105,10 @@ get_equation(gamma) = Dict( "eq"            => Euler(gamma),
                             "plot_solution" => plot_solution,
                             "name"          => "1D Euler equations")
 
+
 export lax_friedrich
 export get_equation
+export primitive2pde
+export pde2primitive
 
 end

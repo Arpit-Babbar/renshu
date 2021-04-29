@@ -7,7 +7,7 @@ using Grid
 using EqEuler
 using LinearAlgebra
 
-grid_size = 50 # number of cells
+grid_size = 300 # number of cells
 
 # Plan - To not have to worry about periodicity, we can temporarily
 # specify the boundary points to be the Dirichlet values.
@@ -16,8 +16,8 @@ grid_size = 50 # number of cells
 
 xmin, xmax   = 0.0, 1.0 # domain
 nvar         = 3        # number of variables
-final_time   = 1.0
-gamma = 2.0
+final_time   = 0.25
+gamma = 1.4
 
 num_flux   = lax_friedrich
 
@@ -25,8 +25,12 @@ num_flux   = lax_friedrich
 # Specify Ul, Ur in primitive coordinates and make a function that
 # converts primitives to the usual format and another function that
 # brings them back. The other function will be used for plotting
-Ul, Ur       = [2.0, 2.0, 2.0], [1.0, 1.0, 1.0]
-initial_value(x) = (x <= 0) ? Ul : Ur
+primitive_l, primitive_r  = [1.0, 0.0, 1.0], [0.125, 0.0, 0.1]
+                            # density, velocity, pressure
+        
+Ul, Ur = primitive2pde(primitive_l, gamma), primitive2pde(primitive_r, gamma)
+
+initial_value(x) = (x <= 0.5) ? Ul : Ur
 boundary_value(x) = 0.0 # Dummy
 boundary_condition = "Dirichlet"
 # initial_value(x) = [sin(2.0*pi*x),sin(2.0*pi*x),sin(2.0*pi*x)]

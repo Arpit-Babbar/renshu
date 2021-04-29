@@ -106,8 +106,12 @@ function update_ghost!(grid, U, initial_value)
    nx = grid.nx
    # U[:, 0]    .= Ue[:, 1]
    # U[:, nx+1] .= Ue[:, nx]
+   # Fix it, replace with actual boundary conditions 
    U[:, 0]   .= initial_value(-1.0)
-   U[:,nx+1] .= initial_value(1.0)
+   # U[:,nx+1] .= initial_value(1.0) # You can only specify bc 
+                                   # at inlet. At outlet, you just specify
+                                   # U[:,nx]
+   U[:,nx+1] .= U[:,nx]
    return nothing
 end
 
