@@ -2,6 +2,7 @@ module EqEuler
 
 using LinearAlgebra
 using PyPlot
+using DelimitedFiles
 
 struct Euler
    gamma::Float64
@@ -66,6 +67,7 @@ end
 # solution to that plot? Yeah, that'd be better.
 function plot_solution(grid, equation, problem, U, t, it, param)
    save_time_interval = param["save_time_interval"]
+   Tf = problem["final_time"]
    if save_time_interval > 0.0
       k1, k2 = ceil(t/save_time_interval), floor(t/save_time_interval)
       if (abs(t-k1*save_time_interval) < 1e-10 ||
@@ -99,16 +101,55 @@ function plot_solution(grid, equation, problem, U, t, it, param)
    plt.pause(0.1)
 end
 
-get_equation(gamma) = Dict( "eq"            => Euler(gamma),
-                            "flux"          => flux,
-                            "fprime"        => fprime,
-                            "plot_solution" => plot_solution,
-                            "name"          => "1D Euler equations")
+function plot_final_soln(grid, equation, U, t, it)
+   soln_data = readdlm("toro_user_exact.dat", skipstart = 9)
+   @views x = soln_data[:,1]
+   @views dens_exact = soln_data[:,2]
+   @views pres_exact = soln_data[:,3]
+   @views velx_exact = soln_data[:,4]
+   plt. clf()
+   xc = grid.xc
+   nx = grid.nx
+   eq = equation["eq"]
+   Up = copy(U)
+   for j=1:nx
+      @views Up[:, j] = pde2primitive(U[:,j],eq.gamma)
+   end
+   subplots(1,3)
+   suptitle("Iteration $it, time $t")
+   subplot(131)
+   @views plot(xc, Up[1,1:nx])
+   plot(x, dens_exact)
+   legend(("Numerical", "Exact"))
+   xlabel("x")
+   ylabel("Density")
+   subplot(132)
+   @views plot(xc, Up[2,1:nx])
+   plot(x, velx_exact)
+   legend(("Numerical", "Exact"))
+   xlabel("x")
+   ylabel("Velocity")
+   subplot(133)
+   @views plot(xc, Up[3,1:nx])
+   plot(x, pres_exact)
+   legend(("Numerical", "Exact"))
+   xlabel("x")
+   ylabel("Pressure")
+   show()
+end
+
+get_equation(gamma) = Dict( "eq"              => Euler(gamma),
+                            "flux"            => flux,
+                            "fprime"          => fprime,
+                            "plot_solution"   => plot_solution,
+                            "plot_final_soln" => plot_final_soln,
+                            "name"            => "1D Euler equations")
 
 
 export lax_friedrich
 export get_equation
 export primitive2pde
 export pde2primitive
+export plot_final_soln
 
 end

@@ -49,6 +49,17 @@ gArray(nvar, nx) = OffsetArray(zeros(nvar, nx+2),
                               OffsetArrays.Origin(1, 0))
 
 #-------------------------------------------------------------------------------
+# Convert array to string
+#-------------------------------------------------------------------------------
+function array2string(arr)
+   arr_string = "["
+   n = size(arr)[1]
+   for i=1:n-1
+      arr_string = arr_string * string(arr[i]) * ","
+   end
+   arr_string = arr_string * string(arr[end]) * "]"
+end
+#-------------------------------------------------------------------------------
 # Adjust dt to reach final time or the next time when solution has to be saved
 #-------------------------------------------------------------------------------
 function adjust_time_step(problem, param, dt, t)
@@ -141,6 +152,7 @@ end
 function solve(equation, problem, scheme, param)
    grid = make_grid(problem, param)
    plot_solution = equation["plot_solution"]
+   plot_final_soln = equation["plot_final_soln"]
    nvar = problem["nvar"]
    Tf = problem["final_time"]
    nx = grid.nx
@@ -157,7 +169,6 @@ function solve(equation, problem, scheme, param)
    figure(figsize=(15,5))
    while t < Tf
       lam, dt = compute_lam_dt(equation, grid, Ua)
-      println("dt = ", dt)
       adjust_time_step(problem, param, dt, t)
       # compute_exact_soln!(equation["eq"], grid, t, problem, nvar, Ue)
       update_ghost!(grid, U, problem["initial_value"])
@@ -167,14 +178,13 @@ function solve(equation, problem, scheme, param)
       plot_solution(grid, equation, problem, U, t, it, param)
       t += dt; it += 1
    end
-   show() # This ensures that the last window stays open
-          # Keeping it inside the loop will keep it frozen
-          # at the very first time step.
+   plot_final_soln(grid, equation, U, t, it)
 end
 
 export Problem
 export Parameters
 export Scheme
+export array2string
 export solve
 
 end
