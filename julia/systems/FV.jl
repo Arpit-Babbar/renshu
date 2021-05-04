@@ -175,10 +175,11 @@ function solve(equation, problem, scheme, param)
       # update_ghost!(grid, U, Ue)                            # Fills ghost cells
       compute_residual!(equation, grid, lam, U, scheme, res)
       @. U -= dt*res
-      plot_solution(grid, equation, problem, U, t, it, param)
       t += dt; it += 1
+      plot_solution(grid, equation, problem, U, t, it, param)
    end
-   plot_final_soln(grid, equation, U, t, it)
+   plot_final_soln(grid, equation, problem, U, t, it, param)
+   show()
 end
 
 export Problem

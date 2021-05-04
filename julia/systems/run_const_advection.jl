@@ -33,7 +33,7 @@ boundary_value(x) = 0.0 # Dummy
 boundary_condition = "Dirichlet"
 # initial_value(x) = [sin(2.0*pi*x),sin(2.0*pi*x),sin(2.0*pi*x)]
 
-save_time_interval = 0.1
+save_time_interval = 0.0
 
 cfl = 0.0
 

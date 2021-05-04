@@ -115,14 +115,14 @@ if(__name__ == '__main__'):
 		t      = cases[icase]['time']
 		x0     = cases[icase]['x0']
 
-		sys.stdout.write('Running problem: {:s}\n'.format(icase))
-		sys.stdout.write('  xbnds: {:f} {:f}\n'.format(xbnds[0],xbnds[1]))
-		sys.stdout.write('  x0: {:f}\n'.format(x0))
-		sys.stdout.write('  grid:  {:s} ({:d})\n'.format(disc,npts))
-		sys.stdout.write('  left:  {:f}  {:f}  {:f}\n'.format(stateL[0], stateL[1], stateL[2]))
-		sys.stdout.write('  right: {:f}  {:f}  {:f}\n'.format(stateR[0], stateR[1], stateR[2]))
-		sys.stdout.write('  gamma: {:f}\n'.format(gamma))
-		sys.stdout.write('  time:  {:f}\n'.format(t))
+		# sys.stdout.write('Running problem: {:s}\n'.format(icase))
+		# sys.stdout.write('  xbnds: {:f} {:f}\n'.format(xbnds[0],xbnds[1]))
+		# sys.stdout.write('  x0: {:f}\n'.format(x0))
+		# sys.stdout.write('  grid:  {:s} ({:d})\n'.format(disc,npts))
+		# sys.stdout.write('  left:  {:f}  {:f}  {:f}\n'.format(stateL[0], stateL[1], stateL[2]))
+		# sys.stdout.write('  right: {:f}  {:f}  {:f}\n'.format(stateR[0], stateR[1], stateR[2]))
+		# sys.stdout.write('  gamma: {:f}\n'.format(gamma))
+		# sys.stdout.write('  time:  {:f}\n'.format(t))
 
 		# Solve the exact RP, which produces
 		# the state in the star region
@@ -136,7 +136,7 @@ if(__name__ == '__main__'):
 		x  = []
 		s  = []
 		shift = 0.0
-		if(disc is 'zonal'):
+		if(disc == 'zonal'):
 			dx = (xbnds[1]-xbnds[0])/npts
 			shift = 0.5e0
 		else:
@@ -153,7 +153,7 @@ if(__name__ == '__main__'):
 
 		# Write to output
 		filename = './toro_{:s}_exact.dat'.format(icase)
-		sys.stdout.write('  Writing to file: {:s}\n'.format(filename))
+		sys.stdout.write('  Writing exact soln to file: {:s}\n'.format(filename))
 		with open(filename,'w+') as file:
 			file.write('# Exact Riemann solution for problem: {:s}\n'.format(icase))
 			file.write('# Discretization: {:s}\n'.format(disc))

@@ -100,6 +100,7 @@ function plot_solution(grid, equation, problem, U, t, it, param)
    plt.pause(0.1)
 end
 
+
 get_equation(fprime) = Dict("eq"                  => LinAdv(fprime),
                             "flux"                => flux,
                             "fprime"              => fprime,
@@ -109,6 +110,7 @@ get_equation(fprime) = Dict("eq"                  => LinAdv(fprime),
                             # to be removed
                             "compute_exact_soln!" => compute_exact_soln!,
                             "plot_solution"       => plot_solution,
+                            "plot_final_soln"     => plot_solution,
                             "name"                => "Linear advection equation")
 
 export LinAdv # To define fprime in run file

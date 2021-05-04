@@ -55,8 +55,8 @@ end
 
 # function converting pde variables to primitive variables
 function pde2primitive(U, gamma)
-   prim = [U[1], U[2]/U[1], (gamma-1.0)*(U[3]-U[2]^2/(2.0*U[1])) ]
-   # prim = [rho, u, p]
+   prim = [U[1], U[2]/U[1], (gamma-1.0)*(U[3]-U[2]^2/(2.0*U[1]))]
+   # prim=[rho , u        , p]
    return prim
 end
 
@@ -77,7 +77,7 @@ function plot_solution(grid, equation, problem, U, t, it, param)
          return nothing
       end
    end
-   plt. clf()
+   plt.clf()
    xc = grid.xc
    nx = grid.nx
    eq = equation["eq"]
@@ -91,23 +91,23 @@ function plot_solution(grid, equation, problem, U, t, it, param)
    xlabel("x")
    ylabel("Density")
    subplot(132)
-   @views plot(xc, Up[2,1:nx])
+   @views plot(xc, Up[2,1:nx], "o", markersize=3)
    xlabel("x")
    ylabel("Velocity")
    subplot(133)
-   @views plot(xc, Up[3,1:nx])
+   @views plot(xc, Up[3,1:nx], "o", markersize=3)
    xlabel("x")
    ylabel("Pressure")
    plt.pause(0.1)
 end
 
-function plot_final_soln(grid, equation, U, t, it)
+function plot_final_soln(grid, equation, problem, U, t, it, param)
+   close("all")
    soln_data = readdlm("toro_user_exact.dat", skipstart = 9)
    @views x = soln_data[:,1]
    @views dens_exact = soln_data[:,2]
    @views pres_exact = soln_data[:,3]
    @views velx_exact = soln_data[:,4]
-   plt. clf()
    xc = grid.xc
    nx = grid.nx
    eq = equation["eq"]
@@ -118,26 +118,27 @@ function plot_final_soln(grid, equation, U, t, it)
    subplots(1,3)
    suptitle("Iteration $it, time $t")
    subplot(131)
-   @views plot(xc, Up[1,1:nx])
+   @views plot(xc, Up[1,1:nx], "o", markersize=3)
    plot(x, dens_exact)
    legend(("Numerical", "Exact"))
    xlabel("x")
    ylabel("Density")
    subplot(132)
-   @views plot(xc, Up[2,1:nx])
+   @views plot(xc, Up[2,1:nx], "o", markersize=3)
    plot(x, velx_exact)
    legend(("Numerical", "Exact"))
    xlabel("x")
    ylabel("Velocity")
    subplot(133)
-   @views plot(xc, Up[3,1:nx])
+   @views plot(xc, Up[3,1:nx], "o", markersize=3)
    plot(x, pres_exact)
    legend(("Numerical", "Exact"))
    xlabel("x")
    ylabel("Pressure")
-   show()
 end
-
+# TODO - Make a plot function that does the common parts in the function. Something like
+# fig, ax = Init_triple_plot()
+# add_to_figure(ax) <- This looks like something that won't freaking work!!
 get_equation(gamma) = Dict( "eq"              => Euler(gamma),
                             "flux"            => flux,
                             "fprime"          => fprime,

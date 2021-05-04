@@ -489,7 +489,7 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    double n_points = 15.0;
+    double n_points = 50.0;
     double cfl = stod(argv[2]);
     cout << "cfl = " << cfl << endl;
     double running_time = stod(argv[3]);
