@@ -1,1 +1,5 @@
 back_lw/cent_vs_back.ipynb linguist-generated=true
+python/chebyshev.ipynb linguist-generated=true
+python/weno.ipynb linguist-generated=true
+python/operator_as_matrix.ipynb linguist-generated=true
+fv2d/lw_stab.ipynb linguist-generated=true
