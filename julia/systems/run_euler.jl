@@ -17,11 +17,11 @@ grid_size = 150 # number of cells
 xmin, xmax   = 0.0, 1.0 # domain
 nvar         = 3        # number of variables
 final_time   = 0.1
-gamma  = 1.4
+γ  = 1.4
 disc_x = 0.3
 
 num_flux   = lax_friedrich
-# choices - lax_friedrich
+# choices  - lax_friedrich
 
 # initial condition
 # Specify Ul, Ur in primitive coordinates
@@ -42,7 +42,7 @@ cfl = 0.0
 #------------------------------------------------------------------------------
 println("Solving Riemann problem for Euler equation with following parameters -")
 println("Discontinuity of initial data is at", disc_x)
-println("gamma = ", gamma)
+println("gamma = ", γ)
 println("Tf    = ", final_time)
 println("Initial Condition L/R of [dens, vel, pres] is")
 show(stdout, primitive_l)
@@ -57,13 +57,13 @@ println("Solving exactly for final time")
 p_l_s, p_r_s = array2string(primitive_l), array2string(primitive_r)
 run(`python ./ToroExact/toro_exact.py -p user -l $p_l_s -r $p_r_s -x $disc_x -t $final_time`)
 
-Ul, Ur = primitive2pde(primitive_l, gamma), primitive2pde(primitive_r, gamma)
+Ul, Ur = primitive2pde(primitive_l, γ), primitive2pde(primitive_r, γ)
 
 #------------------------------------------------------------------------------
-# Main Solver
+# FVM Solver
 #------------------------------------------------------------------------------
 
-equation = get_equation(gamma)
+equation = get_equation(γ)
 problem = Problem((xmin,xmax), nvar, initial_value, boundary_value,
                   boundary_condition, final_time)
 param = Parameters(grid_size, cfl, save_time_interval)

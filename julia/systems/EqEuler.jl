@@ -5,35 +5,35 @@ using PyPlot
 using DelimitedFiles
 
 struct Euler
-   gamma::Float64
+   γ::Float64
 end
 
 # Would have liked to solver 
 
 # pure function
 function flux(x, U, eq::Euler) 
-   rho = U[1]        # density
-   u   = U[2] / U[1] # velocity
-   E   = U[3]        # energy
-   p   = (eq.gamma - 1.0) * (E - 0.5 * rho * u^2) # pressure
-   F   = [U[2], p + rho * u^2, (E+p) * u] # flux
+   ρ = U[1]        # density
+   u = U[2] / U[1] # velocity
+   E = U[3]        # energy
+   p = (eq.γ - 1.0) * (E - 0.5 * ρ * u^2) # pressure
+   F = [U[2], p + ρ * u^2, (E+p) * u] # flux
    return F
 end
 # TODO - Find the best version by counting the number of operations!!
 
 # The matrix fprime(U)
 function fprime(x, U, eq::Euler) 
-   rho = U[1]        # density
-   u   = U[2] / U[1] # velocity
-   E   = U[3]        # energy
+   ρ = U[1]        # density
+   u = U[2] / U[1] # velocity
+   E = U[3]        # energy
 
-   p   = (eq.gamma - 1.0) * (E - 0.5 * rho * u^2) # pressure
+   p = (eq.γ - 1.0) * (E - 0.5 * ρ * u^2) # pressure
 
-   H = (E+p)/rho
+   H = (E+p)/ρ
 
    A = [0.0                          1.0                  0.0;
-        0.5*(eq.gamma-3.0)*u^2       (3.0-eq.gamma)*u     eq.gamma-1.0;
-        u*(0.5*(eq.gamma-1.0)*u^2-H) H-(eq.gamma-1.0)*u^2 eq.gamma*u]
+        0.5*(eq.γ-3.0)*u^2       (3.0-eq.γ)*u     eq.γ-1.0;
+        u*(0.5*(eq.γ-1.0)*u^2-H) H-(eq.γ-1.0)*u^2 eq.γ*u]
    return A
 end
 
@@ -47,16 +47,16 @@ function lax_friedrich(equation, lam, Ul, Ur, x) # Numerical flux of face at x
 end
 
 # function converting primitive variables to PDE variables
-function primitive2pde(prim, gamma) # primitive, viscosity
-   U = [prim[1], prim[1]*prim[2], prim[3]/(gamma-1.0) + prim[1]*prim[2]^2/2.0]
-      # rho    ,     rho*u     ,        p/(gamma-1.0) +     rho*u^2/2.0
+function primitive2pde(prim, γ) # primitive, viscosity
+   U = [prim[1], prim[1]*prim[2], prim[3]/(γ-1.0) + prim[1]*prim[2]^2/2.0]
+      # ρ    ,     ρ*u     ,        p/(γ-1.0) +     ρ*u^2/2.0
    return U
 end
 
 # function converting pde variables to primitive variables
-function pde2primitive(U, gamma)
-   prim = [U[1], U[2]/U[1], (gamma-1.0)*(U[3]-U[2]^2/(2.0*U[1]))]
-   # prim=[rho , u        , p]
+function pde2primitive(U, γ)
+   prim = [U[1], U[2]/U[1], (γ-1.0)*(U[3]-U[2]^2/(2.0*U[1]))]
+   # prim=[ρ , u        , p]
    return prim
 end
 
@@ -67,7 +67,6 @@ end
 # solution to that plot? Yeah, that'd be better.
 function plot_solution(grid, equation, problem, U, t, it, param)
    save_time_interval = param["save_time_interval"]
-   Tf = problem["final_time"]
    if save_time_interval > 0.0
       k1, k2 = ceil(t/save_time_interval), floor(t/save_time_interval)
       if (abs(t-k1*save_time_interval) < 1e-10 ||
@@ -83,7 +82,7 @@ function plot_solution(grid, equation, problem, U, t, it, param)
    eq = equation["eq"]
    Up = copy(U)
    for j=1:nx
-      @views Up[:, j] = pde2primitive(U[:,j],eq.gamma)
+      @views Up[:, j] = pde2primitive(U[:,j],eq.γ)
    end
    suptitle("Iteration $it, time $t")
    subplot(131)
@@ -113,7 +112,7 @@ function plot_final_soln(grid, equation, problem, U, t, it, param)
    eq = equation["eq"]
    Up = copy(U)
    for j=1:nx
-      @views Up[:, j] = pde2primitive(U[:,j],eq.gamma)
+      @views Up[:, j] = pde2primitive(U[:,j],eq.γ)
    end
    subplots(1,3)
    suptitle("Iteration $it, time $t")
@@ -139,12 +138,12 @@ end
 # TODO - Make a plot function that does the common parts in the function. Something like
 # fig, ax = Init_triple_plot()
 # add_to_figure(ax) <- This looks like something that won't freaking work!!
-get_equation(gamma) = Dict( "eq"              => Euler(gamma),
-                            "flux"            => flux,
-                            "fprime"          => fprime,
-                            "plot_solution"   => plot_solution,
-                            "plot_final_soln" => plot_final_soln,
-                            "name"            => "1D Euler equations")
+get_equation(γ) = Dict( "eq"              => Euler(γ),
+                        "flux"            => flux,
+                        "fprime"          => fprime,
+                        "plot_solution"   => plot_solution,
+                        "plot_final_soln" => plot_final_soln,
+                        "name"            => "1D Euler equations")
 
 
 export lax_friedrich
