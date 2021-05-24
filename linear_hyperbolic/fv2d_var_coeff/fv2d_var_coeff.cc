@@ -10,9 +10,9 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-#include "../include/array2d.h"
-#include "../include/vtk_anim.h"
-#include "../include/initial_conditions.h"
+#include "../../include/array2d.h"
+#include "../../include/vtk_anim.h"
+#include "../../include/initial_conditions.h"
 using namespace std;
 
 //Returns true if real number is integer, false otherwise.

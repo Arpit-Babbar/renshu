@@ -7,10 +7,10 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/array2d.h"
-#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/array2d.cc"
-#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/vtk_anim.h"
-#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/vtk_anim.cc"
+#include "../../include/array2d.h"
+#include "../../include/array2d.cc"
+#include "../../include/vtk_anim.h"
+#include "../../include/vtk_anim.cc"
 using namespace std;
 
 //Returns true if real number is integer, false otherwise.

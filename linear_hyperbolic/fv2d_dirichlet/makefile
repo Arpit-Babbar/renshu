@@ -1,9 +1,9 @@
 CXX       = g++ #-O3 runs faster.
-INC_DIR   =../include
+INC_DIR   =../../include
 CFLAGS    = -Wall #-O3 Removed optimization to see variables in debugging. Remember to bring it back.
 
 
-OBJ = fv2d_var_coeff.o array2d.o vtk_anim.o initial_conditions.o
+OBJ = fv2d_dirichlet.o array2d.o vtk_anim.o initial_conditions.o
 
 ifeq ($(debug),yes)
 	CFLAGS += -DDEBUG
@@ -19,13 +19,10 @@ ifeq ($(optimize),yes)
 	CXX += -O3
 endif
 
-TARGETS = fv2d_var_coeff
+TARGETS = fv2d_dirichlet
 
 all: $(TARGETS)
 
-#array2d.o: $(INC_DIR)/array2d.h $(INC_DIR)/array2d.cc 
-#initial_conditions.o: $(INC_DIR)/initial_conditions.h $(INC_DIR)/initial_conditions.cc 
-#vtk_anim.o: $(INC_DIR)/vtk_anim.h $(INC_DIR)/vtk_anim.cc 
 
 
 
@@ -37,7 +34,7 @@ all: $(TARGETS)
 #fv2d_var_coeff.o:fv2d_var_coeff.cc array2d.o vtk_anim.o initial_conditions.o
 #	$(CXX) $(CFLAGS) -c fv2d_var_coeff.cc
 
-fv2d_var_coeff: fv2d_var_coeff.cc array2d.o vtk_anim.o initial_conditions.o 
+fv2d_dirichlet: fv2d_dirichlet.cc array2d.o vtk_anim.o initial_conditions.o 
 	$(CXX) $(CFLAGS) -o $@ $^
 
 clean:
@@ -46,4 +43,5 @@ clean:
 	rm -f approximate_solution*.vtk
 
 run:
-	./fv2d_var_coeff lw 0.9 2pi 4 0 
+#	$(MAKE)
+	./fv2d_dirichlet upwind 0.9 1.0 4 0 

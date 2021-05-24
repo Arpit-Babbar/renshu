@@ -9,8 +9,11 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/array2d.h"
-#include "/mnt/c/Users/arpit/Documents/GitHub/arpit_practise/include/vtk_anim.h"
+#include "../../include/array2d.h"
+#include "../../include/array2d.cc"
+#include "../../include/vtk_anim.h"
+#include "../../include/vtk_anim.cc"
+
 using namespace std;
 
 //Returns true if real number is integer, false otherwise.
@@ -35,10 +38,10 @@ public:
     Linear_Convection_2d(const double N,
                          double lam_x, /*const double lam_y, */
                          string method, const double running_time,
-                         int initial_data_indicator); 
+                         int initial_data_indicator);
 
     void run(bool output_indicator);
-    void get_error(vector<double> &l1_vector, vector<double> &l2_vector, 
+    void get_error(vector<double> &l1_vector, vector<double> &l2_vector,
                    vector<double> &linfty_vector, vector<double> &snapshot_error);
 private:
     void make_grid();
@@ -51,14 +54,14 @@ private:
                                               double& flux_x, double& flux_y);
     void upwind(int i, int j, double& flux_x, double& flux_y);
 
-    //This will compute the flux at (i+1/2,j). 
+    //This will compute the flux at (i+1/2,j).
     void lw_flux(int i, int j, int n_x, int n_y, double& flux);
     void lw(int i, int j, double& flux_x,double& flux_y);
 
     void solve();
 
     double hat_function(double grid_point);
-    double step_function(double grid_point); 
+    double step_function(double grid_point);
     double exp_func_25(double grid_point);
     double exp_func_100(double grid_point);
 
@@ -83,9 +86,9 @@ private:
     //For the PDE qt + uqx + vqy = 0, the exact solution is q(x,y,t)=f(x-ut,y-vt)
     //Since we are assuming periodicity in both $x$ and $y$ directions with
     //period 2, solution agrees with initial solution when u*t, v*t are even integers.
-    //So, we return to original solution for t*u = 2n, t*v= 2m for some n,m. 
+    //So, we return to original solution for t*u = 2n, t*v= 2m for some n,m.
     //We cannot always ensure this. If u = sqrt(2), v = sqrt(3), for u*t
-    //to be an integer, we need t = m/sqrt(2), but then v*t cannot 
+    //to be an integer, we need t = m/sqrt(2), but then v*t cannot
     //be an integer. Thus, the condition is, that u/v is a rational number
 
     double N, dx, dy, dt, t, running_time;
@@ -96,12 +99,12 @@ private:
     int initial_data_indicator;
 };
 
-Linear_Convection_2d::Linear_Convection_2d(double N, 
+Linear_Convection_2d::Linear_Convection_2d(double N,
                                            double lam_x,/* const double lam_y,*/
                                            string method,
-                                           double running_time, 
+                                           double running_time,
                                            int initial_data_indicator):
-                                           N(N), 
+                                           N(N),
                                            lam_x(lam_x),
                                            running_time(running_time),
                                            method(method),
@@ -123,10 +126,10 @@ Linear_Convection_2d::Linear_Convection_2d(double N,
     lam_x = abs(u)*dt/dx;//lam_x updates
     sigma_x = u*dt/(dx), sigma_y = v*dt/(dy);
     //Since we have lam_x = |u|dt/dx,lam_y = |v|dt/dy, we can actually write
-    //Thus, dt = lam_x*dx/|u|. Thus, lam_y = |v/u|*(dx/dy) * lam_x = 
+    //Thus, dt = lam_x*dx/|u|. Thus, lam_y = |v/u|*(dx/dy) * lam_x =
     lam_y = abs(v/u)*dx/dy * lam_x;
     if (method == "lw"    &&
-        (dx - dy < 1e-12) && 
+        (dx - dy < 1e-12) &&
         (dt/dx > 1.0/sqrt(u*u + v*v)))
     {
       cout << "WARNING - You are using lw with unstable sigma_x = "<< sigma_x <<endl;
@@ -172,7 +175,7 @@ void Linear_Convection_2d::lw_flux(int i, int j,int n_x, int n_y, double& flux)
 }
 
 //This function does the actual job of computing the flux.
-void Linear_Convection_2d::lw(int i, int j, 
+void Linear_Convection_2d::lw(int i, int j,
                               double& flux_x, double& flux_y)
 {
   update_advection_velocity(i,j);
@@ -183,7 +186,7 @@ void Linear_Convection_2d::lw(int i, int j,
   //This will give flux_x(i+1/2,j) or flux_y(i,j+1/2) whichever chosen
   //by the user
 
-  //If we make functions within function, we could make one and then for 
+  //If we make functions within function, we could make one and then for
   //the other use, transpose of array.
 }
 
@@ -210,7 +213,7 @@ void Linear_Convection_2d::update_ghost_values()
     solution_old(N,j)  = solution_old(0,j);
   }
   //j = -1, N
-  for (int i = 0; i<N;i++) 
+  for (int i = 0; i<N;i++)
   {
     solution_old(i,-1) = solution_old(i,N-1);
     solution_old(i,N)  = solution_old(i,0);
@@ -283,12 +286,12 @@ void Linear_Convection_2d::solve()
   double x,y;
   double flux_x,flux_y; //flux_x(i+1/2,j), flux_y(i,j+1/2)
   //This loop computes the fluxes and adds them to where they are needed
-  
+
   solution = 0.0;
   update_ghost_values();
   //We'd do solution = solution_old - dt/dx * (f_x(i+1/2,j)-f_x(i-1/2,j))
   //                                - dt/dx * (f_y(i,j+1/2)-f_y(i,j-1/2))
-  for (int i = 0; i < N; i++) 
+  for (int i = 0; i < N; i++)
     for (int j = 0; j< N; j++)
     {
       (this->*update_flux)(i,j,flux_x,flux_y); //flux_x(i+1/2,j), flux_y(i,j+1/2)
@@ -367,7 +370,7 @@ void Linear_Convection_2d::evaluate_error_and_output_solution(int time_step_numb
 void Linear_Convection_2d::run(bool output_indicator)
 {
   make_grid();
-  int time_step_number = 0; 
+  int time_step_number = 0;
   set_initial_solution(); //sets solution to be the initial data
   evaluate_error_and_output_solution(time_step_number,output_indicator);
   if (method == "upwind")
@@ -377,13 +380,13 @@ void Linear_Convection_2d::run(bool output_indicator)
   else
     assert(false);
   while (t < running_time) //compute solution at next time step using solution_old
-  {        
+  {
     solution_old = solution;//update solution_old for next time_step
     //This requires puttingg ghost cells in solution
-    //We should update array2d.h to change this. 
+    //We should update array2d.h to change this.
     solve();
     time_step_number += 1;
-    t = t + dt; 
+    t = t + dt;
     evaluate_error_and_output_solution(time_step_number, output_indicator);
   }
   cout << "For N = " << N<<", we took ";
@@ -408,7 +411,7 @@ void run_and_output(double N, double cfl,
     Linear_Convection_2d solver(N, cfl, method, running_time,
                                 initial_data_indicator);
     //We calculate time takenṣ in our refinement.
-    struct timeval begin, end; 
+    struct timeval begin, end;
     gettimeofday(&begin, 0);
     solver.run(refinement_level==max_refinements-1);//Output only last soln
     gettimeofday(&end, 0);
@@ -423,19 +426,19 @@ void run_and_output(double N, double cfl,
     {
       cout << "Linfty convergence rate at refinement level ";
       cout << refinement_level << " is ";
-      cout << abs(log(linfty_vector[refinement_level] 
+      cout << abs(log(linfty_vector[refinement_level]
                         / linfty_vector[refinement_level - 1])) / log(2.0);
       cout << endl;
-      
+
       cout << "L2 convergence rate at refinement level ";
       cout << refinement_level<< " is " ;
-      cout << abs(log(l2_vector[refinement_level] 
+      cout << abs(log(l2_vector[refinement_level]
                         / l2_vector[refinement_level - 1])) / log(2.0);
       cout << endl;
 
       cout << "L1 convergence rate at refinement level ";
       cout << refinement_level << " is " ;
-      cout << abs(log(l1_vector[refinement_level] 
+      cout << abs(log(l1_vector[refinement_level]
                         / l1_vector[refinement_level - 1])) / log(2.0);
       cout << endl;
       //Temporary solution to snapshot rate, would be fine once we
@@ -444,7 +447,7 @@ void run_and_output(double N, double cfl,
       {
         cout << "Snapshot convergence rate at refinement level ";
         cout << refinement_level << " is " ;
-        cout << abs(log(snapshot_vector[refinement_level] 
+        cout << abs(log(snapshot_vector[refinement_level]
                         / snapshot_vector[refinement_level - 1])) / log(2.0);
         cout << endl;
       }
@@ -457,7 +460,7 @@ void run_and_output(double N, double cfl,
   cout << "The L1 error is " << l1_vector[linfty_vector.size()-1] << endl;
   if (snapshot_vector.size()>0)
     cout << "The L_infty snapshot error is " <<snapshot_vector[linfty_vector.size()-1]<<endl;
-  cout << endl;         
+  cout << endl;
 }
 
 double Linear_Convection_2d::interval_part(double x)
@@ -487,7 +490,7 @@ double Linear_Convection_2d::step_function(double grid_point)
 {
   double value;
   grid_point = interval_part(grid_point);
-  if (grid_point < xmin + (xmax - xmin) / 4.0 || 
+  if (grid_point < xmin + (xmax - xmin) / 4.0 ||
     grid_point > xmax - (xmax - xmin) / 4.0)
     value = 0.0;
   else
@@ -516,7 +519,7 @@ void Linear_Convection_2d::get_error(vector<double> &l1_vector,
     double l1 = 0.0;
     double l2 = 0.0;
     double linfty = 0.0;
-    for (int j = 0; j < N; j++) 
+    for (int j = 0; j < N; j++)
       for (int i = 0; i < N; i++)
       {
         l1 = l1 + error(i,j)  * dx * dy;           // L1 error
@@ -527,7 +530,7 @@ void Linear_Convection_2d::get_error(vector<double> &l1_vector,
     l1_vector.push_back(l1);
     l2_vector.push_back(l2);
     linfty_vector.push_back(linfty);
-    //Compute snapshot error if last final time t has even integer 
+    //Compute snapshot error if last final time t has even integer
     // t/u, t/v
     //You must run the solver for longer time, or you'd get very less error.
     if (int_tester(0.5*running_time*u) == true &&
@@ -541,7 +544,7 @@ void Linear_Convection_2d::get_error(vector<double> &l1_vector,
         }
       snapshot_vector.push_back(snapshot_error);
     }
-    else 
+    else
     {
       {
         cout<<"Initial state not reached on final time, so snapshot error";
