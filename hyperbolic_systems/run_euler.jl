@@ -17,8 +17,8 @@ grid_size = 150 # number of cells
 xmin, xmax   = 0.0, 1.0 # domain
 nvar         = 3        # number of variables
 final_time   = 0.1
-γ  = 1.4
-disc_x = 0.3
+γ            = 1.4      # gas constant
+disc_x = 0.3            # location of initial discontinuity
 
 num_flux   = lax_friedrich
 # choices  - lax_friedrich
@@ -38,7 +38,7 @@ save_time_interval = 0.0
 cfl = 0.0
 
 #------------------------------------------------------------------------------
-# Display of parameters
+# Print parameters to screen
 #------------------------------------------------------------------------------
 println("Solving Riemann problem for Euler equation with following parameters -")
 println("Discontinuity of initial data is at", disc_x)
