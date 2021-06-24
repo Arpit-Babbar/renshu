@@ -1,13 +1,15 @@
 module EqLinAdv
 
 using LinearAlgebra
-using PyPlot
+# using PyPlot
+using Plots
+using LaTeXStrings
 
 struct LinAdv
    fprime::Function
 end
 
-flux(x, U, eq::LinAdv) = eq.fprime(U,x) * U
+flux(x, U, eq::LinAdv) = eq.fprime(U, x, eq) * U
                         # matrix multiplication
 # Doubt - lax_friedrich shouldn't work at the right Dirichlet bc, right?
 # Over there, we can't apply the Dirichlet condition.
@@ -15,7 +17,7 @@ flux(x, U, eq::LinAdv) = eq.fprime(U,x) * U
 function lax_friedrich(equation, lam, Ul, Ur, x) # Numerical flux of face at x
    eq = equation["eq"]
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
-   value  = 0.5*(Fl+Fr) - 0.5 * lam * (Ur - Ul)
+   value  = 0.5*(Fl+Fr) - 0.5*lam*(Ur-Ul)
    return value
 end
 
@@ -35,7 +37,7 @@ function upwind(equation, lam, Ul, Ur, x) # Numerical flux of face at x
    return value
 end
 
-# Repetetive calculation of eigen_decomp every time 
+# Repetetive calculation of eigen_decomp every time
 # you compute the exact solution. Should try to fix
 # The issue with fixing is that
 function compute_exact_soln!(grid, equation, problem, t, Ue)
@@ -57,10 +59,29 @@ function compute_exact_soln!(grid, equation, problem, t, Ue)
    return nothing
 end
 
-# Fix - Make the plot_solution a part of PDE. And, in the plot function
-# compute exact solution. And, create a boundary_value function for Dirichlet bc
-# function plot_solution(grid, U, Ue, t, it, param)
-function plot_solution(grid, equation, problem, U, t, it, param)
+function initialize_plot(grid, problem, U)
+   anim = Animation()
+   nvar = problem["nvar"]
+   xc = grid.xc
+   nx = grid.nx
+   # Adding title as a subplot in itself
+   p_title = title = plot(title = "Solution at time = 0", grid = false,
+                          showaxis = false, bottom_margin = -50Plots.px)
+   p = [p_title]
+   for i=1:nvar
+      ymin, ymax = minimum(U[i,1:nx]), maximum(U[i,1:nx])
+      p0 = @views plot(xc, U[i,1:nx], label="Approximate", ylim = (ymin-0.1, ymax+0.1))
+      @views plot!(p0, xc, U[i,1:nx], label="Exact",ylim = (-0.1,1.1))
+      xlabel!(p0, L"x"); ylabel!(p0, L"U")
+      push!(p, p0)
+   end
+   l = @layout[ a{0.01h}; b c d]
+   p = plot(p[1], p[2], p[3], p[4], layout = l) # Can this be nvar independent?
+   frame(anim)
+   return p, anim
+end
+
+function update_plot!(grid, equation, problem, U, t, it, param, p, anim)
    save_time_interval = param["save_time_interval"]
    if save_time_interval > 0.0
       k1, k2 = ceil(t/save_time_interval), floor(t/save_time_interval)
@@ -71,35 +92,17 @@ function plot_solution(grid, equation, problem, U, t, it, param)
          return nothing
       end
    end
-   plt. clf()
    xc = grid.xc
    nx = grid.nx
    nvar = problem["nvar"]
-   Ue = zeros(nvar, nx)# Need to move it elsewhere to avoid
-                # computing it every time
-   compute_exact_soln!(grid, equation, problem, t, Ue)
-   suptitle("Iteration $it, time $t")
-   subplot(131)
-   @views plot(xc, U[1,1:nx])
-   @views plot(xc, Ue[1,:])
-   legend(("Approximate", "Exact"))
-   xlabel("x")
-   ylabel("\$U_1\$")
-   subplot(132)
-   @views plot(xc, U[2,1:nx])
-   @views plot(xc, Ue[2,:])
-   legend(("Approximate", "Exact"))
-   xlabel("x")
-   ylabel("\$U_2\$")
-   subplot(133)
-   @views plot(xc, U[3,1:nx])
-   @views plot(xc, Ue[3,:])
-   legend(("Approximate", "Exact"))
-   xlabel("x")
-   ylabel("\$U_3\$")
-   plt.pause(0.1)
+   title!(p[1], "Solution at time "*string(t))
+   for i=1:nvar
+      y_lims = (minimum(Ue[i,:])-0.1, maximum(Ue[i,:])+0.1)
+      ylims!(p[i+1],y_lims) # Bad approach
+      p[i+1][1][:y] = @views U[i,1:nx]
+   end
+   frame(anim)
 end
-
 
 get_equation(fprime) = Dict("eq"                  => LinAdv(fprime),
                             "flux"                => flux,
@@ -109,8 +112,8 @@ get_equation(fprime) = Dict("eq"                  => LinAdv(fprime),
                             # eigen_decomp only once. The moment we go to variables advection, this would Need
                             # to be removed
                             "compute_exact_soln!" => compute_exact_soln!,
-                            "plot_solution"       => plot_solution,
-                            "plot_final_soln"     => plot_solution,
+                            "initialize_plot"     => initialize_plot,
+                            "update_plot!"        => update_plot!,
                             "name"                => "Linear advection equation")
 
 export LinAdv # To define fprime in run file

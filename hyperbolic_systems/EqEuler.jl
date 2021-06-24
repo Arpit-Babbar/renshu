@@ -1,17 +1,18 @@
 module EqEuler
 
 using LinearAlgebra
-using PyPlot
+using Plots
 using DelimitedFiles
+using LaTeXStrings
 
 struct Euler
    γ::Float64
 end
 
-# Would have liked to solver 
+# Would have liked to solver
 
 # pure function
-function flux(x, U, eq::Euler) 
+function flux(x, U, eq::Euler)
    ρ = U[1]        # density
    u = U[2] / U[1] # velocity
    E = U[3]        # energy
@@ -22,7 +23,7 @@ end
 # TODO - Find the best version by counting the number of operations!!
 
 # The matrix fprime(U)
-function fprime(x, U, eq::Euler) 
+function fprime(x, U, eq::Euler)
    ρ = U[1]        # density
    u = U[2] / U[1] # velocity
    E = U[3]        # energy
@@ -31,13 +32,11 @@ function fprime(x, U, eq::Euler)
 
    H = (E+p)/ρ
 
-   A = [0.0                          1.0                  0.0;
+   A = [0.0                          1.0          0.0     ;
         0.5*(eq.γ-3.0)*u^2       (3.0-eq.γ)*u     eq.γ-1.0;
-        u*(0.5*(eq.γ-1.0)*u^2-H) H-(eq.γ-1.0)*u^2 eq.γ*u]
+        u*(0.5*(eq.γ-1.0)*u^2-H) H-(eq.γ-1.0)*u^2 eq.γ*u  ]
    return A
 end
-
-# different arguments from fprime in LinAdv. Can this be avoided?
 
 function lax_friedrich(equation, lam, Ul, Ur, x) # Numerical flux of face at x
    eq = equation["eq"]
@@ -55,17 +54,49 @@ end
 
 # function converting pde variables to primitive variables
 function pde2primitive(U, γ)
-   prim = [U[1], U[2]/U[1], (γ-1.0)*(U[3]-U[2]^2/(2.0*U[1]))]
-   # prim=[ρ , u        , p]
-   return prim
+   primitives = [U[1], U[2]/U[1], (γ-1.0)*(U[3]-U[2]^2/(2.0*U[1]))]
+   #            [ρ ,   u        , p]
+   return primitives
 end
 
-# Fix - Make the plot_solution a part of PDE. And, in the plot function
-# compute exact solution. And, create a boundary_value function for Dirichlet bc
-# function plot_solution(grid, U, Ue, t, it, param)
-# Wouldn't it be better to make a general plot function in FV.jl and learn to add exact
-# solution to that plot? Yeah, that'd be better.
-function plot_solution(grid, equation, problem, U, t, it, param)
+function initialize_plot(grid, problem, equation, U)
+   anim = Animation()
+   xc = grid.xc
+   nx = grid.nx
+   eq = equation["eq"]
+   nvar = problem["nvar"]
+   Up = copy(U)
+   for j=1:nx
+      @views Up[:, j] = pde2primitive(U[:,j],eq.γ)
+   end
+   # Adding title as a subplot in itself
+   p_title = title = plot(title = "Solution at time = 0", grid = false,
+                          showaxis = false, bottom_margin = -50Plots.px)
+   ymin, ymax = minimum(Up[1,1:nx]), maximum(Up[1,1:nx])
+   p1 = @views plot(xc, Up[1,1:nx], legend=false, label = nothing,
+                    ylim = (ymin-0.1, ymax+0.1))
+   title!(p1, "Density")
+   xlabel!(p1, L"x"); ylabel!(p1, L"U")
+
+   ymin, ymax = minimum(Up[2,1:nx]), maximum(Up[2,1:nx])
+   p2 = @views plot(xc, Up[2,1:nx], legend=false, label = nothing,
+                    ylim = (ymin-0.1, ymax+0.1))
+   title!(p2, "Velocity")
+   xlabel!(p2, L"x"); ylabel!(p2, L"U")
+
+   ymin, ymax = minimum(Up[3,1:nx]), maximum(Up[3,1:nx])
+   p3 = @views plot(xc, Up[3,1:nx], legend=false, label = nothing,
+                    ylim = (ymin-0.1, ymax+0.1))
+   title!(p3, "Pressure")
+   xlabel!(p3, L"x"); ylabel!(p3, L"U")
+
+   l = @layout[ a{0.01h}; b c d]
+   p = plot(p_title, p1, p2, p3, layout = l) # Can this be nvar independent?
+   frame(anim)
+   return p, anim
+end
+
+function update_plot!(grid, equation, problem, U, t, it, param, p, anim)
    save_time_interval = param["save_time_interval"]
    if save_time_interval > 0.0
       k1, k2 = ceil(t/save_time_interval), floor(t/save_time_interval)
@@ -76,73 +107,28 @@ function plot_solution(grid, equation, problem, U, t, it, param)
          return nothing
       end
    end
-   plt.clf()
    xc = grid.xc
    nx = grid.nx
    eq = equation["eq"]
+   nvar = problem["nvar"]
    Up = copy(U)
    for j=1:nx
       @views Up[:, j] = pde2primitive(U[:,j],eq.γ)
    end
-   suptitle("Iteration $it, time $t")
-   subplot(131)
-   @views plot(xc, Up[1,1:nx])
-   xlabel("x")
-   ylabel("Density")
-   subplot(132)
-   @views plot(xc, Up[2,1:nx], "o", markersize=3)
-   xlabel("x")
-   ylabel("Velocity")
-   subplot(133)
-   @views plot(xc, Up[3,1:nx], "o", markersize=3)
-   xlabel("x")
-   ylabel("Pressure")
-   plt.pause(0.1)
+   title!(p[1], "Solution at time "*string(t))
+   for i=1:nvar
+      y_lims = (minimum(Up[i,:])-0.1, maximum(Up[i,:])+0.1)
+      ylims!(p[i+1],y_lims) # Bad solution
+      p[i+1][1][:y] = @views Up[i,1:nx]
+   end
+   frame(anim)
 end
 
-function plot_final_soln(grid, equation, problem, U, t, it, param)
-   close("all")
-   soln_data = readdlm("toro_user_exact.dat", skipstart = 9)
-   @views x = soln_data[:,1]
-   @views dens_exact = soln_data[:,2]
-   @views pres_exact = soln_data[:,3]
-   @views velx_exact = soln_data[:,4]
-   xc = grid.xc
-   nx = grid.nx
-   eq = equation["eq"]
-   Up = copy(U)
-   for j=1:nx
-      @views Up[:, j] = pde2primitive(U[:,j],eq.γ)
-   end
-   subplots(1,3)
-   suptitle("Iteration $it, time $t")
-   subplot(131)
-   @views plot(xc, Up[1,1:nx], "o", markersize=3)
-   plot(x, dens_exact)
-   legend(("Numerical", "Exact"))
-   xlabel("x")
-   ylabel("Density")
-   subplot(132)
-   @views plot(xc, Up[2,1:nx], "o", markersize=3)
-   plot(x, velx_exact)
-   legend(("Numerical", "Exact"))
-   xlabel("x")
-   ylabel("Velocity")
-   subplot(133)
-   @views plot(xc, Up[3,1:nx], "o", markersize=3)
-   plot(x, pres_exact)
-   legend(("Numerical", "Exact"))
-   xlabel("x")
-   ylabel("Pressure")
-end
-# TODO - Make a plot function that does the common parts in the function. Something like
-# fig, ax = Init_triple_plot()
-# add_to_figure(ax) <- This looks like something that won't freaking work!!
 get_equation(γ) = Dict( "eq"              => Euler(γ),
                         "flux"            => flux,
                         "fprime"          => fprime,
-                        "plot_solution"   => plot_solution,
-                        "plot_final_soln" => plot_final_soln,
+                        "initialize_plot" => initialize_plot,
+                        "update_plot!"    => update_plot!,
                         "name"            => "1D Euler equations")
 
 
