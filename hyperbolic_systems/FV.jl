@@ -3,8 +3,8 @@ module FV
 using Grid
 using LinearAlgebra
 using OffsetArrays
-using PyPlot
-
+using Plots
+gr(size = (750, 565)) # use gr as the plot backend, for its high performance
 #-------------------------------------------------------------------------------
 # Create a dictionary of problem description
 #-------------------------------------------------------------------------------
@@ -45,7 +45,7 @@ end
 #-------------------------------------------------------------------------------
 # Create ghosted arrays with one layer of cells on both sides
 #-------------------------------------------------------------------------------
-gArray(nvar, nx) = OffsetArray(zeros(nvar, nx+2), 
+gArray(nvar, nx) = OffsetArray(zeros(nvar, nx+2),
                               OffsetArrays.Origin(1, 0))
 
 #-------------------------------------------------------------------------------
@@ -113,16 +113,16 @@ function set_initial_value!(grid, U, problem)
 end
 
 # function update_ghost!(grid, U, Ue)
-function update_ghost!(grid, U, initial_value)
+function update_ghost!(grid, U, problem)
    nx = grid.nx
-   # U[:, 0]    .= Ue[:, 1]
-   # U[:, nx+1] .= Ue[:, nx]
-   # Fix it, replace with actual boundary conditions 
-   U[:, 0]   .= initial_value(-1.0)
-   # U[:,nx+1] .= initial_value(1.0) # You can only specify bc 
-                                   # at inlet. At outlet, you just specify
-                                   # U[:,nx]
-   U[:,nx+1] .= U[:,nx]
+   initial_value = problem["initial_value"]
+   if problem["boundary_condition"] == "Dirichlet"
+      @views U[:, 0]   .= initial_value(-1.0) # Works for short time
+      @views U[:,nx+1] .= U[:,nx]
+   else
+      @views U[:, 0]    .= U[:, nx]
+      @views U[:, nx+1] .= U[:,1]
+   end
    return nothing
 end
 
@@ -151,8 +151,8 @@ end
 
 function solve(equation, problem, scheme, param)
    grid = make_grid(problem, param)
-   plot_solution = equation["plot_solution"]
-   plot_final_soln = equation["plot_final_soln"]
+   initialize_plot = equation["initialize_plot"]
+   update_plot! = equation["update_plot!"]
    nvar = problem["nvar"]
    Tf = problem["final_time"]
    nx = grid.nx
@@ -166,20 +166,19 @@ function solve(equation, problem, scheme, param)
            # storing for clarity
    set_initial_value!(grid, U, problem)
    it, t = 0, 0.0
-   figure(figsize=(15,5))
+   p, anim = initialize_plot(grid, problem, equation, U)
    while t < Tf
       lam, dt = compute_lam_dt(equation, grid, Ua)
       adjust_time_step(problem, param, dt, t)
       # compute_exact_soln!(equation["eq"], grid, t, problem, nvar, Ue)
-      update_ghost!(grid, U, problem["initial_value"])
+      update_ghost!(grid, U, problem)
       # update_ghost!(grid, U, Ue)                            # Fills ghost cells
       compute_residual!(equation, grid, lam, U, scheme, res)
       @. U -= dt*res
       t += dt; it += 1
-      plot_solution(grid, equation, problem, U, t, it, param)
+      update_plot!(grid, equation, problem, U, t, it, param, p, anim)
    end
-   plot_final_soln(grid, equation, problem, U, t, it, param)
-   show()
+   return p, anim # To visualize with different xlim, ylim
 end
 
 export Problem
