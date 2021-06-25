@@ -8,9 +8,9 @@ using EqEuler
 using LinearAlgebra
 using DelimitedFiles
 using Plots
-gr(size = (750, 565)) # use gr as the plot backend, for its high performance
+plotly(size = (750, 565)) # use plotly for interactivity
 
-grid_size = 59 # number of cells
+grid_size = 50 # number of cells
 
 # To not have to worry about periodicity, we can temporarily
 # specify the boundary points to be the Dirichlet values.
@@ -21,10 +21,9 @@ xmin, xmax   = 0.0, 1.0 # domain
 nvar         = 3        # number of variables
 final_time   = 0.1
 γ            = 1.4      # gas constant
-disc_x = 0.3            # location of initial discontinuity
+disc_x = 0.5            # location of initial discontinuity
 
-num_flux   = lax_friedrich
-# choices  - lax_friedrich
+num_flux   = lax_friedrich # TODO -  Change to string
 
 # initial condition
 # Specify Ul, Ur in primitive coordinates
@@ -75,17 +74,17 @@ p, anim = solve(equation, problem, scheme, param)
 #------------------------------------------------------------------------------
 # Plot generated data
 #------------------------------------------------------------------------------
+
 soln_data = readdlm("toro_user_exact.dat", skipstart = 9);
 @views x = soln_data[:,1];
 @views dens_exact = soln_data[:,2];
 @views pres_exact = soln_data[:,3];
 @views velx_exact = soln_data[:,4];
-
 plot!(p[2],x,dens_exact, label = nothing)
 plot!(p[4],x,pres_exact, label = nothing)
 plot!(p[3],x,velx_exact, label = "Exact", legend=true)
 savefig(p, "final_soln.pdf")
 gif(anim, "soln.gif") # would have been better in the solve function
-                      # here because of VS Code
-plotly()
+                     # here because of VS Code
 # TODO - compare with characteristic pictures in Ch 3
+
