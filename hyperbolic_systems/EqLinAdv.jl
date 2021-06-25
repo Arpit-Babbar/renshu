@@ -6,7 +6,7 @@ using Plots
 using LaTeXStrings
 
 struct LinAdv
-   fprime::Function
+   fprime::Function # CHANGE - fprime shouldn't be a function, but a matrix.
 end
 
 flux(x, U, eq::LinAdv) = eq.fprime(U, x, eq) * U
