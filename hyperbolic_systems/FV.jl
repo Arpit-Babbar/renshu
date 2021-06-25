@@ -114,10 +114,11 @@ end
 
 # function update_ghost!(grid, U, Ue)
 function update_ghost!(grid, U, problem)
+   xmin, xmax = grid.domain
    nx = grid.nx
    initial_value = problem["initial_value"]
    if problem["boundary_condition"] == "Dirichlet"
-      @views U[:, 0]   .= initial_value(-1.0) # Works for short time
+      @views U[:, 0]   .= initial_value(xmin) # Works for short time
       @views U[:,nx+1] .= U[:,nx]
    else
       @views U[:, 0]    .= U[:, nx]
