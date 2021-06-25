@@ -63,8 +63,7 @@ function steger_warming(equation, lam, Ul, Ur, x)
    w  = 0.5*(3.0-γ)*(λp[2]+λp[3])*c^2/(γ-1.0)
    Fp = 0.5*ρ/γ * [ 2.0*(γ-1.0)*λp[1]   +     λp[2]         +     λp[3]
                     2.0*(γ-1.0)*λp[1]*u +     λp[2]*(u+c)   +     λp[3]*(u-c)
-                    (γ-1.0)*λp[1]*u^2   + 0.5*λp[2]*(u+c)^2 \
-                                        + 0.5*λp[3]*(u-c)^2 + w               ]
+                    (γ-1.0)*λp[1]*u^2   + 0.5*λp[2]*(u+c)^2 + 0.5*λp[3]*(u-c)^2 + w ]
    # Ur on Fm
    ρ, u, E = Ur[1], Ur[2]/Ur[1], Ur[3]    # density, velocity, energy
    p = (γ - 1.0) * (E - 0.5*ρ*u^2)        # pressure
@@ -74,8 +73,7 @@ function steger_warming(equation, lam, Ul, Ur, x)
    w = 0.5*(3.0-γ)*(λm[2]+λm[3])*c^2/(γ-1.0)
    Fm = 0.5*ρ/γ * [ 2.0*(γ-1.0)*λm[1]       +     λm[2]         +     λm[3]
                     2.0*(γ-1.0)*λm[1]*u     +     λm[2]*(u+c)   +     λm[3]*(u-c)
-                        (γ-1.0)*λm[1]*u^2   + 0.5*λm[2]*(u+c)^2 + \
-                                            + 0.5*λm[3]*(u-c)^2 + w ]
+                        (γ-1.0)*λm[1]*u^2   + 0.5*λm[2]*(u+c)^2 + 0.5*λm[3]*(u-c)^2 + w ]
    # Should we make a subfunction to avoid duplication, or would it cause
    # performance issues?
    return Fp + Fm
@@ -107,24 +105,24 @@ function initialize_plot(grid, problem, equation, U)
    end
    # Adding title as a subplot in itself
    p_title = title = plot(title = "Solution at time = 0", grid = false,
-                          showaxis = false, bottom_margin = -50Plots.px)
+                          showaxis = false, bottom_margin = 0Plots.px)
    ymin, ymax = minimum(Up[1,1:nx]), maximum(Up[1,1:nx])
    p1 = @views plot(xc, Up[1,1:nx], legend=false, label = nothing,
-                    ylim = (ymin-0.1, ymax+0.1))
-   title!(p1, "Density")
-   xlabel!(p1, L"x"); ylabel!(p1, L"U")
+                    ylim = (ymin-0.1, ymax+0.1), linestyle = :dot, color = :red,
+                    markersize = 8)
+   xlabel!(p1, "x"); ylabel!(p1, "Density")
 
    ymin, ymax = minimum(Up[2,1:nx]), maximum(Up[2,1:nx])
    p2 = @views plot(xc, Up[2,1:nx], legend=false, label = nothing,
-                    ylim = (ymin-0.1, ymax+0.1))
-   title!(p2, "Velocity")
-   xlabel!(p2, L"x"); ylabel!(p2, L"U")
+                    ylim = (ymin-0.1, ymax+0.1), linestyle = :dot, color = :red,
+                    markersize = 8)
+   xlabel!(p2, "x"); ylabel!(p2, "Velocity")
 
    ymin, ymax = minimum(Up[3,1:nx]), maximum(Up[3,1:nx])
-   p3 = @views plot(xc, Up[3,1:nx], legend=false, label = nothing,
-                    ylim = (ymin-0.1, ymax+0.1))
-   title!(p3, "Pressure")
-   xlabel!(p3, L"x"); ylabel!(p3, L"U")
+   p3 = @views plot(xc, Up[3,1:nx], legend=true, label = "Approximate",
+                    ylim = (ymin-0.1, ymax+0.1), linestyle = :dot, color = :red,
+                    markersize = 8)
+   xlabel!(p3, "x"); ylabel!(p3, "Pressure")
 
    l = @layout[ a{0.01h}; b c d]
    p = plot(p_title, p1, p2, p3, layout = l) # Can this be nvar independent?
