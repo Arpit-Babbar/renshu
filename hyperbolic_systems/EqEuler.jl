@@ -76,7 +76,40 @@ function steger_warming(equation, lam, Ul, Ur, x)
                         (γ-1.0)*λm[1]*u^2   + 0.5*λm[2]*(u+c)^2 + 0.5*λm[3]*(u-c)^2 + w ]
    # Should we make a subfunction to avoid duplication, or would it cause
    # performance issues?
-   return Fp + Fm
+   output = Fp + Fm
+   return output
+end
+
+function roe(equation, lam, Ul, Ur, x)
+   eq = equation["eq"]
+   γ  = eq.γ
+   ϵ  = 0.4
+   ρl, ul, El = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
+   ρr, ur, Er = Ur[1], Ur[2]/Ur[1], Ur[3]    # density, velocity, energy
+   pl, pr  = (γ - 1.0)*(El - 0.5*ρl*ul^2), (γ - 1.0)*(Er - 0.5*ρr*ur^2) # press
+   ⎷ρl, ⎷ρr = sqrt(ρl), sqrt(ρr) # for efficiency
+   Hl, Hr = γ*pl/((γ-1.0)*ρl) + 0.5*ul^2 , γ*pr/((γ-1.0)*ρr) + 0.5*ur^2 # enthl
+   u = (⎷ρl*ul + ⎷ρr*ur) / (⎷ρl + ⎷ρr)      # roe avg velocity
+   H = (⎷ρl*Hl + ⎷ρr*Hr) / (⎷ρl + ⎷ρr)      # roe avg enthalpy
+   c = sqrt((γ-1.0) * (H - 0.5*u^2))         # sound speed
+   # Eigenvectors
+   r1 = [1.0, u - c, H - u*c ]
+   r2 = [1.0, u,     0.5*u^2 ]
+   r3 = [1.0, u + c, H + u*c ]
+   # Computing R |L| inv(R) ΔU efficiently
+   dU = Ur - Ul
+   α2 = (γ - 1.0)/c^2 * ( (H - u^2)*dU[1] + u*dU[2] - dU[3] )
+   α1 = 1.0/(2.0 * c) * ( (u+c) * dU[1] - dU[2] - c*α2 )
+   α3 = dU[1] - α1 - α2
+   l1, l2, l3 = abs(u-c), abs(u), abs(u+c)
+   δ  = c*ϵ
+   if abs(l1)<2.0*ϵ l1 = l1^2/(4.0*δ) + δ end
+   if abs(l2)<2.0*ϵ l2 = l2^2/(4.0*δ) + δ end
+   if abs(l3)<2.0*ϵ l3 = l3^2/(4.0*δ) + δ end
+   # compute flux
+   Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
+   output = 0.5*(Fl+Fr) - 0.5*(α1*l1*r1 + α2*l2*r2 + α3*l3*r3)
+   return output
 end
 
 # function converting primitive variables to PDE variables
@@ -109,19 +142,22 @@ function initialize_plot(grid, problem, equation, U)
    ymin, ymax = minimum(Up[1,1:nx]), maximum(Up[1,1:nx])
    p1 = @views plot(xc, Up[1,1:nx], legend=false, label = nothing,
                     ylim = (ymin-0.1, ymax+0.1), linestyle = :dot, color = :red,
-                    markersize = 8)
+                    markerstrokestyle = :dot, markershape = :circle,
+                    markersize = 3, markerstrokealpha = 0)
    xlabel!(p1, "x"); ylabel!(p1, "Density")
 
    ymin, ymax = minimum(Up[2,1:nx]), maximum(Up[2,1:nx])
    p2 = @views plot(xc, Up[2,1:nx], legend=false, label = nothing,
                     ylim = (ymin-0.1, ymax+0.1), linestyle = :dot, color = :red,
-                    markersize = 8)
+                    markerstrokestyle = :dot, markershape = :circle,
+                    markersize = 3, markerstrokealpha = 0)
    xlabel!(p2, "x"); ylabel!(p2, "Velocity")
 
    ymin, ymax = minimum(Up[3,1:nx]), maximum(Up[3,1:nx])
    p3 = @views plot(xc, Up[3,1:nx], legend=true, label = "Approximate",
                     ylim = (ymin-0.1, ymax+0.1), linestyle = :dot, color = :red,
-                    markersize = 8)
+                    markerstrokestyle = :dot, markershape = :circle,
+                    markersize = 3, markerstrokealpha = 0)
    xlabel!(p3, "x"); ylabel!(p3, "Pressure")
 
    l = @layout[ a{0.01h}; b c d]
@@ -165,7 +201,7 @@ get_equation(γ) = Dict( "eq"              => Euler(γ),
                         "update_plot!"    => update_plot!,
                         "name"            => "1D Euler equations")
 
-
+export roe
 export lax_friedrich
 export steger_warming
 export get_equation
