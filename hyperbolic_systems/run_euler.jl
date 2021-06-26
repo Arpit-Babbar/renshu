@@ -21,13 +21,13 @@ xmin, xmax   = 0.0, 1.0 # domain
 nvar         = 3        # number of variables
 final_time   = 0.25
 γ            = 1.4      # gas constant
-disc_x = 0.5            # location of initial discontinuity
+disc_x = 0.3            # location of initial discontinuity
 
 num_flux   = steger_warming # TODO -  Change to string
 
 # initial condition
 # Specify Ul, Ur in primitive coordinates
-primitive_l, primitive_r  = [1.0, 0.0, 1.0], [0.125, 0.0, 0.1]
+primitive_l, primitive_r  = [1.0, 0.75, 1.0], [0.125, 0.0, 0.1]
                             # density, velocity, pressure
 
 Ul, Ur = primitive2pde(primitive_l, γ), primitive2pde(primitive_r, γ)
@@ -80,8 +80,8 @@ soln_data = readdlm("toro_user_exact.dat", skipstart = 9);
 @views dens_exact = soln_data[:,2];
 @views pres_exact = soln_data[:,3];
 @views velx_exact = soln_data[:,4];
-plot!(p[2],x,dens_exact, label = nothing, color = :blue)
-plot!(p[4],x,pres_exact, label = nothing, color = :blue)
+plot!(p[2],x,dens_exact, label = nothing, color = :blue, legend=false)
+plot!(p[4],x,pres_exact, label = nothing, color = :blue, legend=false)
 plot!(p[3],x,velx_exact, label = "Exact", color = :blue, legend=true)
 savefig(p, "final_soln.png")
 gif(anim, "soln.gif", fps = 5) # would have been better in the solve function

@@ -50,6 +50,8 @@ function lax_friedrich(equation, lam, Ul, Ur, x) # Numerical flux of face at x
    return value
 end
 
+# Add Rusanov as well!
+
 function steger_warming(equation, lam, Ul, Ur, x)
    eq = equation["eq"]
    γ  = eq.γ
@@ -83,7 +85,7 @@ end
 function roe(equation, lam, Ul, Ur, x)
    eq = equation["eq"]
    γ  = eq.γ
-   ϵ  = 0.4
+   ϵ  = 0.0
    ρl, ul, El = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
    ρr, ur, Er = Ur[1], Ur[2]/Ur[1], Ur[3]    # density, velocity, energy
    pl, pr  = (γ - 1.0)*(El - 0.5*ρl*ul^2), (γ - 1.0)*(Er - 0.5*ρr*ur^2) # press
@@ -109,6 +111,29 @@ function roe(equation, lam, Ul, Ur, x)
    # compute flux
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
    output = 0.5*(Fl+Fr) - 0.5*(α1*l1*r1 + α2*l2*r2 + α3*l3*r3)
+   return output
+end
+
+function hl(equation, lam, Ul, Ur, x)
+   eq = equation["eq"]
+   γ = eq.γ
+   # TODO - Replace with pde2primitive
+   ρl, ul, El = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
+   pl = (γ - 1.0) * (El - 0.5*ρl*ul^2)        # pressure
+   cl = sqrt(γ*pl/ρl)                        # sound speed
+   ρr, ur, Er = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
+   pr = (γ - 1.0) * (Er - 0.5*ρr*ur^2)        # pressure
+   cr = sqrt(γ*pr/ρr)                        # sound speed
+   ⎷ρl, ⎷ρr = sqrt(ρl), sqrt(ρr) # for efficiency
+   u = (⎷ρl*ul + ⎷ρr*ur) / (⎷ρl + ⎷ρr)      # roe avg velocity
+   p = (⎷ρl*pl + ⎷ρr*pr) / (⎷ρl + ⎷ρr)      # roe avg pressure
+   ρ = (⎷ρl*ρl + ⎷ρr*ρr) / (⎷ρl + ⎷ρr)      # roe avg pressure
+   c = sqrt(γ*p/ρ)                           # roe avg speed
+   Sl, Sr = min(ul-cl,u-c), max(ur+cr,u+c)
+   Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
+   dU = Ur - Ul
+   dS = Sr - Sl
+   output = (Sr*Fl-Sl*Fr + Sl*Sr*dU)/dS
    return output
 end
 
@@ -203,6 +228,7 @@ get_equation(γ) = Dict( "eq"              => Euler(γ),
 
 export roe
 export lax_friedrich
+export hl
 export steger_warming
 export get_equation
 export primitive2pde
