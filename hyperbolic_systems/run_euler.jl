@@ -84,7 +84,8 @@ plot!(p[2],x,dens_exact, label = nothing, color = :blue)
 plot!(p[4],x,pres_exact, label = nothing, color = :blue)
 plot!(p[3],x,velx_exact, label = "Exact", color = :blue, legend=true)
 savefig(p, "final_soln.png")
-gif(anim, "soln.gif") # would have been better in the solve function
+gif(anim, "soln.gif", fps = 5) # would have been better in the solve function
                      # here because of VS Code
+plot(p) # final solution
 # TODO - compare with characteristic pictures in Ch 3
 
