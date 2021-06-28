@@ -10,7 +10,7 @@ using DelimitedFiles
 using Plots
 plotly(size = (750, 565)) # use plotly for interactivity
 
-grid_size = 50 # number of cells
+grid_size = 30 # number of cells
 
 # To not have to worry about periodicity, we can temporarily
 # specify the boundary points to be the Dirichlet values.
@@ -19,11 +19,11 @@ grid_size = 50 # number of cells
 
 xmin, xmax   = 0.0, 1.0 # domain
 nvar         = 3        # number of variables
-final_time   = 0.25
+final_time   = 0.2
 γ            = 1.4      # gas constant
 disc_x = 0.3            # location of initial discontinuity
 
-numflux   = "steger_warming" # TODO -  Change to string
+numflux   = "vanleer" # TODO -  Change to string
 
 # initial condition
 # Specify Ul, Ur in primitive coordinates
@@ -37,8 +37,8 @@ boundary_condition = "Dirichlet"
 # initial_value(x) = [sin(2.0*pi*x),sin(2.0*pi*x),sin(2.0*pi*x)]
 
 save_time_interval = 0.0
-
 cfl = 0.0
+Ccfl = 0.6
 
 #------------------------------------------------------------------------------
 # Print parameters to screen
@@ -67,7 +67,7 @@ run(`python3 ./ToroExact/toro_exact.py -p user -l $p_l_s -r $p_r_s -x $disc_x -t
 equation = get_equation(γ)
 problem = Problem((xmin,xmax), nvar, initial_value, boundary_value,
                   boundary_condition, final_time)
-param = Parameters(grid_size, cfl, save_time_interval)
+param = Parameters(grid_size, cfl, Ccfl, save_time_interval)
 scheme = Scheme(equation, numflux)
 p, anim = solve(equation, problem, scheme, param)
 

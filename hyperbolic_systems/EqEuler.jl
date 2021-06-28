@@ -81,7 +81,7 @@ end
 function steger_warming(equation, lam, Ul, Ur, x)
    eq = equation["eq"]
    γ  = eq.γ
-   δ  = 0.0
+   δ  = 0.1
    # Ul on Fp
    ρ, u, E = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
    p = (γ - 1.0) * (E - 0.5*ρ*u^2)        # pressure
@@ -137,6 +137,29 @@ function roe(equation, lam, Ul, Ur, x)
    # compute flux
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
    output = 0.5*(Fl+Fr) - 0.5*(α1*l1*r1 + α2*l2*r2 + α3*l3*r3)
+   return output
+end
+
+function vanleer(equation, lam, Ul, Ur, x)
+   eq = equation["eq"]
+   γ  = eq.γ
+   # Ul on Fp
+   ρ, u, E = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
+   p = (γ - 1.0) * (E - 0.5*ρ*u^2)        # pressure
+   a = sqrt(γ*p/ρ)                        # sound speed
+   M = u/a                                # mach number
+   Fp = 0.25*ρ*a*(1.0+M)^2 * [1.0
+                              2.0*a/γ           * (0.5*(γ-1.0)*M+1.0)
+                              2.0*a^2/(γ^2-1.0) * (0.5*(γ-1.0)*M+1.0)^2]
+   # Ur on Fm
+   ρ, u, E = Ur[1], Ur[2]/Ur[1], Ur[3]    # density, velocity, energy
+   p = (γ - 1.0) * (E - 0.5*ρ*u^2)        # pressure
+   a = sqrt(γ*p/ρ)                        # sound speed
+   M = u/a                                # mach number
+   Fm = -0.25*ρ*a*(1.0-M)^2 * [1.0
+                               2.0*a/γ           * (0.5*(γ-1.0)*M-1.0)
+                               2.0*a^2/(γ^2-1.0) * (0.5*(γ-1.0)*M-1.0)^2]
+   output = Fp + Fm
    return output
 end
 
@@ -242,7 +265,7 @@ end
 numfluxes = Dict("lax_friedrich"  => lax_friedrich,
                  "rusanov"        => rusanov,
                  "steger_warming" => steger_warming,
-                 #"vanleer"       => vanleer,
+                 "vanleer"        => vanleer,
                  "roe"            => roe,
                  "hl"             => hl
                  )
@@ -260,6 +283,7 @@ export lax_friedrich
 export hl
 export rusanov
 export steger_warming
+export vanleer
 export get_equation
 export primitive2pde
 export pde2primitive

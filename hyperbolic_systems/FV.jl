@@ -27,11 +27,13 @@ end
 #-------------------------------------------------------------------------------
 function Parameters(grid_size::Int64,
                     cfl::Float64,
+                    Ccfl::Float64,
                     save_time_interval::Float64)
 @assert (cfl >= 0.0) "cfl must be >= 0.0"
 @assert (save_time_interval >= 0.0) "save_time_interval must be >= 0.0"
 Dict("grid_size" => grid_size,
      "cfl" => cfl,
+     "Ccfl"=> Ccfl,
      "save_time_interval" => save_time_interval)
 end
 
@@ -82,25 +84,33 @@ function adjust_time_step(problem, param, dt, t)
          return dt
       end
    end
-
    return dt
 end
 
 # TODO - Add safety CFL
-function compute_lam_dt(equation, grid, Ua)
-   fprime = equation["fprime"]
-   eq     = equation["eq"]
+function compute_lam_dt(equation, scheme, param, grid, Ua)
+   fprime  = equation["fprime"]
+   eq      = equation["eq"]
+   numflux = scheme["numflux_ind"]
+   Ccfl = param["Ccfl"]
    nx, dx = grid.nx, grid.dx
    xc     = grid.xc
    lam = 0.0
    dt  = 1.0
    for i=1:nx
       ua   = Ua[:, i]
-      lam0 = maximum(abs.(eigvals(fprime(xc[i], ua, eq))))
-      # lam0 = maximum(abs.(eigvals(fprime(ua, xc[i])))) # CHECK xc[i]!
+      if numflux in ["lax_friedrich", "rusanov","upwind"]
+         lam0 = maximum(abs.(eigvals(fprime(xc[i], ua, eq))))
+      else
+         ρ, u, E = ua[1], ua[2]/ua[1], ua[3]    # density, velocity, energy
+         p = (eq.γ - 1.0) * (E - 0.5*ρ*u^2)        # pressure
+         c = sqrt(eq.γ*p/ρ)                        # sound speed
+         lam0 = abs(u)+c
+      end
       lam  = max(lam, lam0)
       dt   = min(dt, dx[i]/lam0)
    end
+   dt, lam = Ccfl*dt, Ccfl*lam
    return lam, dt
 end
 
@@ -170,7 +180,7 @@ function solve(equation, problem, scheme, param)
    it, t = 0, 0.0
    p, anim = initialize_plot(grid, problem, equation, scheme, U)
    while t < Tf
-      lam, dt = compute_lam_dt(equation, grid, Ua)
+      lam, dt = compute_lam_dt(equation, scheme, param, grid, Ua)
       adjust_time_step(problem, param, dt, t)
       # compute_exact_soln!(equation["eq"], grid, t, problem, nvar, Ue)
       update_ghost!(grid, U, problem)
