@@ -81,7 +81,7 @@ end
 function steger_warming(equation, lam, Ul, Ur, x)
    eq = equation["eq"]
    γ  = eq.γ
-   δ  = 0.1
+   δ  = 0.0
    # Ul on Fp
    ρ, u, E = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
    p = (γ - 1.0) * (E - 0.5*ρ*u^2)        # pressure
@@ -111,7 +111,7 @@ end
 function roe(equation, lam, Ul, Ur, x)
    eq = equation["eq"]
    γ  = eq.γ
-   ϵ  = 0.0
+   ϵ  = 0.2
    ρl, ul, El = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
    ρr, ur, Er = Ur[1], Ur[2]/Ur[1], Ur[3]    # density, velocity, energy
    pl, pr  = (γ - 1.0)*(El - 0.5*ρl*ul^2), (γ - 1.0)*(Er - 0.5*ρr*ur^2) # press
@@ -150,7 +150,7 @@ function vanleer(equation, lam, Ul, Ur, x)
    M = u/a                                # mach number
    Fp = 0.25*ρ*a*(1.0+M)^2 * [1.0
                               2.0*a/γ           * (0.5*(γ-1.0)*M+1.0)
-                              2.0*a^2/(γ^2-1.0) * (0.5*(γ-1.0)*M+1.0)^2]
+                                 2.0*a^2/(γ^2-1.0) * (0.5*(γ-1.0)*M+1.0)^2]
    # Ur on Fm
    ρ, u, E = Ur[1], Ur[2]/Ur[1], Ur[3]    # density, velocity, energy
    p = (γ - 1.0) * (E - 0.5*ρ*u^2)        # pressure
@@ -163,7 +163,7 @@ function vanleer(equation, lam, Ul, Ur, x)
    return output
 end
 
-function hl(equation, lam, Ul, Ur, x)
+function hll(equation, lam, Ul, Ur, x)
    eq = equation["eq"]
    γ = eq.γ
    # TODO - Replace with pde2primitive
@@ -173,16 +173,22 @@ function hl(equation, lam, Ul, Ur, x)
    ρr, ur, Er = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
    pr = (γ - 1.0) * (Er - 0.5*ρr*ur^2)        # pressure
    cr = sqrt(γ*pr/ρr)                        # sound speed
+   Hl, Hr = γ*pl/((γ-1.0)*ρl) + 0.5*ul^2 , γ*pr/((γ-1.0)*ρr) + 0.5*ur^2 # enthl
    ⎷ρl, ⎷ρr = sqrt(ρl), sqrt(ρr) # for efficiency
    u = (⎷ρl*ul + ⎷ρr*ur) / (⎷ρl + ⎷ρr)      # roe avg velocity
-   p = (⎷ρl*pl + ⎷ρr*pr) / (⎷ρl + ⎷ρr)      # roe avg pressure
-   ρ = (⎷ρl*ρl + ⎷ρr*ρr) / (⎷ρl + ⎷ρr)      # roe avg pressure
-   c = sqrt(γ*p/ρ)                           # roe avg speed
+   H = (⎷ρl*Hl + ⎷ρr*Hr) / (⎷ρl + ⎷ρr)      # roe avg enthalpy
+   c = sqrt((γ-1.0) * (H - 0.5*u^2))         # sound speed
    Sl, Sr = min(ul-cl,u-c), max(ur+cr,u+c)
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
    dU = Ur - Ul
    dS = Sr - Sl
-   output = (Sr*Fl-Sl*Fr + Sl*Sr*dU)/dS
+   if Sl > 0
+      output = Fl
+   elseif Sr < 0
+      output = Fr
+   else
+      output = (Sr*Fl-Sl*Fr + Sl*Sr*dU)/dS
+   end
    return output
 end
 
@@ -267,7 +273,7 @@ numfluxes = Dict("lax_friedrich"  => lax_friedrich,
                  "steger_warming" => steger_warming,
                  "vanleer"        => vanleer,
                  "roe"            => roe,
-                 "hl"             => hl
+                 "hll"            => hll
                  )
 
 get_equation(γ) = Dict( "eq"              => Euler(γ),
@@ -280,7 +286,7 @@ get_equation(γ) = Dict( "eq"              => Euler(γ),
 
 export roe
 export lax_friedrich
-export hl
+export hll
 export rusanov
 export steger_warming
 export vanleer
