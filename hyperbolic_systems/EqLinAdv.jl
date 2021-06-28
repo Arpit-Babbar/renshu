@@ -59,20 +59,23 @@ function compute_exact_soln!(grid, equation, problem, t, Ue)
    return nothing
 end
 
-function initialize_plot(grid, problem, U)
+function initialize_plot(grid, problem, equation, scheme, U)
    anim = Animation()
-   nvar = problem["nvar"]
    xc = grid.xc
    nx = grid.nx
+   nvar = problem["nvar"]
+   numflux = scheme["numflux_ind"]      # numflux as string
+   numflux = replace(numflux, "_"=>" ") # Remove underscore
+   numflux = titlecase(numflux)         # Capitalize
    # Adding title as a subplot in itself
-   p_title = title = plot(title = "Solution at time = 0", grid = false,
-                          showaxis = false, bottom_margin = -50Plots.px)
+   p_title = plot(title = "$numflux flux, $nx points, time = 0", grid = false,
+                          showaxis = false, bottom_margin = 0Plots.px)
    p = [p_title]
    for i=1:nvar
       ymin, ymax = minimum(U[i,1:nx]), maximum(U[i,1:nx])
       p0 = @views plot(xc, U[i,1:nx], label="Approximate", ylim = (ymin-0.1, ymax+0.1))
       @views plot!(p0, xc, U[i,1:nx], label="Exact",ylim = (-0.1,1.1))
-      xlabel!(p0, L"x"); ylabel!(p0, L"U")
+      xlabel!(p0, "x"); ylabel!(p0, "U")
       push!(p, p0)
    end
    l = @layout[ a{0.01h}; b c d]
@@ -81,7 +84,7 @@ function initialize_plot(grid, problem, U)
    return p, anim
 end
 
-function update_plot!(grid, equation, problem, U, t, it, param, p, anim)
+function update_plot!(grid, problem, equation, scheme, U, t, it, param, p, anim)
    save_time_interval = param["save_time_interval"]
    if save_time_interval > 0.0
       k1, k2 = ceil(t/save_time_interval), floor(t/save_time_interval)
@@ -95,14 +98,24 @@ function update_plot!(grid, equation, problem, U, t, it, param, p, anim)
    xc = grid.xc
    nx = grid.nx
    nvar = problem["nvar"]
-   title!(p[1], "Solution at time "*string(t))
+   numflux = scheme["numflux_ind"]      # numflux as string
+   numflux = replace(numflux, "_"=>" ") # Remove underscore
+   numflux = titlecase(numflux)         # Capitalize
+   Ue = zeros(nvar, nx)# Need to move it elsewhere to avoid
+                # computing it every time
+   compute_exact_soln!(grid, equation, problem, t, Ue)
+   title!(p[1], "$numflux flux, $nx points, time = $time")
    for i=1:nvar
-      y_lims = (minimum(Ue[i,:])-0.1, maximum(Ue[i,:])+0.1)
+      y_lims = (min(minimum(Ue[i,:]),minimum(U[i,:]))-0.1,
+                max(maximum(Ue[i,:]),maximum(U[i,:]))+0.1)
       ylims!(p[i+1],y_lims) # Bad approach
       p[i+1][1][:y] = @views U[i,1:nx]
    end
    frame(anim)
 end
+
+numfluxes = Dict("upwind"        => upwind,
+                 "lax_friedrich" => lax_friedrich)
 
 get_equation(fprime) = Dict("eq"                  => LinAdv(fprime),
                             "flux"                => flux,
@@ -114,7 +127,10 @@ get_equation(fprime) = Dict("eq"                  => LinAdv(fprime),
                             "compute_exact_soln!" => compute_exact_soln!,
                             "initialize_plot"     => initialize_plot,
                             "update_plot!"        => update_plot!,
+                            "numfluxes"           => numfluxes,
                             "name"                => "Linear advection equation")
+
+
 
 export LinAdv # To define fprime in run file
 export lax_friedrich

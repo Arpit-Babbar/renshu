@@ -38,8 +38,9 @@ end
 #-------------------------------------------------------------------------------
 # Create a dictionary of scheme description
 #-------------------------------------------------------------------------------
-function Scheme(numerical_flux::Function)
-   Dict("numerical_flux" => numerical_flux)
+function Scheme(equation::Dict, numflux::String)
+   numfluxes = equation["numfluxes"]
+   Dict("numflux" => numfluxes[numflux], "numflux_ind"  => numflux)
 end
 
 #-------------------------------------------------------------------------------
@@ -132,7 +133,7 @@ function compute_residual!(equation, grid, lam, U, scheme, res)
    xf = grid.xf
    dx = grid.dx
    eq = equation["eq"]
-   num_flux = scheme["numerical_flux"]
+   num_flux = scheme["numflux"]
    dx0 =  OffsetArray(zeros(nx+2), OffsetArrays.Origin(0))
    dx0[1:nx] .= dx
    dx0[0] = dx[nx]
@@ -167,7 +168,7 @@ function solve(equation, problem, scheme, param)
            # storing for clarity
    set_initial_value!(grid, U, problem)
    it, t = 0, 0.0
-   p, anim = initialize_plot(grid, problem, equation, U)
+   p, anim = initialize_plot(grid, problem, equation, scheme, U)
    while t < Tf
       lam, dt = compute_lam_dt(equation, grid, Ua)
       adjust_time_step(problem, param, dt, t)
@@ -177,7 +178,7 @@ function solve(equation, problem, scheme, param)
       compute_residual!(equation, grid, lam, U, scheme, res)
       @. U -= dt*res
       t += dt; it += 1
-      update_plot!(grid, equation, problem, U, t, it, param, p, anim)
+      update_plot!(grid, problem, equation, scheme, U, t, it, param, p, anim)
    end
    return p, anim # To visualize with different xlim, ylim
 end

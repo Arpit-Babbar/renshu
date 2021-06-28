@@ -23,7 +23,7 @@ final_time   = 0.25
 γ            = 1.4      # gas constant
 disc_x = 0.3            # location of initial discontinuity
 
-num_flux   = steger_warming # TODO -  Change to string
+numflux   = "steger_warming" # TODO -  Change to string
 
 # initial condition
 # Specify Ul, Ur in primitive coordinates
@@ -68,7 +68,7 @@ equation = get_equation(γ)
 problem = Problem((xmin,xmax), nvar, initial_value, boundary_value,
                   boundary_condition, final_time)
 param = Parameters(grid_size, cfl, save_time_interval)
-scheme = Scheme(num_flux)
+scheme = Scheme(equation, numflux)
 p, anim = solve(equation, problem, scheme, param)
 
 #------------------------------------------------------------------------------
@@ -83,9 +83,10 @@ soln_data = readdlm("toro_user_exact.dat", skipstart = 9);
 plot!(p[2],x,dens_exact, label = nothing, color = :blue, legend=false)
 plot!(p[4],x,pres_exact, label = nothing, color = :blue, legend=false)
 plot!(p[3],x,velx_exact, label = "Exact", color = :blue, legend=true)
+
 savefig(p, "final_soln.png")
 gif(anim, "soln.gif", fps = 5) # would have been better in the solve function
                      # here because of VS Code
-plot(p) # final solution
+plot(p, legend=true) # final solution
 # TODO - compare with characteristic pictures in Ch 3
 

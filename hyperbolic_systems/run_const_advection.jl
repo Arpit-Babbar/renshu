@@ -6,6 +6,8 @@ using FV
 using Grid
 using EqLinAdv
 using LinearAlgebra
+using Plots
+plotly(size = (750, 565)) # use plotly for interactivity
 
 grid_size = 50 # number of cells
 
@@ -24,7 +26,7 @@ fprime(U,x,eq)  = [1.0 2.0 3.0;
                 # optional argument?
 final_time = 1.0
 
-num_flux   = upwind
+numflux   = "upwind"
 
 # initial condition
 # Ul, Ur       = [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]
@@ -42,10 +44,11 @@ equation = get_equation(fprime)
 problem = Problem((xmin,xmax), nvar, initial_value, boundary_value,
                   boundary_condition, final_time)
 param = Parameters(grid_size, cfl, save_time_interval)
-scheme = Scheme(num_flux)
+scheme = Scheme(equation, numflux)
 p, anim = solve(equation, problem, scheme, param)
-savefig(p, "final_soln.pdf")
-gif(anim, "soln.gif") # would have been better in the solve function
-                      # here because of VS Code
+savefig(p, "final_soln.png")
+gif(anim, "soln.gif", fps = 5) # would have been better in the solve function
+                     # here because of VS Code
+plot(p, legend=true) # final solution
 
 # TODO - compare with characteristic pictures in Ch 3

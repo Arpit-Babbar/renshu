@@ -41,12 +41,38 @@ function fprime(x, U, eq::Euler)
    return A
 end
 
+# function converting primitive variables to PDE variables
+function primitive2pde(prim, γ) # primitive, viscosity
+   U = [prim[1], prim[1]*prim[2], prim[3]/(γ-1.0) + prim[1]*prim[2]^2/2.0]
+      # ρ    ,     ρ*u     ,        p/(γ-1.0) +     ρ*u^2/2.0
+   return U
+end
+
+# function converting pde variables to primitive variables
+function pde2primitive(U, γ)
+   primitives = [U[1], U[2]/U[1], (γ-1.0)*(U[3]-U[2]^2/(2.0*U[1]))]
+   #            [ρ ,   u        , p]
+   return primitives
+end
+
 # Numerical fluxes
 
 function lax_friedrich(equation, lam, Ul, Ur, x) # Numerical flux of face at x
    eq = equation["eq"]
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
    value  = 0.5*(Fl+Fr) - 0.5 * lam * (Ur - Ul)
+   return value
+end
+
+function rusanov(equation, lam, Ul, Ur, x) # Numerical flux of face at x
+   eq = equation["eq"]
+   γ  = eq.γ
+   ρl, ul, pl = pde2primitive(Ul, γ)
+   ρr, ur, pr = pde2primitive(Ur, γ)
+   cl, cr = sqrt(γ*pl/ρl), sqrt(γ*pr/ρr)                   # sound speed
+   λ = maximum(abs.([ul, ul-cl, ul+cl, ur, ur-cr, ur+cr])) # local wave speed
+   Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
+   value  = 0.5*(Fl+Fr) - 0.5*λ*(Ur - Ul)
    return value
 end
 
@@ -137,32 +163,22 @@ function hl(equation, lam, Ul, Ur, x)
    return output
 end
 
-# function converting primitive variables to PDE variables
-function primitive2pde(prim, γ) # primitive, viscosity
-   U = [prim[1], prim[1]*prim[2], prim[3]/(γ-1.0) + prim[1]*prim[2]^2/2.0]
-      # ρ    ,     ρ*u     ,        p/(γ-1.0) +     ρ*u^2/2.0
-   return U
-end
-
-# function converting pde variables to primitive variables
-function pde2primitive(U, γ)
-   primitives = [U[1], U[2]/U[1], (γ-1.0)*(U[3]-U[2]^2/(2.0*U[1]))]
-   #            [ρ ,   u        , p]
-   return primitives
-end
-
-function initialize_plot(grid, problem, equation, U)
+function initialize_plot(grid, problem, equation, scheme, U)
    anim = Animation()
    xc = grid.xc
    nx = grid.nx
    eq = equation["eq"]
    nvar = problem["nvar"]
+   numflux = scheme["numflux_ind"]      # numflux as string
+   numflux = replace(numflux, "_"=>" ") # Remove underscore
+   numflux = titlecase(numflux)         # Capitalize
    Up = copy(U)
    for j=1:nx
       @views Up[:, j] = pde2primitive(U[:,j],eq.γ)
    end
    # Adding title as a subplot in itself
-   p_title = title = plot(title = "Solution at time = 0", grid = false,
+   p_title = plot(title = "$numflux flux, $nx points, time = 0",
+                          grid = false,
                           showaxis = false, bottom_margin = 0Plots.px)
    ymin, ymax = minimum(Up[1,1:nx]), maximum(Up[1,1:nx])
    p1 = @views plot(xc, Up[1,1:nx], legend=false, label = nothing,
@@ -191,7 +207,7 @@ function initialize_plot(grid, problem, equation, U)
    return p, anim
 end
 
-function update_plot!(grid, equation, problem, U, t, it, param, p, anim)
+function update_plot!(grid, problem, equation, scheme, U, t, it, param, p, anim)
    save_time_interval = param["save_time_interval"]
    if save_time_interval > 0.0
       k1, k2 = ceil(t/save_time_interval), floor(t/save_time_interval)
@@ -206,11 +222,15 @@ function update_plot!(grid, equation, problem, U, t, it, param, p, anim)
    nx = grid.nx
    eq = equation["eq"]
    nvar = problem["nvar"]
+   numflux = scheme["numflux_ind"]      # numflux as string
+   numflux = replace(numflux, "_"=>" ") # Remove underscore
+   numflux = titlecase(numflux)         # Capitalize
    Up = copy(U)
    for j=1:nx
       @views Up[:, j] = pde2primitive(U[:,j],eq.γ)
    end
-   title!(p[1], "Solution at time "*string(t))
+   time = round(t, digits=3)
+   title!(p[1], "$numflux flux, $nx points, time = $time")
    for i=1:nvar
       y_lims = (minimum(Up[i,:])-0.1, maximum(Up[i,:])+0.1)
       ylims!(p[i+1],y_lims) # Bad solution
@@ -219,16 +239,26 @@ function update_plot!(grid, equation, problem, U, t, it, param, p, anim)
    frame(anim)
 end
 
+numfluxes = Dict("lax_friedrich"  => lax_friedrich,
+                 "rusanov"        => rusanov,
+                 "steger_warming" => steger_warming,
+                 #"vanleer"       => vanleer,
+                 "roe"            => roe,
+                 "hl"             => hl
+                 )
+
 get_equation(γ) = Dict( "eq"              => Euler(γ),
                         "flux"            => flux,
                         "fprime"          => fprime,
                         "initialize_plot" => initialize_plot,
                         "update_plot!"    => update_plot!,
+                        "numfluxes"       => numfluxes,
                         "name"            => "1D Euler equations")
 
 export roe
 export lax_friedrich
 export hl
+export rusanov
 export steger_warming
 export get_equation
 export primitive2pde
