@@ -23,7 +23,7 @@ final_time   = 0.2
 γ            = 1.4      # gas constant
 disc_x = 0.3            # location of initial discontinuity
 
-numflux   = "vanleer" # TODO -  Change to string
+numflux   = "lax_friedrich" # TODO -  Change to string
 
 # initial condition
 # Specify Ul, Ur in primitive coordinates
@@ -38,7 +38,7 @@ boundary_condition = "Dirichlet"
 
 save_time_interval = 0.0
 cfl = 0.0
-Ccfl = 0.6
+Ccfl = 1.0
 
 #------------------------------------------------------------------------------
 # Print parameters to screen

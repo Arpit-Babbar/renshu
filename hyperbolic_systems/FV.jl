@@ -110,7 +110,11 @@ function compute_lam_dt(equation, scheme, param, grid, Ua)
       lam  = max(lam, lam0)
       dt   = min(dt, dx[i]/lam0)
    end
-   dt, lam = Ccfl*dt, Ccfl*lam
+   if numflux == "lax_friedrich"
+      return lam, dt
+   else
+      dt, lam = Ccfl*dt, Ccfl*lam
+   end
    return lam, dt
 end
 
