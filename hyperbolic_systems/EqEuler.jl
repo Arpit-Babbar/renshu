@@ -148,17 +148,31 @@ function vanleer(equation, lam, Ul, Ur, x)
    p = (γ - 1.0) * (E - 0.5*ρ*u^2)        # pressure
    a = sqrt(γ*p/ρ)                        # sound speed
    M = u/a                                # mach number
-   Fp = 0.25*ρ*a*(1.0+M)^2 * [1.0
-                              2.0*a/γ           * (0.5*(γ-1.0)*M+1.0)
+   Fl = flux(x, Ul, eq)
+   if M <= -1
+      Fp = zeros(Float64, 3)
+   elseif M >= 1
+      return Fl
+   else
+      Fp = 0.25*ρ*a*(1.0+M)^2 * [1.0
+                                 2.0*a/γ           * (0.5*(γ-1.0)*M+1.0)
                                  2.0*a^2/(γ^2-1.0) * (0.5*(γ-1.0)*M+1.0)^2]
+   end
    # Ur on Fm
    ρ, u, E = Ur[1], Ur[2]/Ur[1], Ur[3]    # density, velocity, energy
    p = (γ - 1.0) * (E - 0.5*ρ*u^2)        # pressure
    a = sqrt(γ*p/ρ)                        # sound speed
    M = u/a                                # mach number
-   Fm = -0.25*ρ*a*(1.0-M)^2 * [1.0
-                               2.0*a/γ           * (0.5*(γ-1.0)*M-1.0)
-                               2.0*a^2/(γ^2-1.0) * (0.5*(γ-1.0)*M-1.0)^2]
+   Fr = flux(x, Ur, eq)
+   if M <= -1
+      Fm = Fr
+   elseif M >= 1
+      Fm = zeros(Float64, 3)
+   else
+      Fm = -0.25*ρ*a*(1.0-M)^2 * [1.0
+                                 2.0*a/γ           * (0.5*(γ-1.0)*M-1.0)
+                                 2.0*a^2/(γ^2-1.0) * (0.5*(γ-1.0)*M-1.0)^2]
+   end
    output = Fp + Fm
    return output
 end
@@ -219,6 +233,7 @@ function hllc(equation, lam, Ul, Ur, x)
    ρstar_r = Smu_r/(Sr-ustar) * ρr
    # pstar
    pstar = pl + ρl*Smu_l*(ustar-ul)
+   pstar = 0.5*(pl+pr) + 0.5*(ρl*Smu_l*(ustar-ul)+ρr*Smu_r*(ustar-ur))
    # Estar_l, Estar_r
    Estar_l = (Smu_l*El+pstar*ustar-pl*ul)/(Sl-ustar)
    Estar_r = (Smu_r*Er+pstar*ustar-pr*ur)/(Sr-ustar)

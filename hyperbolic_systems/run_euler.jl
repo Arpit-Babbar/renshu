@@ -23,7 +23,7 @@ final_time   = 0.2
 γ            = 1.4      # gas constant
 disc_x = 0.3            # location of initial discontinuity
 
-numflux   = "lax_friedrich" # TODO -  Change to string
+numflux   = "vanleer" # TODO -  Change to string
 
 # initial condition
 # Specify Ul, Ur in primitive coordinates
@@ -37,6 +37,7 @@ boundary_condition = "Dirichlet"
 # initial_value(x) = [sin(2.0*pi*x),sin(2.0*pi*x),sin(2.0*pi*x)]
 
 save_time_interval = 0.0
+
 cfl = 0.0
 Ccfl = 0.9
 
@@ -63,7 +64,6 @@ run(`python3 ./ToroExact/toro_exact.py -p user -l $p_l_s -r $p_r_s -x $disc_x -t
 #------------------------------------------------------------------------------
 # FVM Solver
 #------------------------------------------------------------------------------
-
 equation = get_equation(γ)
 problem = Problem((xmin,xmax), nvar, initial_value, boundary_value,
                   boundary_condition, final_time)
