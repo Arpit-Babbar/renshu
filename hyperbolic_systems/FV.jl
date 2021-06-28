@@ -62,6 +62,7 @@ function array2string(arr)
    end
    arr_string = arr_string * string(arr[end]) * "]"
 end
+
 #-------------------------------------------------------------------------------
 # Adjust dt to reach final time or the next time when solution has to be saved
 #-------------------------------------------------------------------------------
@@ -79,7 +80,7 @@ function adjust_time_step(problem, param, dt, t)
       next_save_time = ceil(t/save_time_interval) * save_time_interval
       # If t is not a plotting time, we check if the next time
       # would step over the plotting time to adjust dt
-      if abs(t-next_save_time) > 1e-10 && t + dt - next_save_time > -1e-10
+      if abs(t-next_save_time) > 1e-10 && t + dt - next_save_time > 1e-10
          dt = next_save_time - t
          return dt
       end
@@ -103,8 +104,8 @@ function compute_lam_dt(equation, scheme, param, grid, Ua)
          lam0 = maximum(abs.(eigvals(fprime(xc[i], ua, eq))))
       else
          ρ, u, E = ua[1], ua[2]/ua[1], ua[3]    # density, velocity, energy
-         p = (eq.γ - 1.0) * (E - 0.5*ρ*u^2)        # pressure
-         c = sqrt(eq.γ*p/ρ)                        # sound speed
+         p = (eq.γ - 1.0) * (E - 0.5*ρ*u^2)     # pressure
+         c = sqrt(eq.γ*p/ρ)                     # sound speed
          lam0 = abs(u)+c
       end
       lam  = max(lam, lam0)
@@ -185,10 +186,8 @@ function solve(equation, problem, scheme, param)
    p, anim = initialize_plot(grid, problem, equation, scheme, U)
    while t < Tf
       lam, dt = compute_lam_dt(equation, scheme, param, grid, Ua)
-      adjust_time_step(problem, param, dt, t)
-      # compute_exact_soln!(equation["eq"], grid, t, problem, nvar, Ue)
+      dt = adjust_time_step(problem, param, dt, t)
       update_ghost!(grid, U, problem)
-      # update_ghost!(grid, U, Ue)                            # Fills ghost cells
       compute_residual!(equation, grid, lam, U, scheme, res)
       @. U -= dt*res
       t += dt; it += 1

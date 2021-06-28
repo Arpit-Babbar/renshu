@@ -10,7 +10,7 @@ using DelimitedFiles
 using Plots
 plotly(size = (750, 565)) # use plotly for interactivity
 
-grid_size = 30 # number of cells
+grid_size = 100 # number of cells
 
 # To not have to worry about periodicity, we can temporarily
 # specify the boundary points to be the Dirichlet values.
@@ -38,7 +38,7 @@ boundary_condition = "Dirichlet"
 
 save_time_interval = 0.0
 cfl = 0.0
-Ccfl = 1.0
+Ccfl = 0.9
 
 #------------------------------------------------------------------------------
 # Print parameters to screen

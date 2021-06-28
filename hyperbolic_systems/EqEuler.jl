@@ -192,6 +192,51 @@ function hll(equation, lam, Ul, Ur, x)
    return output
 end
 
+function hllc(equation, lam, Ul, Ur, x)
+   eq = equation["eq"]
+   γ = eq.γ
+   # TODO - Replace with pde2primitive
+   # Choice of Sl, Sr from Einfeldt et al.
+   ρl, ul, El = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
+   pl = (γ - 1.0) * (El - 0.5*ρl*ul^2)        # pressure
+   cl = sqrt(γ*pl/ρl)                        # sound speed
+   ρr, ur, Er = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
+   pr = (γ - 1.0) * (Er - 0.5*ρr*ur^2)        # pressure
+   cr = sqrt(γ*pr/ρr)                        # sound speed
+   Hl, Hr = γ*pl/((γ-1.0)*ρl) + 0.5*ul^2 , γ*pr/((γ-1.0)*ρr) + 0.5*ur^2 # enthl
+   ⎷ρl, ⎷ρr = sqrt(ρl), sqrt(ρr) # for efficiency
+   u = (⎷ρl*ul + ⎷ρr*ur) / (⎷ρl + ⎷ρr)      # roe avg velocity
+   H = (⎷ρl*Hl + ⎷ρr*Hr) / (⎷ρl + ⎷ρr)      # roe avg enthalpy
+   c = sqrt((γ-1.0) * (H - 0.5*u^2))         # sound speed
+   Sl, Sr = min(ul-cl,u-c), max(ur+cr,u+c)
+   # S✶     = u✶
+   # u✶
+   Smu_l, Smu_r = Sl-ul, Sr-ur
+   Δp = pr-pl
+   ustar = (ρr*ur*Smu_r-ρl*ul*Smu_l-Δp)/(ρr*Smu_r-ρl*Smu_l)
+   # ρstar_l, ρstar_r
+   ρstar_l = Smu_l/(Sl-ustar) * ρl
+   ρstar_r = Smu_r/(Sr-ustar) * ρr
+   # pstar
+   pstar = pl + ρl*Smu_l*(ustar-ul)
+   # Estar_l, Estar_r
+   Estar_l = (Smu_l*El+pstar*ustar-pl*ul)/(Sl-ustar)
+   Estar_r = (Smu_r*Er+pstar*ustar-pr*ur)/(Sr-ustar)
+   Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
+   Ustar_l = [ρstar_l, ρstar_l*ustar, Estar_l]
+   Ustar_r = [ρstar_r, ρstar_r*ustar, Estar_r]
+   if Sl > 0.0
+      output = Fl
+   elseif Sr < 0.0
+      output = Fr
+   elseif ustar > 0.0
+      output = Fl+Sl*(Ustar_l-Ul)
+   elseif ustar <= 0.0
+      output = Fr+Sr*(Ustar_r-Ur)
+   end
+   return output
+end
+
 function initialize_plot(grid, problem, equation, scheme, U)
    anim = Animation()
    xc = grid.xc
@@ -238,12 +283,12 @@ end
 
 function update_plot!(grid, problem, equation, scheme, U, t, it, param, p, anim)
    save_time_interval = param["save_time_interval"]
+   final_time=problem["final_time"]
    if save_time_interval > 0.0
       k1, k2 = ceil(t/save_time_interval), floor(t/save_time_interval)
-      if (abs(t-k1*save_time_interval) < 1e-10 ||
-          abs(t-k2*save_time_interval) < 1e-10)
-         nothing
-      else
+      if !(abs(t-k1*save_time_interval) < 1e-10 ||
+           abs(t-k2*save_time_interval) < 1e-10 ||
+           abs(t-final_time) < 1e-10)
          return nothing
       end
    end
@@ -273,7 +318,8 @@ numfluxes = Dict("lax_friedrich"  => lax_friedrich,
                  "steger_warming" => steger_warming,
                  "vanleer"        => vanleer,
                  "roe"            => roe,
-                 "hll"            => hll
+                 "hll"            => hll,
+                 "hllc"           => hllc
                  )
 
 get_equation(γ) = Dict( "eq"              => Euler(γ),
