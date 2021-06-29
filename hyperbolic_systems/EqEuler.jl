@@ -184,7 +184,7 @@ function hll(equation, lam, Ul, Ur, x)
    ρl, ul, El = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
    pl = (γ - 1.0) * (El - 0.5*ρl*ul^2)        # pressure
    cl = sqrt(γ*pl/ρl)                        # sound speed
-   ρr, ur, Er = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
+   ρr, ur, Er = Ur[1], Ur[2]/Ur[1], Ur[3]    # density, velocity, energy
    pr = (γ - 1.0) * (Er - 0.5*ρr*ur^2)        # pressure
    cr = sqrt(γ*pr/ρr)                        # sound speed
    Hl, Hr = γ*pl/((γ-1.0)*ρl) + 0.5*ul^2 , γ*pr/((γ-1.0)*ρr) + 0.5*ur^2 # enthl
@@ -214,7 +214,7 @@ function hllc(equation, lam, Ul, Ur, x)
    ρl, ul, El = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
    pl = (γ - 1.0) * (El - 0.5*ρl*ul^2)        # pressure
    cl = sqrt(γ*pl/ρl)                        # sound speed
-   ρr, ur, Er = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
+   ρr, ur, Er = Ur[1], Ur[2]/Ur[1], Ur[3]    # density, velocity, energy
    pr = (γ - 1.0) * (Er - 0.5*ρr*ur^2)        # pressure
    cr = sqrt(γ*pr/ρr)                        # sound speed
    Hl, Hr = γ*pl/((γ-1.0)*ρl) + 0.5*ul^2 , γ*pr/((γ-1.0)*ρr) + 0.5*ur^2 # enthl
@@ -226,8 +226,10 @@ function hllc(equation, lam, Ul, Ur, x)
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
    if Sl >= 0.0
       output = Fl
+      return output
    elseif Sr <= 0.0
       output = Fr
+      return output
    end
    # u✶
    Δp = pr-pl
