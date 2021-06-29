@@ -23,7 +23,7 @@ final_time   = 0.2
 γ            = 1.4      # gas constant
 disc_x = 0.3            # location of initial discontinuity
 
-numflux   = "vanleer" # TODO -  Change to string
+numflux   = "hllc" # TODO -  Change to string
 
 # initial condition
 # Specify Ul, Ur in primitive coordinates

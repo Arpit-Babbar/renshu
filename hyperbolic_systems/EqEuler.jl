@@ -223,30 +223,32 @@ function hllc(equation, lam, Ul, Ur, x)
    H = (⎷ρl*Hl + ⎷ρr*Hr) / (⎷ρl + ⎷ρr)      # roe avg enthalpy
    c = sqrt((γ-1.0) * (H - 0.5*u^2))         # sound speed
    Sl, Sr = min(ul-cl,u-c), max(ur+cr,u+c)
-   # S✶     = u✶
-   # u✶
-   Smu_l, Smu_r = Sl-ul, Sr-ur
-   Δp = pr-pl
-   ustar = (ρr*ur*Smu_r-ρl*ul*Smu_l-Δp)/(ρr*Smu_r-ρl*Smu_l)
-   # ρstar_l, ρstar_r
-   ρstar_l = Smu_l/(Sl-ustar) * ρl
-   ρstar_r = Smu_r/(Sr-ustar) * ρr
-   # pstar
-   pstar = pl + ρl*Smu_l*(ustar-ul)
-   pstar = 0.5*(pl+pr) + 0.5*(ρl*Smu_l*(ustar-ul)+ρr*Smu_r*(ustar-ur))
-   # Estar_l, Estar_r
-   Estar_l = (Smu_l*El+pstar*ustar-pl*ul)/(Sl-ustar)
-   Estar_r = (Smu_r*Er+pstar*ustar-pr*ur)/(Sr-ustar)
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
+   if Sl >= 0.0
+      output = Fl
+   elseif Sr <= 0.0
+      output = Fr
+   end
+   # u✶
+   Δp = pr-pl
+   ustar = (ρr*ur*(Sr-ur)-ρl*ul*(Sl-ul)-Δp)/(ρr*(Sr-ur)-ρl*(Sl-ul))
+   Sstar = ustar
+   # ρstar_l, ρstar_r
+   ρstar_l = (Sl-ul)/(Sl-Sstar) * ρl
+   ρstar_r = (Sr-ur)/(Sr-Sstar) * ρr
+   # pstar
+   pstar = pl + ρl*(Sl-ul)*(ustar-ul)
+   # pstar = 0.5*(pl+pr) + 0.5*(ρl*(Sl-ul)*(ustar-ul)+ρr*(Sr-ur)*(ustar-ur))
+   # Estar_l, Estar_r
+   # Estar_l = ρstar_l*(El/ρl+(Sstar-ul)*(Sstar+pl/(ρl*(Sl-ul))))
+   # Estar_r = ρstar_r*(Er/ρr+(Sstar-ur)*(Sstar+pr/(ρr*(Sr-ur))))
+   Estar_l = ((Sl-ul)*El+pstar*ustar-pl*ul)/(Sl-ustar)
+   Estar_r = ((Sr-ur)*Er+pstar*ustar-pr*ur)/(Sr-ustar)
    Ustar_l = [ρstar_l, ρstar_l*ustar, Estar_l]
    Ustar_r = [ρstar_r, ρstar_r*ustar, Estar_r]
-   if Sl > 0.0
-      output = Fl
-   elseif Sr < 0.0
-      output = Fr
-   elseif ustar > 0.0
+   if ustar >= 0.0
       output = Fl+Sl*(Ustar_l-Ul)
-   elseif ustar <= 0.0
+   elseif ustar < 0.0
       output = Fr+Sr*(Ustar_r-Ur)
    end
    return output
