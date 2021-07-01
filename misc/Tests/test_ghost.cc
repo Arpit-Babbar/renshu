@@ -1,5 +1,5 @@
-#include "../fv2d_var_coeff/array2d.h"
-#include "../fv2d_var_coeff/array2d.cc"
+#include "../../include/array2d.h"
+#include "../../include/array2d.cc"
 
 using namespace std;
 
@@ -21,12 +21,12 @@ int main()
   solution(2,1) = 7.0;
   solution(1,2) = 8.0;
   solution.print_all(true);
-  
+
   solution.update_fluff();
   cout <<"Updated matrix is "<<endl;
 
   solution.print_all(true);
-  
+
   solution = 0.0;
   double c = 0;
   cout << "Here's another empty matrix"<<endl;
@@ -36,7 +36,7 @@ int main()
       solution(i,j) = c;
       c++;
     }
-  solution.print_all(true);  
+  solution.print_all(true);
   cout <<"After update_fluff, updated matrix is "<<endl;
   solution.update_fluff();
   solution.print_all(true);
