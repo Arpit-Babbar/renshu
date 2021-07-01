@@ -98,7 +98,7 @@ double& Array3D::operator() (const int i, const int j, const int k)
 // Set all elements to scalar value
 Array3D& Array3D::operator= (const double scalar)
 {
-   for (unsigned int i=0; i<n; ++i)
+   for (int i=0; i<n; ++i)
       u[i] = scalar;
    return *this;
 }
