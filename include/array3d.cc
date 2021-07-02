@@ -78,7 +78,7 @@ double Array3D::operator() (const int i, const int j, const int k) const
       exit(0);
    }
 #endif
-   return u[i + j*nx + k*nx*ny]; // TODO - Reorder so that k is the fastest index
+   return u[i*ny*nz + j*nz + k]; // TODO - Reorder so that k is the fastest index
 }
 
 // Return reference to (i,j), this can modify the value
@@ -92,7 +92,7 @@ double& Array3D::operator() (const int i, const int j, const int k)
       exit(0);
    }
 #endif
-   return u[i + j*nx + k*nx*ny];
+   return u[i*ny*nz + j*nz + k];
 }
 
 // Set all elements to scalar value
