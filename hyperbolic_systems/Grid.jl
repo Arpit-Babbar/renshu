@@ -18,7 +18,7 @@ function make_grid(problem, param)
    println("Making uniform grid of interval [", xmin, ", ", xmax,"]")
    dx1 = (xmax - xmin)/nx
    xc = LinRange(xmin+0.5*dx1, xmax-0.5*dx1, nx)
-   @printf("   Grid of with number of points = %d ", nx)
+   @printf("   Grid of with number of points = %d \n", nx)
    @printf("   xmin,xmax                     = %e, %e\n", xmin, xmax)
    @printf("   dx                            = %e\n", dx1)
    dx = dx1 .* ones(nx)

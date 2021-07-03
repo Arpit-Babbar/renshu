@@ -36,19 +36,24 @@ boundary_condition = "Periodic"
 initial_value(x) = [sin(2.0*pi*x),0.5*sin(2.0*pi*x),1.5*sin(2.0*pi*x)]
 
 save_time_interval = 0.0
+skip_plotting = false
 cfl = 0.0 # Currently not used
 Ccfl = 0.9
 
 # -----------------------------------
+plotters = get_plot_funcs(skip_plotting)
 equation = get_equation(fprime)
 problem = Problem((xmin,xmax), nvar, initial_value, boundary_value,
                   boundary_condition, final_time)
 param = Parameters(grid_size, cfl, Ccfl, save_time_interval)
 scheme = Scheme(equation, numflux)
-p, anim = solve(equation, problem, scheme, param)
-savefig(p, "final_soln.png")
-gif(anim, "soln.gif", fps = 5) # would have been better in the solve function
-                     # here because of VS Code
-plot(p, legend=true) # final solution
+plt_data = solve(equation, problem, scheme, param, plotters)
+if plt_data !== nothing
+   p, anim = plt_data
+   savefig(p, "final_soln.png")
+   gif(anim, "soln.gif", fps = 5) # would have been better in the solve function
+                        # here because of VS Code
+   plot(p, legend=true) # final solution
+end
 
 # TODO - compare with characteristic pictures in Ch 3

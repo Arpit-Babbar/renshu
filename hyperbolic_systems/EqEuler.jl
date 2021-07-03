@@ -55,8 +55,9 @@ function pde2primitive(U, γ)
    return primitives
 end
 
-# Numerical fluxes
-
+#-------------------------------------------------------------------------------
+# Numerical Fluxes
+#-------------------------------------------------------------------------------
 function lax_friedrich(equation, lam, Ul, Ur, x) # Numerical flux of face at x
    eq = equation["eq"]
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
@@ -75,8 +76,6 @@ function rusanov(equation, lam, Ul, Ur, x) # Numerical flux of face at x
    value  = 0.5*(Fl+Fr) - 0.5*λ*(Ur - Ul)
    return value
 end
-
-# Add Rusanov as well!
 
 function steger_warming(equation, lam, Ul, Ur, x)
    eq = equation["eq"]
@@ -256,6 +255,18 @@ function hllc(equation, lam, Ul, Ur, x)
    return output
 end
 
+numfluxes = Dict("lax_friedrich"  => lax_friedrich,
+                 "rusanov"        => rusanov,
+                 "steger_warming" => steger_warming,
+                 "vanleer"        => vanleer,
+                 "roe"            => roe,
+                 "hll"            => hll,
+                 "hllc"           => hllc
+                 )
+
+#-------------------------------------------------------------------------------
+# Plotting Functions
+#-------------------------------------------------------------------------------
 function initialize_plot(grid, problem, equation, scheme, U)
    anim = Animation()
    xc = grid.xc
@@ -300,7 +311,8 @@ function initialize_plot(grid, problem, equation, scheme, U)
    return p, anim
 end
 
-function update_plot!(grid, problem, equation, scheme, U, t, it, param, p, anim)
+function update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data)
+   p, anim = plt_data
    save_time_interval = param["save_time_interval"]
    final_time=problem["final_time"]
    if save_time_interval > 0.0
@@ -332,20 +344,35 @@ function update_plot!(grid, problem, equation, scheme, U, t, it, param, p, anim)
    frame(anim)
 end
 
-numfluxes = Dict("lax_friedrich"  => lax_friedrich,
-                 "rusanov"        => rusanov,
-                 "steger_warming" => steger_warming,
-                 "vanleer"        => vanleer,
-                 "roe"            => roe,
-                 "hll"            => hll,
-                 "hllc"           => hllc
-                 )
+function final_plot(plt_data)
+   p, anim = plt_data
+   soln_data = readdlm("toro_user_exact.dat", skipstart = 9);
+   @views x = soln_data[:,1];
+   @views dens_exact = soln_data[:,2];
+   @views pres_exact = soln_data[:,3];
+   @views velx_exact = soln_data[:,4];
+   plot!(p[2],x,dens_exact, label = nothing, color = :blue, legend=false)
+   plot!(p[4],x,pres_exact, label = nothing, color = :blue, legend=false)
+   plot!(p[3],x,velx_exact, label = "Exact", color = :blue, legend=true)
+end
+
+empty_func(x...)=nothing
+
+function get_plot_funcs(skip_plotting)
+   if skip_plotting == true
+      return Dict("initialize_plot" => empty_func,
+                  "update_plot!"    => empty_func,
+                  "final_plot"      => empty_func)
+   else
+      return Dict("initialize_plot" => initialize_plot,
+                  "update_plot!"    => update_plot!,
+                  "final_plot"      => final_plot)
+   end
+end
 
 get_equation(γ) = Dict( "eq"              => Euler(γ),
                         "flux"            => flux,
                         "fprime"          => fprime,
-                        "initialize_plot" => initialize_plot,
-                        "update_plot!"    => update_plot!,
                         "numfluxes"       => numfluxes,
                         "name"            => "1D Euler equations")
 
@@ -356,8 +383,9 @@ export rusanov
 export steger_warming
 export vanleer
 export get_equation
+export get_plot_funcs
 export primitive2pde
 export pde2primitive
-export plot_final_soln
+
 
 end

@@ -23,7 +23,7 @@ final_time   = 0.2
 γ            = 1.4      # gas constant
 disc_x = 0.3            # location of initial discontinuity
 
-numflux   = "hllc" # TODO -  Change to string
+numflux   = "hllc"
 
 # initial condition
 # Specify Ul, Ur in primitive coordinates
@@ -37,6 +37,7 @@ boundary_condition = "Dirichlet"
 # initial_value(x) = [sin(2.0*pi*x),sin(2.0*pi*x),sin(2.0*pi*x)]
 
 save_time_interval = 0.0
+skip_plotting      = true
 
 cfl = 0.0
 Ccfl = 0.9
@@ -65,28 +66,20 @@ run(`python3 ./ToroExact/toro_exact.py -p user -l $p_l_s -r $p_r_s -x $disc_x -t
 # FVM Solver
 #------------------------------------------------------------------------------
 equation = get_equation(γ)
+plotters = get_plot_funcs(skip_plotting)
 problem = Problem((xmin,xmax), nvar, initial_value, boundary_value,
                   boundary_condition, final_time)
 param = Parameters(grid_size, cfl, Ccfl, save_time_interval)
 scheme = Scheme(equation, numflux)
-p, anim = solve(equation, problem, scheme, param)
-
+plt_data = solve(equation, problem, scheme, param, plotters)
 #------------------------------------------------------------------------------
 # Plot generated data
 #------------------------------------------------------------------------------
-
-soln_data = readdlm("toro_user_exact.dat", skipstart = 9);
-@views x = soln_data[:,1];
-@views dens_exact = soln_data[:,2];
-@views pres_exact = soln_data[:,3];
-@views velx_exact = soln_data[:,4];
-plot!(p[2],x,dens_exact, label = nothing, color = :blue, legend=false)
-plot!(p[4],x,pres_exact, label = nothing, color = :blue, legend=false)
-plot!(p[3],x,velx_exact, label = "Exact", color = :blue, legend=true)
-
-savefig(p, "final_soln.png")
-gif(anim, "soln.gif", fps = 5) # would have been better in the solve function
-                     # here because of VS Code
-plot(p, legend=true) # final solution
+if plt_data !== nothing
+   p, anim = plt_data
+   gif(anim, "soln.gif", fps = 5) # would have been better in the solve function
+   # here because of VS Code
+   plot(p, legend=true) # final solution
+end
 # TODO - compare with characteristic pictures in Ch 3
 

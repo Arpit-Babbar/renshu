@@ -3,8 +3,9 @@ module FV
 using Grid
 using LinearAlgebra
 using OffsetArrays
+using TickTock
 using Plots
-gr(size = (750, 565)) # use gr as the plot backend, for its high performance
+plotly(size = (750, 565)) # use gr as the plot backend, for its high performance
 #-------------------------------------------------------------------------------
 # Create a dictionary of problem description
 #-------------------------------------------------------------------------------
@@ -88,12 +89,11 @@ function adjust_time_step(problem, param, dt, t)
    return dt
 end
 
-# TODO - Add safety CFL
 function compute_lam_dt(equation, scheme, param, grid, Ua)
    fprime  = equation["fprime"]
    eq      = equation["eq"]
    numflux = scheme["numflux_ind"]
-   Ccfl = param["Ccfl"]
+   Ccfl    = param["Ccfl"]            # safety CFL
    nx, dx = grid.nx, grid.dx
    xc     = grid.xc
    lam = 0.0
@@ -128,13 +128,12 @@ function set_initial_value!(grid, U, problem)
    end
 end
 
-# function update_ghost!(grid, U, Ue)
 function update_ghost!(grid, U, problem)
    xmin, xmax = grid.domain
    nx = grid.nx
    initial_value = problem["initial_value"]
    if problem["boundary_condition"] == "Dirichlet"
-      @views U[:, 0]   .= initial_value(xmin) # Works for short time
+      @views U[:, 0]   .= initial_value(xmin) # only for short time
       @views U[:,nx+1] .= U[:,nx]
    else
       @views U[:, 0]    .= U[:, nx]
@@ -151,8 +150,7 @@ function compute_residual!(equation, grid, lam, U, scheme, res)
    num_flux = scheme["numflux"]
    dx0 =  OffsetArray(zeros(nx+2), OffsetArrays.Origin(0))
    dx0[1:nx] .= dx
-   dx0[0] = dx[nx]
-   dx0[nx+1] = dx[1]
+   dx0[0] = dx0[nx+1] = 0.0 # redundant values
    res[:,:] .= 0.0 # Shouldn't we be able to avoid this?
                    # Something like this?
                    #      @views res[:, i-1] += f/ dx0[i-1]
@@ -166,10 +164,12 @@ function compute_residual!(equation, grid, lam, U, scheme, res)
    end
 end
 
-function solve(equation, problem, scheme, param)
+function solve(equation, problem, scheme, param, plotters)
+   tick()
    grid = make_grid(problem, param)
-   initialize_plot = equation["initialize_plot"]
-   update_plot! = equation["update_plot!"]
+   initialize_plot = plotters["initialize_plot"]
+   update_plot!    = plotters["update_plot!"]
+   final_plot      = plotters["final_plot"]
    nvar = problem["nvar"]
    Tf = problem["final_time"]
    nx = grid.nx
@@ -183,7 +183,7 @@ function solve(equation, problem, scheme, param)
            # storing for clarity
    set_initial_value!(grid, U, problem)
    it, t = 0, 0.0
-   p, anim = initialize_plot(grid, problem, equation, scheme, U)
+   plt_data = initialize_plot(grid, problem, equation, scheme, U)
    while t < Tf
       lam, dt = compute_lam_dt(equation, scheme, param, grid, Ua)
       dt = adjust_time_step(problem, param, dt, t)
@@ -191,14 +191,17 @@ function solve(equation, problem, scheme, param)
       compute_residual!(equation, grid, lam, U, scheme, res)
       @. U -= dt*res
       t += dt; it += 1
-      update_plot!(grid, problem, equation, scheme, U, t, it, param, p, anim)
+      update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data)
    end
-   return p, anim # To visualize with different xlim, ylim
+   final_plot(plt_data)
+   tock()
+   return plt_data
 end
 
 export Problem
 export Parameters
 export Scheme
+export empty_func
 export array2string
 export solve
 
