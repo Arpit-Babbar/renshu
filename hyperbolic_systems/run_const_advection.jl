@@ -35,7 +35,7 @@ boundary_value(x) = 0.0 # Dummy
 boundary_condition = "Periodic"
 initial_value(x) = [sin(2.0*pi*x),0.5*sin(2.0*pi*x),1.5*sin(2.0*pi*x)]
 
-save_time_interval = 0.0
+save_time_interval = final_time
 skip_plotting = false
 cfl = 0.0 # Currently not used
 Ccfl = 0.9
@@ -47,7 +47,7 @@ problem = Problem((xmin,xmax), nvar, initial_value, boundary_value,
                   boundary_condition, final_time)
 param = Parameters(grid_size, cfl, Ccfl, save_time_interval)
 scheme = Scheme(equation, numflux)
-plt_data = solve(equation, problem, scheme, param, plotters)
+@time plt_data = solve(equation, problem, scheme, param, plotters)
 if plt_data !== nothing
    p, anim = plt_data
    savefig(p, "final_soln.png")

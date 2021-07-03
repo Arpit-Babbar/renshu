@@ -23,7 +23,7 @@ final_time   = 0.2
 γ            = 1.4      # gas constant
 disc_x = 0.3            # location of initial discontinuity
 
-numflux   = "hllc"
+numflux   = "hll"
 
 # initial condition
 # Specify Ul, Ur in primitive coordinates
@@ -36,8 +36,8 @@ boundary_value(x) = 0.0 # Dummy
 boundary_condition = "Dirichlet"
 # initial_value(x) = [sin(2.0*pi*x),sin(2.0*pi*x),sin(2.0*pi*x)]
 
-save_time_interval = 0.0
-skip_plotting      = true
+save_time_interval = final_time
+skip_plotting      = false
 
 cfl = 0.0
 Ccfl = 0.9
@@ -71,7 +71,7 @@ problem = Problem((xmin,xmax), nvar, initial_value, boundary_value,
                   boundary_condition, final_time)
 param = Parameters(grid_size, cfl, Ccfl, save_time_interval)
 scheme = Scheme(equation, numflux)
-plt_data = solve(equation, problem, scheme, param, plotters)
+@time plt_data = solve(equation, problem, scheme, param, plotters)
 #------------------------------------------------------------------------------
 # Plot generated data
 #------------------------------------------------------------------------------

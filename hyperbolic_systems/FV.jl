@@ -147,7 +147,7 @@ function compute_residual!(equation, grid, lam, U, scheme, res)
    xf = grid.xf
    dx = grid.dx
    eq = equation["eq"]
-   num_flux = scheme["numflux"]
+   numflux = scheme["numflux"]
    dx0 =  OffsetArray(zeros(nx+2), OffsetArrays.Origin(0))
    dx0[1:nx] .= dx
    dx0[0] = dx0[nx+1] = 0.0 # redundant values
@@ -156,11 +156,12 @@ function compute_residual!(equation, grid, lam, U, scheme, res)
                    #      @views res[:, i-1] += f/ dx0[i-1]
                    #      @views res[:, i]   = f/ dx0[i]
    # loop over faces
+   Uf = zeros(3)
    for i=1:nx+1
       @views Ul, Ur  = U[:,i-1], U[:,i]
-      f    = num_flux(equation, lam, Ul, Ur, xf[i])
-      @views res[:, i-1] += f/ dx0[i-1]
-      @views res[:, i]   -= f/ dx0[i]
+      numflux(equation, lam, Ul, Ur, xf[i], Uf)
+      @views res[:, i-1] += Uf/ dx0[i-1]
+      @views res[:, i]   -= Uf/ dx0[i]
    end
 end
 

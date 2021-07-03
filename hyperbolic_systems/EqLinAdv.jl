@@ -14,15 +14,15 @@ flux(x, U, eq::LinAdv) = eq.fprime(U, x, eq) * U
 #-------------------------------------------------------------------------------
 # Numerical Fluxes
 #-------------------------------------------------------------------------------
-function lax_friedrich(equation, lam, Ul, Ur, x) # Numerical flux of face at x
+function lax_friedrich(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
    eq = equation["eq"]
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
-   value  = 0.5*(Fl+Fr) - 0.5*lam*(Ur-Ul)
-   return value
+   Uf .= 0.5*(Fl+Fr) - 0.5*lam*(Ur-Ul)
+   return nothing
 end
 
 # Looks expensive for a non-constant speed. Can it be fixed?
-function upwind(equation, lam, Ul, Ur, x) # Numerical flux of face at x
+function upwind(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
    # eigen_decomp   = eigen(eq.fprime(0.5 * (Ul+Ur), x, eq)) # Roe's scheme had (f(Ul)-f(Ur))/(Ul-Ur)
    #                               # appearing hard to extend to high dimensions because Ul, Ur
    #                               # are now vectors and can't be put in denominators.
@@ -31,10 +31,9 @@ function upwind(equation, lam, Ul, Ur, x) # Numerical flux of face at x
    evalues, evecs = eigen_decomp.values, eigen_decomp.vectors
    lp, lm     = max.(evalues, 0.0), min.(evalues, 0.0)
    lamp, lamm = diagm(lp), diagm(lm)
-   Fp = evecs * lamp * inv(evecs) * Ul
-   Fm = evecs * lamm * inv(evecs) * Ur
-   value  = Fp + Fm
-   return value
+   Uf  .= evecs * lamp * inv(evecs) * Ul # Uf = Fp
+   Uf .+= evecs * lamm * inv(evecs) * Ur  # Uf = Fp + Fm
+   return nothing
 end
 
 # TODO - Avoid repetetive eigen_decomp calculation

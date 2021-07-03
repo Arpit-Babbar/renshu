@@ -58,14 +58,14 @@ end
 #-------------------------------------------------------------------------------
 # Numerical Fluxes
 #-------------------------------------------------------------------------------
-function lax_friedrich(equation, lam, Ul, Ur, x) # Numerical flux of face at x
+function lax_friedrich!(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
    eq = equation["eq"]
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
-   value  = 0.5*(Fl+Fr) - 0.5 * lam * (Ur - Ul)
-   return value
+   Uf  .= 0.5*(Fl+Fr) - 0.5 * lam * (Ur - Ul)
+   return nothing
 end
 
-function rusanov(equation, lam, Ul, Ur, x) # Numerical flux of face at x
+function rusanov!(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
    eq = equation["eq"]
    γ  = eq.γ
    ρl, ul, pl = pde2primitive(Ul, γ)
@@ -73,11 +73,11 @@ function rusanov(equation, lam, Ul, Ur, x) # Numerical flux of face at x
    cl, cr = sqrt(γ*pl/ρl), sqrt(γ*pr/ρr)                   # sound speed
    λ = maximum(abs.([ul, ul-cl, ul+cl, ur, ur-cr, ur+cr])) # local wave speed
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
-   value  = 0.5*(Fl+Fr) - 0.5*λ*(Ur - Ul)
-   return value
+   Uf  .= 0.5*(Fl+Fr) - 0.5*λ*(Ur - Ul)
+   return nothing
 end
 
-function steger_warming(equation, lam, Ul, Ur, x)
+function steger_warming!(equation, lam, Ul, Ur, x, Uf)
    eq = equation["eq"]
    γ  = eq.γ
    δ  = 0.0
@@ -88,9 +88,10 @@ function steger_warming(equation, lam, Ul, Ur, x)
    λ = [u, u+c, u-c] # Poor ordering, should fix.
    λp = 0.5 * (λ + sqrt.(λ.^2 .+ δ^2))    # positive part of eigenvalues
    w  = 0.5*(3.0-γ)*(λp[2]+λp[3])*c^2/(γ-1.0)
-   Fp = 0.5*ρ/γ * [ 2.0*(γ-1.0)*λp[1]   +     λp[2]         +     λp[3]
+   Uf .= 0.5*ρ/γ * [ 2.0*(γ-1.0)*λp[1]   +     λp[2]         +     λp[3]
                     2.0*(γ-1.0)*λp[1]*u +     λp[2]*(u+c)   +     λp[3]*(u-c)
                     (γ-1.0)*λp[1]*u^2   + 0.5*λp[2]*(u+c)^2 + 0.5*λp[3]*(u-c)^2 + w ]
+   # Uf  = Fp
    # Ur on Fm
    ρ, u, E = Ur[1], Ur[2]/Ur[1], Ur[3]    # density, velocity, energy
    p = (γ - 1.0) * (E - 0.5*ρ*u^2)        # pressure
@@ -98,16 +99,16 @@ function steger_warming(equation, lam, Ul, Ur, x)
    λ = [u, u+c, u-c]                      # Poor ordering, should fix.
    λm = 0.5 * (λ - sqrt.(λ.^2 .+ δ^2))    # negative part of eigenvalues
    w = 0.5*(3.0-γ)*(λm[2]+λm[3])*c^2/(γ-1.0)
-   Fm = 0.5*ρ/γ * [ 2.0*(γ-1.0)*λm[1]       +     λm[2]         +     λm[3]
+   Uf .+= 0.5*ρ/γ * [ 2.0*(γ-1.0)*λm[1]       +     λm[2]         +     λm[3]
                     2.0*(γ-1.0)*λm[1]*u     +     λm[2]*(u+c)   +     λm[3]*(u-c)
                         (γ-1.0)*λm[1]*u^2   + 0.5*λm[2]*(u+c)^2 + 0.5*λm[3]*(u-c)^2 + w ]
+   # Uf = Fp + Fm
    # Should we make a subfunction to avoid duplication, or would it cause
    # performance issues?
-   output = Fp + Fm
-   return output
+   return nothing
 end
 
-function roe(equation, lam, Ul, Ur, x)
+function roe!(equation, lam, Ul, Ur, x, Uf)
    eq = equation["eq"]
    γ  = eq.γ
    ϵ  = 0.2
@@ -135,11 +136,11 @@ function roe(equation, lam, Ul, Ur, x)
    if abs(l3)<2.0*ϵ l3 = l3^2/(4.0*δ) + δ end
    # compute flux
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
-   output = 0.5*(Fl+Fr) - 0.5*(α1*l1*r1 + α2*l2*r2 + α3*l3*r3)
-   return output
+   Uf .= 0.5*(Fl+Fr) - 0.5*(α1*l1*r1 + α2*l2*r2 + α3*l3*r3)
+   return nothing
 end
 
-function vanleer(equation, lam, Ul, Ur, x)
+function vanleer!(equation, lam, Ul, Ur, x, Uf)
    eq = equation["eq"]
    γ  = eq.γ
    # Ul on Fp
@@ -149,13 +150,16 @@ function vanleer(equation, lam, Ul, Ur, x)
    M = u/a                                # mach number
    Fl = flux(x, Ul, eq)
    if M <= -1
-      Fp = zeros(Float64, 3)
+      # Uf .= zeros(Float64, 3)
+      nothing
    elseif M >= 1
-      return Fl
+      Uf .= Fl
+      return nothing
    else
-      Fp = 0.25*ρ*a*(1.0+M)^2 * [1.0
+      Uf .= 0.25*ρ*a*(1.0+M)^2 * [1.0
                                  2.0*a/γ           * (0.5*(γ-1.0)*M+1.0)
                                  2.0*a^2/(γ^2-1.0) * (0.5*(γ-1.0)*M+1.0)^2]
+      # Uf = Fp
    end
    # Ur on Fm
    ρ, u, E = Ur[1], Ur[2]/Ur[1], Ur[3]    # density, velocity, energy
@@ -164,19 +168,19 @@ function vanleer(equation, lam, Ul, Ur, x)
    M = u/a                                # mach number
    Fr = flux(x, Ur, eq)
    if M <= -1
-      Fm = Fr
+      Uf .+= Fr
    elseif M >= 1
-      Fm = zeros(Float64, 3)
+      nothing
+      # Uf .+= zeros(Float64, 3)
    else
-      Fm = -0.25*ρ*a*(1.0-M)^2 * [1.0
+      Uf .+= -0.25*ρ*a*(1.0-M)^2 * [1.0
                                  2.0*a/γ           * (0.5*(γ-1.0)*M-1.0)
                                  2.0*a^2/(γ^2-1.0) * (0.5*(γ-1.0)*M-1.0)^2]
    end
-   output = Fp + Fm
-   return output
+   return nothing
 end
 
-function hll(equation, lam, Ul, Ur, x)
+function hll!(equation, lam, Ul, Ur, x, Uf)
    eq = equation["eq"]
    γ = eq.γ
    # TODO - Replace with pde2primitive
@@ -196,16 +200,16 @@ function hll(equation, lam, Ul, Ur, x)
    dU = Ur - Ul
    dS = Sr - Sl
    if Sl > 0
-      output = Fl
+      Uf .= Fl
    elseif Sr < 0
-      output = Fr
+      Uf .= Fr
    else
-      output = (Sr*Fl-Sl*Fr + Sl*Sr*dU)/dS
+      Uf .= (Sr*Fl-Sl*Fr + Sl*Sr*dU)/dS
    end
-   return output
+   return nothing
 end
 
-function hllc(equation, lam, Ul, Ur, x)
+function hllc!(equation, lam, Ul, Ur, x, Uf)
    eq = equation["eq"]
    γ = eq.γ
    # TODO - Replace with pde2primitive
@@ -224,11 +228,11 @@ function hllc(equation, lam, Ul, Ur, x)
    Sl, Sr = min(ul-cl,u-c), max(ur+cr,u+c)
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
    if Sl >= 0.0
-      output = Fl
-      return output
+      Uf .= Fl
+      return nothing
    elseif Sr <= 0.0
-      output = Fr
-      return output
+      Uf .= Fr
+      return nothing
    end
    # u✶
    Δp = pr-pl
@@ -248,20 +252,22 @@ function hllc(equation, lam, Ul, Ur, x)
    Ustar_l = [ρstar_l, ρstar_l*ustar, Estar_l]
    Ustar_r = [ρstar_r, ρstar_r*ustar, Estar_r]
    if ustar >= 0.0
-      output = Fl+Sl*(Ustar_l-Ul)
+      Uf .= Fl+Sl*(Ustar_l-Ul)
+      return nothing
    elseif ustar < 0.0
-      output = Fr+Sr*(Ustar_r-Ur)
+      Uf .= Fr+Sr*(Ustar_r-Ur)
+      return nothing
    end
-   return output
+   return nothing
 end
 
-numfluxes = Dict("lax_friedrich"  => lax_friedrich,
-                 "rusanov"        => rusanov,
-                 "steger_warming" => steger_warming,
-                 "vanleer"        => vanleer,
-                 "roe"            => roe,
-                 "hll"            => hll,
-                 "hllc"           => hllc
+numfluxes = Dict("lax_friedrich"  => lax_friedrich!,
+                 "rusanov"        => rusanov!,
+                 "steger_warming" => steger_warming!,
+                 "vanleer"        => vanleer!,
+                 "roe"            => roe!,
+                 "hll"            => hll!,
+                 "hllc"           => hllc!
                  )
 
 #-------------------------------------------------------------------------------
@@ -376,12 +382,12 @@ get_equation(γ) = Dict( "eq"              => Euler(γ),
                         "numfluxes"       => numfluxes,
                         "name"            => "1D Euler equations")
 
-export roe
-export lax_friedrich
-export hll
-export rusanov
-export steger_warming
-export vanleer
+export roe!
+export lax_friedrich!
+export hll!
+export rusanov!
+export steger_warming!
+export vanleer!
 export get_equation
 export get_plot_funcs
 export primitive2pde
