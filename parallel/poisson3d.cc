@@ -5,6 +5,9 @@
 // and solution_new in (:,t1) while running the iterates of Jacobi's method.
 
 // Please see the tutorials on mpi_cart before this
+
+// TODO - Order Ni, Nj, Nk correctly
+
 #include <iostream>
 #include <cmath>
 #include <mpi.h>
@@ -126,6 +129,7 @@ int main(int argc, char** argv)
   }
 
   int Ni = local_dim[2], Nj = local_dim[1], Nk = local_dim[0];
+  vector<double> grid_z(Ni+2), grid_y(Nj+2), grid_x(Nk+2);
   printf("For rank %d with coordinates (%d,%d,%d), Nk, Nj, Ni = %d, %d, %d\n",
           myid, mycoord[0], mycoord[1], mycoord[2], Nk, Nj, Ni);
   Array3D phi[2];
@@ -135,16 +139,18 @@ int main(int argc, char** argv)
 
   // j-k plane
   totmsgsize[2] = local_dim[0] * local_dim[1]; // Nk*Nj
-  MaxBufLen     = fmax(totmsgsize[2], MaxBufLen);
+  MaxBufLen     = max(totmsgsize[2], MaxBufLen);
   // i-k plane
   totmsgsize[1] = local_dim[0] * local_dim[2]; // Nk*Ni
-  MaxBufLen     = fmax(totmsgsize[1], MaxBufLen);
+  MaxBufLen     = max(totmsgsize[1], MaxBufLen);
   // i-j plane
   totmsgsize[0] = local_dim[1] * local_dim[2]; // Nj*Ni
-  MaxBufLen     = fmax(totmsgsize[0], MaxBufLen);
-
-  double fieldSend[MaxBufLen] = {0.0}; // usage: phi -> fieldSend -> MPI_Send
-  double fieldRecv[MaxBufLen] = {0.0}; // usage: MPI_Recv -> fieldRecv -> phi
+  MaxBufLen     = max(totmsgsize[0], MaxBufLen);
+  double *fieldSend = new double [MaxBufLen];
+  double *fieldRecv = new double [MaxBufLen];
+  // char *filename1 = new char[filenameLength];
+  // double fieldSend[MaxBufLen] = {0.0}; // usage: phi -> fieldSend -> MPI_Send
+  // double fieldRecv[MaxBufLen] = {0.0}; // usage: MPI_Recv -> fieldRecv -> phi
   cout << "MaxBufLen = "<<MaxBufLen<<endl;
   // left, right physical limits, i.e., values to be updated
   int udim[2][p_dim] = {0};
@@ -244,6 +250,9 @@ int main(int argc, char** argv)
   }
   ierr = MPI_Finalize();
   printf("ierr = %d \n",ierr);
+  // delete[] fieldRecv;
+  // delete[] fieldSend;
+  // Even though these lines are good practise, they are costing a lot in speed.
   return 0;
 }
 
@@ -363,7 +372,7 @@ void Jacobi_sweep(int udim[][p_dim], // local_dim(pts in dimension)
     for (int j = udim[0][1]; j <= udim[1][1]; j++)
       for (int k = udim[0][0]; k <= udim[1][0]; k++)
       {
-        x = xmin + i * h, y = ymin + j * h, z = zmin + k * h;
+        x = xmin + i * h, y = ymin + j * h, z = zmin + k * h; // This is wrong!
         phi[t1](i,j,k) = ( h*h * f(x,y,z)
                              + (phi[t0](i+1,j,k) + phi[t0](i-1,j,k))
                              + (phi[t0](i,j+1,k) + phi[t0](i,j-1,k))
