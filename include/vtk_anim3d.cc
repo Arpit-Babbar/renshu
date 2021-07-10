@@ -4,8 +4,8 @@
 #include <string>
 #include <cassert>
 
-#include "array2d.h"
-#include "vtk_anim.h"
+#include "array3d.h"
+#include "vtk_anim3d.h"
 
 using namespace std;
 
@@ -35,14 +35,15 @@ string get_filename(const string base_name,
 //Solution is defined on the respective grid points.
 void write_rectilinear_grid(vector<double> &grid_x,
                             vector<double> &grid_y,
-                            Array2D &solution,
+                            vector<double> &grid_z,
+                            Array3D &solution,
                             double t,
                             int c, //Cycle number
                             string filename)
 {
    const int nx = solution.sizex();
    const int ny = solution.sizey();
-   int nz = 1; // We have a 2d grid
+   const int nz = solution.sizez(); // We have a 2d grid
    ofstream fout;
    fout.open(filename);
    fout << "# vtk DataFile Version 3.0" << endl;
@@ -64,51 +65,51 @@ void write_rectilinear_grid(vector<double> &grid_x,
       fout << grid_y[j] << " ";
    fout << endl;
    fout << "Z_COORDINATES " << nz << " float" << endl;
-   fout << 0.0 << endl;
+   for(int k=0; k<nz; ++k)
+      fout << grid_z[k] << " ";
+   fout << endl;
 
    fout << "POINT_DATA " << nx*ny*nz << endl;
    fout << "SCALARS density float" << endl;
    fout << "LOOKUP_TABLE default" << endl;
    // no need for k-loop since nk=1
-   for(int j=0; j<ny; ++j)
+   for(int i=0; i<nx; ++i)
    {
-      for(int i=0; i<nx; ++i)
-         fout << solution(i,j) << " ";
-      fout << endl;
+      for(int j=0; j<ny; ++j)
+      {
+         for(int k=0; k<nz; ++k)
+            fout << solution(i,j,k) << " ";
+         fout << endl;
+      }
    }
 }
 void vtk_anim_sol(vector<double> &grid_x,vector<double> &grid_y,
-                  Array2D& solution,
+                  vector<double> &grid_z,
+                  Array3D& solution,
                    double t,
                   int time_step_number,
                   string filename)
 {
   filename = filename+"_";
   filename = get_filename(filename,3,time_step_number);
-  write_rectilinear_grid(grid_x, grid_y, solution, t, time_step_number, filename);
+  write_rectilinear_grid(grid_x, grid_y, grid_z, solution, t, time_step_number,
+                         filename);
 }
 
 
-//Double input
+// Double input
 
 void write_rectilinear_grid(vector<double> &grid_x,
                             vector<double> &grid_y,
-                            Array2D& solution, Array2D& solution_exact,
+                            vector<double> &grid_z,
+                            Array3D& solution, Array3D& solution_exact,
                             double t,
                             int c, //Cycle number
                             string filename)
 {
    const int nx = solution.sizex();
    const int ny = solution.sizey();
-   /*if ( (grid_x.size() != nx) || (grid_y.size() != ny))
-    {
-      cout << "Grid and solution sizes don't match." <<endl;
-      cout << "grid.sizex = "<< grid_x.size() << ", solution.sizex = "<<nx;
-      cout << "grid.sizey = "<< grid_y.size() << ", solution.sizey = "<<ny;
-      assert(false);
-    }
-  */
-   int nz = 1; // We have a 2d grid
+   const int nz = solution.sizez(); // We have a 2d grid
   /*  fout.open(filename)
       write_grid(fout,nx,ny,dx,dy)
       write_sol(fout,nxny,solution,"solution")
@@ -135,37 +136,42 @@ void write_rectilinear_grid(vector<double> &grid_x,
       fout << grid_y[j] << " ";
    fout << endl;
    fout << "Z_COORDINATES " << nz << " float" << endl;
-   fout << 0.0 << endl;
+   for(int k=0; k<nz; ++k)
+      fout << grid_z[k] << " ";
+   fout << endl;
 
    fout << "POINT_DATA " << nx*ny*nz << endl;
    fout << "SCALARS density float" << endl;
    fout << "LOOKUP_TABLE default" << endl;
    // no need for k-loop since nk=1
-   for(int j=0; j<ny; ++j)
-   {
-      for(int i=0; i<nx; ++i)
-         fout << solution(i,j) << " ";
-      fout << endl;
-   }
-
+   for(int i=0; i<nx; ++i)
+      for(int j=0; j<ny; ++j)
+      {
+         for(int k=0; k<nz; ++k)
+            fout << solution(i,j,k) << " ";
+         fout << endl;
+      }
    fout << "SCALARS density_exact float" << endl;
    fout << "LOOKUP_TABLE default" << endl;
    // no need for k-loop since nk=1
-   for(int j=0; j<ny; ++j)
-   {
-      for(int i=0; i<nx; ++i)
-         fout << solution_exact(i,j) << " ";
-      fout << endl;
-   }
+   for(int i=0; i<nx; ++i)
+      for(int j=0; j<ny; ++j)
+      {
+         for(int k=0; k<nz; ++k)
+            fout << solution_exact(i,j,k) << " ";
+         fout << endl;
+      }
    fout.close();
 }
 void vtk_anim_sol(vector<double> &grid_x,vector<double> &grid_y,
-                  Array2D& solution, Array2D& solution_exact,
+                  vector<double> &grid_z,
+                  Array3D& solution, Array3D& solution_exact,
                    double t,
                   int time_step_number,
                   string filename)
 {
   filename = filename+"_";
   filename = get_filename(filename,3,time_step_number);
-  write_rectilinear_grid(grid_x, grid_y, solution, solution_exact, t, time_step_number, filename);
+  write_rectilinear_grid(grid_x, grid_y, grid_z, solution, solution_exact, t,
+                         time_step_number, filename);
 }
