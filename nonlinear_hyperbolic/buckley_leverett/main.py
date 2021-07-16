@@ -6,13 +6,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import optimize
 from scipy import integrate
+from numpy import sqrt
 import argparse
 
-a_buck = 1.0 #The constant a in definition of flux
-u_buck = 0.5 #Depends on a, we have f convex in (0,u_buck),concave in (u_buck,1)
+a_buck = 1.0 # The constant a in definition of flux
+u_buck = 0.5 # Depends on a, we have f convex in (0,u_buck),concave in (u_buck,1)
 
-#For exact solution, we need u_s,u_ss from convex hull reconstruction s.t. 
-#(f(u_s)-f(0))/(u_s-0)=f'(u_s), (f(u_ss)-f(1))/(u_ss-1)=f'(u_ss)
+# For exact solution, we need u_s,u_ss from convex hull reconstruction s.t.
+# (f(u_s)-f(0))/(u_s-0)=f'(u_s), (f(u_ss)-f(1))/(u_ss-1)=f'(u_ss)
 u_s,u_ss = 1.0/np.sqrt(2.0),1.0-1.0/np.sqrt(2.0)
 def flux(u): #Buckley-Leverett flux
   a = a_buck
@@ -24,40 +25,40 @@ def fprime(u): #derivative of flux
     L = u**2 + a*(1.0-u)**2
     return 2.0*a*u*(1.0-u) / L**2
 
-#Inverse of f' restricted to [0.5,1], the interval that contains [u_s,1]
-#This is used to compute rarefaction solutions
+# Inverse of f' restricted to [0.5,1], the interval that contains [u_s,1]
+# This is used to compute rarefaction solutions
 def inv_f_s(v):
-    #Inverse of f' at v equals root of this polynomial in [0.5,1]
+    # Inverse of f' at v equals root of this polynomial in [0.5,1]
     def p(x):
         value = 4.*v*x**4-8.*v*x**3+(8.*v+2.)*x**2+(-4.*v-2.)*x+v
         return value
     if 0<=v and v<= 2.:
-        output = optimize.brentq(p, 0.5, 1.)#Gives root of polynomial
-    else: 
+        output = optimize.brentq(p, 0.5, 1.)# Gives root of polynomial
+    else:
         print('Inverse of f\' cannot be computed for v = ',v)
         print('Please give values in [0,2] only')
     return output
 
-#Inverse of f' restricted to [0,0.5], the interval that contains [0,u_ss]
+# Inverse of f' restricted to [0,0.5], the interval that contains [0,u_ss]
 def inv_f_ss(v):
-    #Inverse of f' at v equals root of this polynomial in [0,0.5]
+    # Inverse of f' at v equals root of this polynomial in [0,0.5]
     def p(x):
         value = 4.*v*x**4-8.*v*x**3+(8.*v+2.)*x**2+(-4.*v-2.)*x+v
         return value
     if 0<=v and v<= 2.:
-        output = optimize.brentq(p, 0., 0.5)#Gives root of polynomial
-    else: 
+        output = optimize.brentq(p, 0., 0.5)# Gives root of polynomial
+    else:
         print('Inverse of f\' cannot be computed for v = ',v)
         print('Please give values in [0,2] only')
     return output
 
-#Godunov flux, defined as max/min b/w u_l,u_r computed using monotonicity
+# Godunov flux, defined as max/min b/w u_l,u_r computed using monotonicity
 def num_flux(ul,ur):
   return flux(ul)
 
-#To compute the exact solution, we need all shock locations for all time
-#The shock location between the two rarefaction waves needs to be computed
-#by solving the ode s'(t)=(f_l-f_r)/(u_l-u_r) for the particular time
+# To compute the exact solution, we need all shock locations for all time
+# The shock location between the two rarefaction waves needs to be computed
+# by solving the ode s'(t)=(f_l-f_r)/(u_l-u_r) for the particular time
 def update_shock(shock,t,dt):
     def rh(shock,t):
       u_l = inv_f_ss((shock+0.5)/t)
@@ -66,7 +67,7 @@ def update_shock(shock,t,dt):
       f_r = flux(u_r)
       dsdt = (f_l-f_r)/(u_l-u_r)
       return dsdt
-    #This is the time where rarefaction characteristics intersect
+    # This is the time where rarefaction characteristics intersect
     if t>=1./(2.*fprime(u_ss)):
       time = [t,t+dt]
       output = integrate.odeint(rh,shock,time,rtol = 1e-5)
@@ -76,10 +77,10 @@ def update_shock(shock,t,dt):
 
 def exact_soln_step(x,t):
   f = np.empty_like(x)
-  u_star = 1./np.sqrt(2.)#satisfied f(u_star)-f(0)/(u_star-0)=f'(u_star)
-  f_u_star = fprime(u_star) #f'(u_star)
+  u_star = 1./np.sqrt(2.)# satisfied f(u_star)-f(0)/(u_star-0)=f'(u_star)
+  f_u_star = fprime(u_star) # f'(u_star)
   for i,xx in enumerate(x):
-    if xx <= 0.*t:#x<f'(1)t
+    if xx <= 0.*t:# x<f'(1)t
       f[i] = 1.
     elif xx > 0.*t and xx < f_u_star*t:
       f[i] = inv_f_s(xx/t)
@@ -89,7 +90,7 @@ def exact_soln_step(x,t):
 
 def exact_soln_hatbuck(x,t,shock):
   f = np.empty_like(x)
-  f_u_s,f_u_ss = fprime(u_s),fprime(u_ss) #f'(u_s),f'(u_ss)
+  f_u_s,f_u_ss = fprime(u_s),fprime(u_ss) # f'(u_s),f'(u_ss)
   for i,xx in enumerate(x):
     if xx <= -0.5:
       f[i] = 0.0
@@ -106,18 +107,18 @@ def exact_soln_hatbuck(x,t,shock):
       f[i] = 0.0
   return f
 
-#h*du/dt = res(u); res(u) = -(g_{j+1/2}-g_{j-1/2})
+# h*du/dt = res(u); res(u) = -(g_{j+1/2}-g_{j-1/2})
 def compute_residual(u):
   n         = len(u)
   res       = np.zeros(n)
-  flux      = num_flux(u[0],u[1])#f_{1/2}
+  flux      = num_flux(u[0],u[1])# f_{1/2}
   res[0]   -= flux
   res[1]   += flux
-  for j in range(1,n-1): #each j computes flux g_{j+1/2}
+  for j in range(1,n-1): # each j computes flux g_{j+1/2}
     flux      = num_flux(u[j],u[j+1])
     res[j]   -= flux
     res[j+1] += flux
-  #last face
+  # last face
   flux      = num_flux(u[n-1],u[0])#f_{n-1/2}
   res[n-1] -= flux
   res[0]   += flux
@@ -144,10 +145,12 @@ def solve(xmin,xmax,N,cfl,Tf,bc):
   plt.grid(True); plt.draw(); plt.pause(0.1/N)
   wait = input("Press enter to continue ")
   shock = 0.
-  #Initial value of shock
+  # Initial value of shock
   while t < Tf:
       uold[:] = u
-      shock = update_shock(shock,t,dt)#Gives shock for solution at time t+dt
+      if (t+dt)>Tf:
+        dt = Tf-t
+      shock = update_shock(shock,t,dt)# Gives shock for solution at time t+dt
       exact = exact_soln(x,t+dt,shock)
       if bc == 'dirichlet':
         u[0] = exact[0]
@@ -159,10 +162,10 @@ def solve(xmin,xmax,N,cfl,Tf,bc):
       if bc == 'dirichlet' or bc == 'periodic_exact':
         line2.set_ydata(exact)
       plt.draw(); plt.pause(0.1/N)
-  plt.show()
   print('The Linfty error is ',np.max(exact-u))
-  print('The L1 error is ',np.linalg.norm((exact-u)*dx,1))
-  print('The L2 error is ',np.linalg.norm((exact-u)*dx,2))
+  print('The L1 error is ',      dx*np.linalg.norm((exact-u),1))
+  print('The L2 error is ',sqrt(dx)*np.linalg.norm((exact-u),2))
+  plt.show()
 
 # Get arguments
 parser = argparse.ArgumentParser()
