@@ -40,7 +40,6 @@ a
 first(1d linear convection)
 linear_convection_1d/output
 linear_convection_1d/output
-*.txt
 heat1d/output
 heat1d/rk3
 heat1d/rk4
