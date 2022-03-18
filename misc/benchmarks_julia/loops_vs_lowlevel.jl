@@ -9,7 +9,7 @@ function loops(u1, Vl, Vr, wg, nd)
       ub += u1[ii, jj, 1, 1] * Vl[jj] * wg[ii] # u1 * Vl * wg
       ut += u1[ii, jj, 1, 1] * Vr[jj] * wg[ii] # u1 * Vl * wg
    end
-   return ul, ur, ub, ut
+   # return ul, ur, ub, ut
 end
 
 function low_level(u1, Vl, Vr, wg, nd, Ub)
@@ -22,7 +22,7 @@ function low_level(u1, Vl, Vr, wg, nd, Ub)
    ub = BLAS.dot(nd, Ub, 1, wg, 1)
    mul!(Ub, U,  Vr)
    ut = BLAS.dot(nd, Ub, 1, wg, 1)
-   return ul, ur, ub, ut
+   # return ul, ur, ub, ut
 end
 
 nx = ny = 100
@@ -30,9 +30,9 @@ nd = 5
 Vl, Vr, wg = rand(nd), rand(nd), rand(nd)
 u1 = rand(nd,nd,nx,ny)
 
-@btime loops(u1, Vl, Vr, wg, nd)
+@btime loops($u1, $Vl, $Vr, $wg, $nd)
 Ub = zeros(nd)
-@btime low_level(u1, Vl, Vr, wg, nd, Ub)
+@btime low_level($u1, $Vl, $Vr, $wg, $nd, $Ub)
 
 # nd = 2
 # loops - 32.998 ns (1 allocation: 48 bytes)

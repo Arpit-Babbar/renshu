@@ -136,7 +136,7 @@ def solve(xmin,xmax,N,cfl,Tf,bc):
   uold = np.empty_like(u)
   fig = plt.figure()
   ax = fig.add_subplot(111)
-  line1, = ax.plot(x, u, 'ro')
+  line1, = ax.plot(x, u, 'ro', markersize=3)
   if bc == 'dirichlet' or bc == 'periodic_exact':
     line2, = ax.plot(x, u, 'b')
   ax.set_xlabel('x'); ax.set_ylabel('u')
@@ -158,10 +158,11 @@ def solve(xmin,xmax,N,cfl,Tf,bc):
       u = uold + lam*res
       t += dt; it += 1
       plt.title('N='+str(N)+', CFL='+str(cfl)+', Scheme= Godunov, '+'t='+str(round(t,3)))
-      line1.set_ydata(u)
-      if bc == 'dirichlet' or bc == 'periodic_exact':
-        line2.set_ydata(exact)
-      plt.draw(); plt.pause(0.1/N)
+      if it%args.plot_freq == 0 or np.abs(Tf-t) < 1.0e-13:
+        line1.set_ydata(u)
+        if bc == 'dirichlet' or bc == 'periodic_exact':
+          line2.set_ydata(exact)
+        plt.draw(); plt.pause(0.1/N)
   print('The Linfty error is ',np.max(exact-u))
   print('The L1 error is ',      dx*np.linalg.norm((exact-u),1))
   print('The L2 error is ',sqrt(dx)*np.linalg.norm((exact-u),2))
@@ -177,6 +178,7 @@ parser.add_argument('-ic', type=str, help = 'Initial condition. Choices are  \
 parser.add_argument('-bc',type = str,help = 'Choices are periodic,dirichlet. \
                     periodic_exact does periodic and plots Dirichlet exact soln', \
                                             default = 'periodic')
+parser.add_argument('-plot_freq', type=int, help = 'Plot Frequency')
 args = parser.parse_args()
 
 if args.ic=='step':
