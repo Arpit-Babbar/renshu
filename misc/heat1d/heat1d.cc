@@ -136,7 +136,7 @@ void Heat1d::make_grid()
 void Heat1d::set_initial_data()
 {
     for (int i = 0; i < n_points; i++)
-        initial_data[i] = sin(2 * M_PI * grid[i] / (x_max - x_min));
+        initial_data[i] = sin(M_PI * grid[i] / (x_max - x_min));
 }
 
 //This computes the rhs of the system of ODEs on which we apply rk4.
@@ -287,7 +287,7 @@ void Heat1d::evaluate_error_and_output_solution(int time_step_number)
     {
         for (int j = 0; j < n_points; j++)
         {
-            solution_exact[j] = exp(-4 * coefficient * M_PI * M_PI * dt * time_step_number) * sin(2 * M_PI * grid[j]);
+            solution_exact[j] = exp(-coefficient * M_PI * M_PI * dt * time_step_number) * sin(M_PI * grid[j]);
         }
     }
     for (int j = 0; j < n_points; j++)
@@ -352,7 +352,7 @@ void run_and_get_output(double n_points, double cfl, string method, double runni
         linfty_vector.push_back(solver.get_linfty_error());
         l2_vector.push_back(solver.get_l2_error());
         error_vs_h << 1 / n_points << " " << linfty_vector[iteration_number] << "\n";
-        n_points = 2.0 * n_points;
+        n_points = 2.0 * n_points ;
         solver = Heat1d(n_points, cfl, method, running_time, initial_data_indicator);
         if (iteration_number > 1)
         {
