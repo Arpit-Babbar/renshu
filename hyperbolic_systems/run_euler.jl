@@ -8,7 +8,7 @@ using EqEuler
 using LinearAlgebra
 using DelimitedFiles
 using Plots
-plotly(size = (750, 565)) # use plotly for interactivity
+gr(size = (750, 565)) # use plotly for interactivity
 
 grid_size = 100 # number of cells
 
@@ -36,7 +36,7 @@ boundary_value(x) = 0.0 # Dummy
 boundary_condition = "Dirichlet"
 # initial_value(x) = [sin(2.0*pi*x),sin(2.0*pi*x),sin(2.0*pi*x)]
 
-save_time_interval = final_time
+save_time_interval = 0.1*final_time
 skip_plotting      = false
 
 cfl = 0.0
@@ -60,7 +60,8 @@ println("")
 #------------------------------------------------------------------------------
 println("Solving exactly for final time")
 p_l_s, p_r_s = array2string(primitive_l), array2string(primitive_r)
-run(`python3 ./ToroExact/toro_exact.py -p user -l $p_l_s -r $p_r_s -x $disc_x -t $final_time`)
+# run(`python3 ./ToroExact/toro_exact.py -p user -l $p_l_s -r $p_r_s -x $disc_x -t $final_time`)
+print("python3 ./ToroExact/toro_exact.py -p user -l $p_l_s -r $p_r_s -x $disc_x -t $final_time")
 
 #------------------------------------------------------------------------------
 # FVM Solver
@@ -82,4 +83,5 @@ if plt_data !== nothing
    plot(p, legend=true) # final solution
 end
 # TODO - compare with characteristic pictures in Ch 3
+
 

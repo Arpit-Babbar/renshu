@@ -21,10 +21,52 @@ public:
    int sizex() const;
    int sizey() const;
    int sizez() const;
-   double  operator()(const int i, const int j, const int k) const; // read value
-   double& operator()(const int i, const int j, const int k); // read/write value
-   Array3D& operator= (const double scalar); // set array to constant
-   Array3D& operator= (const Array3D& u);    // set array to another array
+   // Return value at (i,j), this is read only
+  double operator() (const int i, const int j, const int k) const
+  {
+  #if defined(DEBUG)
+    if(i < 0 || i > nx-1 || j < 0 || j > ny-1 || k < 0 || k > nz - 1)
+    {
+        cout << "Indices out of range" << endl;
+        cout << "i, j = " << i << ", " << j << endl;
+        exit(0);
+    }
+  #endif
+    return u[i*ny*nz + j*nz + k]; // TODO - Reorder so that k is the fastest index
+  }
+   // Return reference to (i,j), this can modify the value
+  double& operator() (const int i, const int j, const int k)
+  {
+  #if defined(DEBUG)
+    if(i < 0 || i > nx-1 || j < 0 || j > ny-1 || k < 0 || k > nz-1)
+    {
+        cout << "Indices out of range" << endl;
+        cout << "i, j = " << i << ", " << j << endl;
+        exit(0);
+    }
+  #endif
+    return u[i*ny*nz + j*nz + k];
+  }
+   // Set all elements to scalar value
+  Array3D& operator= (const double scalar)
+  {
+    for (int i=0; i<n; ++i)
+        u[i] = scalar;
+    return *this;
+  }
+   // Copy array a into this one
+  Array3D& operator= (const Array3D& a)
+  {
+  #if defined(DEBUG)
+    if(nx != a.sizex() || ny != a.sizey())
+    {
+        cout << "Array sizes do not match" << endl;
+        exit(0);
+    }
+  #endif
+    u = a.u;
+    return *this;
+  }
     friend std::ostream& operator<< (std::ostream&  os,
                                      const Array3D& A)
     {

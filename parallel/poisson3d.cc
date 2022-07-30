@@ -179,7 +179,7 @@ int main(int argc, char** argv)
   double maxdelta=0.0; // Diff b/w 2 jacobi iterates to measure convergence
 
   int tag = 0;         // Unused
-  int itermax = 10000;
+  int itermax = 1000;
   double eps = 1e-10;  // Tolerance
   int source, dest;    // Neighbouring processes with which we'd trade.
   int iter = 0;

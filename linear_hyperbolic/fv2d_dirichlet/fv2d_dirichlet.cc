@@ -15,7 +15,7 @@
 #include "../../include/vtk_anim.h"
 using namespace std;
 
-//Returns true if real number is integer, false otherwise.                     
+//Returns true if real number is integer, false otherwise.
 bool int_tester(double a)
 {
   double c = modf(a,&a);
@@ -66,10 +66,10 @@ public:
     Linear_Convection_2d(int N_x, int N_y,
                          double cfl,
                          string method, const double final_time,
-                         int initial_data_indicator); 
+                         int initial_data_indicator);
 
     void run(bool output_indicator);
-    void get_error(vector<double> &l1_vector, vector<double> &l2_vector, 
+    void get_error(vector<double> &l1_vector, vector<double> &l2_vector,
                    vector<double> &linfty_vector);
 private:
     void make_grid();
@@ -87,7 +87,7 @@ private:
     void evaluate_error_and_output_solution(const int time_step_number,
                                             bool output_indicator);
     vector<double> grid_x,grid_y;
-    
+
     double vel[2]; //advection velocity vector
     double theta, xmin, xmax, ymin, ymax;
 
@@ -107,12 +107,12 @@ private:
     string method;
 };
 
-Linear_Convection_2d::Linear_Convection_2d(int N_x, int N_y, 
+Linear_Convection_2d::Linear_Convection_2d(int N_x, int N_y,
                                            double cfl,
                                            string method,
-                                           double final_time, 
+                                           double final_time,
                                            int initial_data_indicator):
-                                           N_x(N_x), N_y(N_y), 
+                                           N_x(N_x), N_y(N_y),
                                            final_time(final_time),
                                            cfl(cfl),
                                            method(method)
@@ -153,7 +153,7 @@ void Linear_Convection_2d::compute_time_step()
     c = 1.0;
   else if (method == "lw")
     c = 0.72;
-  else 
+  else
   {
     c = 0.;
     cout << "Incorrect method"<<endl;
@@ -188,7 +188,7 @@ void Linear_Convection_2d::set_initial_solution()
 
 //Computes flux at at the face with centre
 // (x_{i+0.5*nx},y_{j+0.5*ny}). In this code, we'd just have
-//(nx,ny) = (1,0) or (0,1), so the centres will just be 
+//(nx,ny) = (1,0) or (0,1), so the centres will just be
 //(x_{i+1/2,j},y_j) or (x_i,y_{j+1/2})
 
 //This function does the actual job of computing the flux.
@@ -205,7 +205,7 @@ void Linear_Convection_2d::lw(int i, int j, int nx, int ny,
 
   //(uQ)_{i+0.5,j}=u_{i+0.5,j}(Q_{i,j}+Q_{i+1,j})/2
   flux  =  0.5*vn*(solution(i,j) + solution(i+nx,j+ny));
-  //(uQ_t)_{i+0.5,j} = 
+  //(uQ_t)_{i+0.5,j} =
   //u_{i+0.5,j}[-u_{i+0.5,j}*(Q_{i+1,j}-Q_{i,j})/dx
   //-v_{i+0.5,j}*((Q_{i,j+1}-Q_{i,j-1})+(Q_{i+1,j+1}-Q_{i+1,j+1}-Q_{i+1,j-1}))
   flux += -0.5*vn*vn*hn*(solution(i+nx,j+ny)- solution(i,j));
@@ -241,7 +241,7 @@ void Linear_Convection_2d::lw_y(int i, double &flux)
     qt += -vel[0]*(solution(1,N_y-1)-solution(0,N_y-1))/dx;//(f(x+h)-f(x))/h
   else if (i==N_x-1)
     qt += -vel[0]*(solution(N_x-1,N_y-1)-solution(N_x-2,N_y-1))/dx;//(f(x)-f(x-h))/h
-  else 
+  else
     qt += -vel[0]*(solution(i+1,N_y-1)-solution(i-1,N_y-1))/(2*dx);
   flux = vel[1]*(q+0.5*dt*qt);
 }
@@ -282,10 +282,10 @@ void Linear_Convection_2d::apply_fvm()
 
   //flux in x direction computed and used to update solution
   //Basically, flux_x(i+1/2,j)
-  //Faces are indexed with (-1/2,1/2,...,N_x-1/2). 
+  //Faces are indexed with (-1/2,1/2,...,N_x-1/2).
   //Thus, interior faces are (0+1/2,...,N_x-2+1/2)
   //So, we loop over i = 0 ,..,N_x-2
-  //To loop over all vertical faces in one line, we choose 
+  //To loop over all vertical faces in one line, we choose
   // y_j = y_0 + j*dy for j = 0,...,N_y-1
 
   //Thus, we get this loop
@@ -320,14 +320,14 @@ void Linear_Convection_2d::apply_fvm()
       residual(i,j+1)   +=  flux*dx;
     }
 
-  //Now, we do the exterior faces which will have 
+  //Now, we do the exterior faces which will have
   //x = xmax,xmin or y = ymax, ymin
 
-  //Note that we are always computing flux in direction that is going out of 
-  //the cell. In our definition of residual dy/dt = res(Q), note that 
+  //Note that we are always computing flux in direction that is going out of
+  //the cell. In our definition of residual dy/dt = res(Q), note that
   //we always subtracted the flux going out. So, we shall do the same this
   //time.
-  
+
   //To use flux = max(v_n,0.)*Q_int + min(v_n, 0.)*qb
   double Q_int,Q_b;
 
@@ -367,9 +367,9 @@ void Linear_Convection_2d::apply_fvm()
     (*update_flux)(0,1,vel,Q_int,Q_b,flux);
     residual(i,N_y-1) += -flux*dx;
   }
-  
+
   //y = ymin. This is the first horizontal face
-  
+
   for (int i = 0;i<N_x;i++)
   {
     x = (xmin+0.5*dx)+i*dx,y=ymin;
@@ -378,8 +378,8 @@ void Linear_Convection_2d::apply_fvm()
     (*update_flux)(0,-1,vel,Q_int,Q_b,flux);
     residual(i,0) +=  -flux*dx;
   }
-  
-  
+
+
   for (int i = 0; i<N_x; i++)
     for (int j = 0; j<N_y; j++)
     {
@@ -430,16 +430,16 @@ void Linear_Convection_2d::apply_lw()
       residual(i,j)     += -flux*dx;
       residual(i,j+1)   +=  flux*dx;
     }
-  
-  
-  //Now, we do the exterior faces which will have 
+
+
+  //Now, we do the exterior faces which will have
   //x = xmax,xmin or y = ymax, ymin
 
-  //Note that we are always computing flux in direction that is going out of 
-  //the cell. In our definition of residual dy/dt = res(Q), note that 
+  //Note that we are always computing flux in direction that is going out of
+  //the cell. In our definition of residual dy/dt = res(Q), note that
   //we always subtracted the flux going out. So, we shall do the same this
   //time.
-  
+
   int nx,ny;
   double vn;//Normal velocity
 
@@ -503,7 +503,7 @@ void Linear_Convection_2d::apply_lw()
     lw_y(i,flux);
     residual(i,N_y-1) += -flux*dx;
   }
-    
+
   for (int i = 0; i<N_x; i++)
     for (int j = 0; j<N_y; j++)
     {
@@ -549,7 +549,7 @@ void Linear_Convection_2d::run(bool output_indicator)
   {
     solution_old = solution;//update solution_old for next time_step
     //At t = 2*pi, exact_soln(x,y,t)=initial_solution(x,y). So, at
-    //this t, we would like to compute error as 
+    //this t, we would like to compute error as
     //error(x_i,y_j) = |initial_solution(x_i,y_j)-solution(x_i,y_j)|
     //For that, when t+dt is just about to overstep 2*pi, we would change
     //our dt. Note that it is important to change dt BEFORE applying the
@@ -590,7 +590,7 @@ void run_and_output(int N_x, int N_y, double cfl,
     Linear_Convection_2d solver(N_x, N_y, cfl, method, final_time,
                                 initial_data_indicator);
     //We calculate time takenṣ in our refinement.
-    struct timeval begin, end; 
+    struct timeval begin, end;
     gettimeofday(&begin, 0);
     solver.run(refinement_level==n_refinements);//Output only last soln
     gettimeofday(&end, 0);
@@ -606,18 +606,18 @@ void run_and_output(int N_x, int N_y, double cfl,
     {
       cout << "L2 convergence rate at refinement level ";
       cout << refinement_level<< " is " ;
-      cout << abs(log(l2_vector[refinement_level] 
+      cout << abs(log(l2_vector[refinement_level]
                         / l2_vector[refinement_level - 1])) / log(2.0);
       cout << endl;
 
       cout << "L1 convergence rate at refinement level ";
       cout << refinement_level << " is " ;
-      cout << abs(log(l1_vector[refinement_level] 
+      cout << abs(log(l1_vector[refinement_level]
                         / l1_vector[refinement_level - 1])) / log(2.0);
       cout << endl;
       cout << "Linfty convergence rate at refinement level ";
       cout << refinement_level << " is ";
-      cout << abs(log(linfty_vector[refinement_level] 
+      cout << abs(log(linfty_vector[refinement_level]
                         / linfty_vector[refinement_level - 1])) / log(2.0);
       cout << endl;
     }
@@ -633,7 +633,7 @@ void Linear_Convection_2d::get_error(vector<double> &l1_vector,
                                      vector<double> &l2_vector,
                                      vector<double> &linfty_vector)
 {
-    //Check if initial_state=final_state. If it is, we will discard the 
+    //Check if initial_state=final_state. If it is, we will discard the
     //error from exact solution, and compute error using initial_data
     if (int_tester(final_time/(2.0*M_PI)) == true &&
         int_tester(final_time/(2.0*M_PI)) == true)
@@ -647,7 +647,7 @@ void Linear_Convection_2d::get_error(vector<double> &l1_vector,
     }
     double l1,l2,linfty;
     //Outputting error.
-    for (int j = 0; j < N_y; j++) 
+    for (int j = 0; j < N_y; j++)
       for (int i = 0; i < N_x; i++)
       {
         l1 += error(i,j)  * dx * dy;                 // L1 error
@@ -694,11 +694,11 @@ int main(int argc, char **argv)
     }
     string method = argv[1];
     cout << "method = " << method << endl;
-    int N_x = 100, N_y = 100;
+    int N_x = 10, N_y = 10;
     double sigma_x = stod(argv[2]);
     cout << "sigma_x = " << sigma_x << endl;
     double final_time;
-    if (strcmp(argv[3],"2pi")==0) 
+    if (strcmp(argv[3],"2pi")==0)
       final_time = 2.0*M_PI;
     else
       final_time = stod(argv[3]);

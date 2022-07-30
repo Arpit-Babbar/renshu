@@ -15,7 +15,7 @@ class Array2D
 public:
    Array2D(); //Empty constructor declared
    Array2D(const int nx, const int ny,
-           const int ng = 0/*Default value*/); 
+           const int ng = 0/*Default value*/);
    void resize (const int nx, const int ny);
    void resize (const int nx, const int ny, const int ng);
    int a,b; //a,b are chosen such that
@@ -39,7 +39,7 @@ public:
    //https://stackoverflow.com/questions/5508857/how-does-cout-actually-work
    //https://www.learncpp.com/cpp-tutorial/introduction-to-iostream-cout-cin-and-endl/
     friend std::ostream& operator<< (std::ostream&  os,
-                                     const Array2D& A) 
+                                     const Array2D& A)
     {
       for(int i=0; i<A.sizex(); ++i)
       {
@@ -50,7 +50,7 @@ public:
       return os;
     }
     void print_all(bool label = false);
-   
+
 private:
   //We put ghost layers, which are extra columns/rows in our array
   //ng gives the number of ghost layers to be put on sides. If we put ng = 1,

@@ -5,6 +5,7 @@ using LinearAlgebra
 using OffsetArrays
 using TickTock
 using Plots
+using UnPack
 plotly(size = (750, 565)) # use gr as the plot backend, for its high performance
 #-------------------------------------------------------------------------------
 # Create a dictionary of problem description
@@ -94,6 +95,8 @@ function compute_lam_dt(equation, scheme, param, grid, Ua)
    eq      = equation["eq"]
    numflux = scheme["numflux_ind"]
    Ccfl    = param["Ccfl"]            # safety CFL
+
+
    nx, dx = grid.nx, grid.dx
    xc     = grid.xc
    lam = 0.0
