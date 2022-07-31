@@ -68,9 +68,6 @@ function initialize_plot(grid, problem, equation, scheme, U)
    xc = grid.xc
    nx = grid.nx
    nvar = problem["nvar"]
-   numflux = scheme["numflux_ind"]      # numflux as string
-   numflux = replace(numflux, "_"=>" ") # Remove underscore
-   numflux = titlecase(numflux)         # Capitalize
    # Adding title as a subplot in itself
    p_title = plot(title = "$numflux flux, $nx points, time = 0", grid = false,
                           showaxis = false, bottom_margin = 0Plots.px)
@@ -103,13 +100,10 @@ function update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data
    xc = grid.xc
    nx = grid.nx
    nvar = problem["nvar"]
-   numflux = scheme["numflux_ind"]      # numflux as string
-   numflux = replace(numflux, "_"=>" ") # Remove underscore
-   numflux = titlecase(numflux)         # Capitalize
    Ue = zeros(nvar, nx)# Need to move it elsewhere to avoid
                 # computing it every time
    compute_exact_soln!(grid, equation, problem, t, Ue)
-   title!(p[1], "$numflux flux, $nx points, time = $time")
+   title!(p[1], "$nx points, time = $time")
    for i=1:nvar
       y_lims = (min(minimum(Ue[i,:]),minimum(U[i,:]))-0.1,
                 max(maximum(Ue[i,:]),maximum(U[i,:]))+0.1)

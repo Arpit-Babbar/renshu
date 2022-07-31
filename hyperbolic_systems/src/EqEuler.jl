@@ -4,6 +4,8 @@ using LinearAlgebra
 using Plots
 using DelimitedFiles
 using LaTeXStrings
+using UnPack
+using CUDA
 
 # For efficiency, euler should also contain γm1,γm3,3γm1_2. That just might a
 # kill of readability though. Also, we don't know whether accessing that
@@ -14,13 +16,15 @@ end
 
 # Would have liked to solver
 
+id_(x) = x
+
 # pure function
-function flux(x, U, eq::Euler)
+function flux(x, U, γ)
    ρ = U[1]        # density
    u = U[2] / U[1] # velocity
    E = U[3]        # energy
-   p = (eq.γ - 1.0) * (E - 0.5 * ρ * u^2) # pressure
-   F = [U[2], p + ρ * u^2, (E+p) * u] # flux
+   p = (γ - 1.0) * (E - 0.5 * ρ * u^2) # pressure
+   F = (U[2], p + ρ * u^2, (E+p) * u) # flux
    return F
 end
 # TODO - Find the best version by counting the number of operations!!
@@ -43,7 +47,10 @@ end
 
 # function converting primitive variables to PDE variables
 function primitive2pde(prim, γ) # primitive, viscosity
-   U = [prim[1], prim[1]*prim[2], prim[3]/(γ-1.0) + prim[1]*prim[2]^2/2.0]
+
+   U = SVector{3,Float64}(prim[1],
+                  prim[1]*prim[2],
+                  prim[3]/(γ-1.0) + prim[1]*prim[2]^2/2.0)
       # ρ    ,     ρ*u     ,        p/(γ-1.0) +     ρ*u^2/2.0
    return U
 end
@@ -59,14 +66,14 @@ end
 # Numerical Fluxes
 #-------------------------------------------------------------------------------
 function lax_friedrich!(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
-   eq = equation["eq"]
+   @unpack eq = equation
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
    Uf  .= 0.5*(Fl+Fr) - 0.5 * lam * (Ur - Ul)
    return nothing
 end
 
 function rusanov!(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
-   eq = equation["eq"]
+   @unpack eq = equation
    γ  = eq.γ
    ρl, ul, pl = pde2primitive(Ul, γ)
    ρr, ur, pr = pde2primitive(Ur, γ)
@@ -78,7 +85,7 @@ function rusanov!(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
 end
 
 function steger_warming!(equation, lam, Ul, Ur, x, Uf)
-   eq = equation["eq"]
+   @unpack eq = equation
    γ  = eq.γ
    δ  = 0.0
    # Ul on Fp
@@ -109,7 +116,7 @@ function steger_warming!(equation, lam, Ul, Ur, x, Uf)
 end
 
 function roe!(equation, lam, Ul, Ur, x, Uf)
-   eq = equation["eq"]
+   @unpack eq = equation
    γ  = eq.γ
    ϵ  = 0.2
    ρl, ul, El = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
@@ -141,7 +148,7 @@ function roe!(equation, lam, Ul, Ur, x, Uf)
 end
 
 function vanleer!(equation, lam, Ul, Ur, x, Uf)
-   eq = equation["eq"]
+   @unpack eq = equation
    γ  = eq.γ
    # Ul on Fp
    ρ, u, E = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
@@ -180,9 +187,7 @@ function vanleer!(equation, lam, Ul, Ur, x, Uf)
    return nothing
 end
 
-function hll!(equation, lam, Ul, Ur, x, Uf)
-   eq = equation["eq"]
-   γ = eq.γ
+function hll!(γ, lam, Ul, Ur, x, Uf)
    # TODO - Replace with pde2primitive
    ρl, ul, El = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
    pl = (γ - 1.0) * (El - 0.5*ρl*ul^2)        # pressure
@@ -196,21 +201,33 @@ function hll!(equation, lam, Ul, Ur, x, Uf)
    H = (⎷ρl*Hl + ⎷ρr*Hr) / (⎷ρl + ⎷ρr)      # roe avg enthalpy
    c = sqrt((γ-1.0) * (H - 0.5*u^2))         # sound speed
    Sl, Sr = min(ul-cl,u-c), max(ur+cr,u+c)
-   Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
+   Fl, Fr = flux(x, Ul, γ), flux(x, Ur, γ)
    dU = Ur - Ul
    dS = Sr - Sl
    if Sl > 0
-      Uf .= Fl
+      # for n in 1:3
+      #    Uf_[n] = Fl[n]
+      # end
+      Uf_ = Fl
    elseif Sr < 0
-      Uf .= Fr
+      # for n in 1:3
+      #    Uf[n] = Fr[n]
+      # end
+      Uf_ = Fr
    else
-      Uf .= (Sr*Fl-Sl*Fr + Sl*Sr*dU)/dS
+      # Uf .= (Sr*Fl-Sl*Fr + Sl*Sr*dU)/dS
+      # for n in 1:3
+      #    Uf[n] = (Sr*Fl[n]-Sl*Fr[n] + Sl*Sr*dU[n])/dS
+      # end
+      Uf_ = ((Sr*Fl[1]-Sl*Fr[1] + Sl*Sr*dU[1])/dS,
+             (Sr*Fl[2]-Sl*Fr[2] + Sl*Sr*dU[2])/dS,
+             (Sr*Fl[3]-Sl*Fr[3] + Sl*Sr*dU[3])/dS)
    end
-   return nothing
+   return Uf_
 end
 
 function hllc!(equation, lam, Ul, Ur, x, Uf)
-   eq = equation["eq"]
+   @unpack eq = equation
    γ = eq.γ
    # TODO - Replace with pde2primitive
    # Choice of Sl, Sr from Einfeldt et al.
@@ -277,17 +294,14 @@ function initialize_plot(grid, problem, equation, scheme, U)
    anim = Animation()
    xc = grid.xc
    nx = grid.nx
-   eq = equation["eq"]
-   nvar = problem["nvar"]
-   numflux = scheme["numflux_ind"]      # numflux as string
-   numflux = replace(numflux, "_"=>" ") # Remove underscore
-   numflux = titlecase(numflux)         # Capitalize
+   @unpack eq = equation
+   @unpack nvar = problem
    Up = copy(U)
    for j=1:nx
       @views Up[:, j] = pde2primitive(U[:,j],eq.γ)
    end
    # Adding title as a subplot in itself
-   p_title = plot(title = "$numflux flux, $nx points, time = 0",
+   p_title = plot(title = "$nx points, time = 0",
                           grid = false,
                           showaxis = false, bottom_margin = 0Plots.px)
    ymin, ymax = minimum(Up[1,1:nx]), maximum(Up[1,1:nx])
@@ -319,8 +333,8 @@ end
 
 function update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data)
    p, anim = plt_data
-   save_time_interval = param["save_time_interval"]
-   final_time=problem["final_time"]
+   @unpack save_time_interval = param
+   @unpack final_time = problem
    if save_time_interval > 0.0
       k1, k2 = ceil(t/save_time_interval), floor(t/save_time_interval)
       if !(abs(t-k1*save_time_interval) < 1e-10 ||
@@ -331,17 +345,14 @@ function update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data
    end
    xc = grid.xc
    nx = grid.nx
-   eq = equation["eq"]
-   nvar = problem["nvar"]
-   numflux = scheme["numflux_ind"]      # numflux as string
-   numflux = replace(numflux, "_"=>" ") # Remove underscore
-   numflux = titlecase(numflux)         # Capitalize
+   @unpack eq = equation
+   @unpack nvar = problem
    Up = copy(U)
    for j=1:nx
       @views Up[:, j] = pde2primitive(U[:,j],eq.γ)
    end
    time = round(t, digits=3)
-   title!(p[1], "$numflux flux, $nx points, time = $time")
+   title!(p[1], "$nx points, time = $time")
    for i=1:nvar
       y_lims = (minimum(Up[i,:])-0.1, maximum(Up[i,:])+0.1)
       ylims!(p[i+1],y_lims) # Bad solution
@@ -360,6 +371,8 @@ function final_plot(plt_data)
    plot!(p[2],x,dens_exact, label = nothing, color = :blue, legend=false)
    plot!(p[4],x,pres_exact, label = nothing, color = :blue, legend=false)
    plot!(p[3],x,velx_exact, label = "Exact", color = :blue, legend=true)
+   savefig("sol.png")
+   return p
 end
 
 empty_func(x...)=nothing
@@ -376,11 +389,13 @@ function get_plot_funcs(skip_plotting)
    end
 end
 
-get_equation(γ) = Dict( "eq"              => Euler(γ),
-                        "flux"            => flux,
-                        "fprime"          => fprime,
-                        "numfluxes"       => numfluxes,
-                        "name"            => "1D Euler equations")
+# get_equation(γ) = Dict( "eq"              => Euler(γ),
+#                         "flux"            => flux,
+#                         "fprime"          => fprime,
+#                         "numfluxes"       => numfluxes,
+#                         "name"            => "1D Euler equations")
+get_equation(γ) = (; eq = Euler(γ), flux, fprime, numfluxes,
+                     name = "1D Euler equations")
 
 export roe!
 export lax_friedrich!
@@ -395,3 +410,5 @@ export pde2primitive
 
 
 end
+
+# idx = (CUDA.blockIdx().x - 1) * CUDA.blockDim().x + CUDA.threadIdx().x
