@@ -49,16 +49,14 @@ end
 # function converting primitive variables to PDE variables
 function primitive2pde(prim, γ) # primitive, viscosity
 
-   U = SVector{3,Float64}(prim[1],
-                  prim[1]*prim[2],
-                  prim[3]/(γ-1.0) + prim[1]*prim[2]^2/2.0)
+   U = SVector(prim[1], prim[1]*prim[2], prim[3]/(γ-1.0) + prim[1]*prim[2]^2/2.0)
       # ρ    ,     ρ*u     ,        p/(γ-1.0) +     ρ*u^2/2.0
    return U
 end
 
 # function converting pde variables to primitive variables
 function pde2primitive(U, γ)
-   primitives = [U[1], U[2]/U[1], (γ-1.0)*(U[3]-U[2]^2/(2.0*U[1]))]
+   primitives = SVector(U[1], U[2]/U[1], (γ-1.0)*(U[3]-U[2]^2/(2.0*U[1])))
    #            [ρ ,   u        , p]
    return primitives
 end
