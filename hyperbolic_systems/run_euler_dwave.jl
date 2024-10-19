@@ -6,12 +6,13 @@ using FV1D.FV
 using FV1D.Grid
 using FV1D.EqEuler
 using LinearAlgebra
+using StaticArrays
 using DelimitedFiles
 using Plots
 using UnPack
 gr(size = (750, 565)) # use plotly for interactivity
 
-grid_size = 50 # number of cells
+grid_size = 400 # number of cells
 
 # To not have to worry about periodicity, we can temporarily
 # specify the boundary points to be the Dirichlet values.
@@ -20,11 +21,11 @@ grid_size = 50 # number of cells
 
 xmin, xmax   = 0.0, 1.0 # domain
 nvar         = 3        # number of variables
-final_time   = 0.2
+final_time   = 1.0
 γ            = 1.4      # gas constant
 disc_x = 0.3            # location of initial discontinuity
 
-numflux = "hll"
+numflux = "rusanov"
 
 id(x) = x
 
@@ -50,6 +51,7 @@ function prim2con!(u, v, γ)
 end
 
 function initial_value_general!(U, x, disc_x)
+
    γ            = 1.4      # gas constant
    if x <= disc_x
       prim2con!(U, (1.0, 0.75, 1.0), γ)
@@ -60,21 +62,26 @@ function initial_value_general!(U, x, disc_x)
 end
 
 function initial_value!(U, x)
-   disc_x = 0.3
-   γ            = 1.4      # gas constant
-   if x <= disc_x
-      prim2con!(U, (1.0, 0.75, 1.0), γ)
-   else
-      prim2con!(U, (0.125, 0.0, 0.1), γ)
-   end
+   γ = 1.4
+   rho = 1.0 + 0.5 * sinpi(2.0 * x)
+   vel = 1.0
+   p = 1.0
+   U .= rho, rho * vel, p / (γ - 1.0) + 0.5 * rho * vel^2
    return nothing
 end
 
 # TODO - This gives dynamic invocation error.
 # initial_value!(U, x) = initial_value_general!(U, x, disc_x)
 
-boundary_value(x, t) = 0.0 # Dummy
-boundary_condition = "Dirichlet"
+function boundary_value(x, t)
+   γ = 1.4
+   rho = 1.0 + 0.5 * sinpi(2.0 * (x - t))
+   vel = 1.0
+   p = 1.0
+   return SVector(rho, rho * vel, p / (γ - 1.0) + 0.5 * rho * vel^2)
+   return nothing
+end
+boundary_condition = "Periodic"
 # initial_value(x) = [sin(2.0*pi*x),sin(2.0*pi*x),sin(2.0*pi*x)]
 
 save_time_interval = 0.1*final_time
@@ -115,8 +122,11 @@ param = Parameters(grid_size, cfl, Ccfl, save_time_interval)
 scheme = Scheme(equation, numflux)
 @time sol = solve(equation, problem, scheme, param, promoter, plotters)
 
+@show sol.l2
+@show sol.l1
+@show sol.linf
+
 @unpack p, anim = sol
 savefig(p, "final_soln.png")
-gif(anim, "soln.gif", fps = 1) # would have been better in the solve function
+gif(anim, "soln.mp4", fps = 1) # would have been better in the solve function
                      # here because of VS Code
-

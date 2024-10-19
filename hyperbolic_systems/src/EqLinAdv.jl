@@ -4,7 +4,6 @@ using LinearAlgebra
 # using PyPlot
 using Plots
 using LaTeXStrings
-plotly()
 struct LinAdv
    fprime::Function # CHANGE - fprime shouldn't be a function, but a matrix.
 end
@@ -27,7 +26,7 @@ function upwind(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
    #                               # appearing hard to extend to high dimensions because Ul, Ur
    #                               # are now vectors and can't be put in denominators.
    #                               # for linear advection, it is working because fprime is a constant matrix.
-   eigen_decomp = equation["eigen_decomp"]
+   eigen_decomp = equation.eigen_decomp
    evalues, evecs = eigen_decomp.values, eigen_decomp.vectors
    lp, lm     = max.(evalues, 0.0), min.(evalues, 0.0)
    lamp, lamm = diagm(lp), diagm(lm)
@@ -40,9 +39,9 @@ end
 function compute_exact_soln!(grid, equation, problem, t, Ue)
    nx = grid.nx
    xc = grid.xc
-   initial_value = problem["initial_value"]
-   eigen_decomp = equation["eigen_decomp"]
-   nvar = problem["nvar"]
+   initial_value = problem.initial_value
+   eigen_decomp = equation.eigen_decomp
+   nvar = problem.nvar
    Lam, eigen_vecs = eigen_decomp.values, eigen_decomp.vectors
    for j=1:nx
       for i=1:nvar
@@ -67,9 +66,9 @@ function initialize_plot(grid, problem, equation, scheme, U)
    anim = Animation()
    xc = grid.xc
    nx = grid.nx
-   nvar = problem["nvar"]
+   nvar = problem.nvar
    # Adding title as a subplot in itself
-   p_title = plot(title = "$numflux flux, $nx points, time = 0", grid = false,
+   p_title = plot(title = "$nx points, time = 0", grid = false,
                           showaxis = false, bottom_margin = 0Plots.px)
    p = [p_title]
    for i=1:nvar
@@ -87,7 +86,7 @@ end
 
 function update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data)
    p, anim = plt_data
-   save_time_interval = param["save_time_interval"]
+   save_time_interval = param.save_time_interval
    if save_time_interval > 0.0
       k1, k2 = ceil(t/save_time_interval), floor(t/save_time_interval)
       if (abs(t-k1*save_time_interval) < 1e-10 ||
@@ -99,7 +98,7 @@ function update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data
    end
    xc = grid.xc
    nx = grid.nx
-   nvar = problem["nvar"]
+   nvar = problem.nvar
    Ue = zeros(nvar, nx)# Need to move it elsewhere to avoid
                 # computing it every time
    compute_exact_soln!(grid, equation, problem, t, Ue)
@@ -116,7 +115,7 @@ end
 
 empty_func(x...)=nothing
 
-final_plot = empty_func # no use of a final_plot func here
+final_plot(plt_data, equation::LinAdv) = empty_func # no use of a final_plot func here
 
 function get_plot_funcs(skip_plotting)
    if skip_plotting == true
@@ -130,16 +129,16 @@ function get_plot_funcs(skip_plotting)
    end
 end
 
-get_equation(fprime) = Dict("eq"                  => LinAdv(fprime),
-                            "flux"                => flux,
-                            "fprime"              => fprime,
-                            "eigen_decomp"        => eigen(fprime(0.0,0.0,0.0)), # dummy inputs
+get_equation(fprime) = (;eq = LinAdv(fprime),
+                         flux = flux,
+                         fprime = fprime,
+                         eigen_decomp = eigen(fprime(0.0,0.0,0.0)), # dummy inputs
                             # Since we are solving constant variables advection, it is best to compute
                             # eigen_decomp only once. The moment we go to variables advection, this would Need
                             # to be removed
-                            "compute_exact_soln!" => compute_exact_soln!,
-                            "numfluxes"           => numfluxes,
-                            "name"                => "Linear advection equation")
+                          compute_exact_soln! = compute_exact_soln!,
+                          numfluxes           = numfluxes,
+                          name                = "Linear advection equation")
 
 export LinAdv # To define fprime in run file
 export lax_friedrich

@@ -2,7 +2,6 @@ module Grid
 
 using Printf
 using UnPack
-using CUDA
 
 struct CartesianGrid
    domain::Tuple{Float64,Float64}  # xmin, xmax

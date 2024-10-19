@@ -3,9 +3,9 @@ module EqEuler
 using LinearAlgebra
 using Plots
 using DelimitedFiles
+using StaticArrays
 using LaTeXStrings
 using UnPack
-using CUDA
 
 # For efficiency, euler should also contain γm1,γm3,3γm1_2. That just might a
 # kill of readability though. Also, we don't know whether accessing that
@@ -19,12 +19,13 @@ end
 id_(x) = x
 
 # pure function
-function flux(x, U, γ)
+function flux(x, U, eq::Euler)
+   γ = eq.γ
    ρ = U[1]        # density
    u = U[2] / U[1] # velocity
    E = U[3]        # energy
    p = (γ - 1.0) * (E - 0.5 * ρ * u^2) # pressure
-   F = (U[2], p + ρ * u^2, (E+p) * u) # flux
+   F = SVector(U[2], p + ρ * u^2, (E+p) * u) # flux
    return F
 end
 # TODO - Find the best version by counting the number of operations!!
@@ -65,26 +66,25 @@ end
 #-------------------------------------------------------------------------------
 # Numerical Fluxes
 #-------------------------------------------------------------------------------
-function lax_friedrich!(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
+function lax_friedrich!(equation::Euler, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
    @unpack eq = equation
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
    Uf  .= 0.5*(Fl+Fr) - 0.5 * lam * (Ur - Ul)
    return nothing
 end
 
-function rusanov!(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
-   @unpack eq = equation
-   γ  = eq.γ
+function rusanov!(equation::Euler, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
+   γ  = equation.γ
    ρl, ul, pl = pde2primitive(Ul, γ)
    ρr, ur, pr = pde2primitive(Ur, γ)
    cl, cr = sqrt(γ*pl/ρl), sqrt(γ*pr/ρr)                   # sound speed
    λ = maximum(abs.([ul, ul-cl, ul+cl, ur, ur-cr, ur+cr])) # local wave speed
-   Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
+   Fl, Fr = flux(x, Ul, equation), flux(x, Ur, equation)
    Uf  .= 0.5*(Fl+Fr) - 0.5*λ*(Ur - Ul)
    return nothing
 end
 
-function steger_warming!(equation, lam, Ul, Ur, x, Uf)
+function steger_warming!(equation::Euler, lam, Ul, Ur, x, Uf)
    @unpack eq = equation
    γ  = eq.γ
    δ  = 0.0
@@ -115,7 +115,7 @@ function steger_warming!(equation, lam, Ul, Ur, x, Uf)
    return nothing
 end
 
-function roe!(equation, lam, Ul, Ur, x, Uf)
+function roe!(equation::Euler, lam, Ul, Ur, x, Uf)
    @unpack eq = equation
    γ  = eq.γ
    ϵ  = 0.2
@@ -147,7 +147,7 @@ function roe!(equation, lam, Ul, Ur, x, Uf)
    return nothing
 end
 
-function vanleer!(equation, lam, Ul, Ur, x, Uf)
+function vanleer!(equation::Euler, lam, Ul, Ur, x, Uf)
    @unpack eq = equation
    γ  = eq.γ
    # Ul on Fp
@@ -187,7 +187,8 @@ function vanleer!(equation, lam, Ul, Ur, x, Uf)
    return nothing
 end
 
-function hll!(γ, lam, Ul, Ur, x, Uf)
+function hll!(equation::Euler, lam, Ul, Ur, x, Uf)
+   γ = equation.γ
    # TODO - Replace with pde2primitive
    ρl, ul, El = Ul[1], Ul[2]/Ul[1], Ul[3]    # density, velocity, energy
    pl = (γ - 1.0) * (El - 0.5*ρl*ul^2)        # pressure
@@ -201,32 +202,21 @@ function hll!(γ, lam, Ul, Ur, x, Uf)
    H = (⎷ρl*Hl + ⎷ρr*Hr) / (⎷ρl + ⎷ρr)      # roe avg enthalpy
    c = sqrt((γ-1.0) * (H - 0.5*u^2))         # sound speed
    Sl, Sr = min(ul-cl,u-c), max(ur+cr,u+c)
-   Fl, Fr = flux(x, Ul, γ), flux(x, Ur, γ)
+   Fl, Fr = flux(x, Ul, equation), flux(x, Ur, equation)
    dU = Ur - Ul
    dS = Sr - Sl
    if Sl > 0
-      # for n in 1:3
-      #    Uf_[n] = Fl[n]
-      # end
-      Uf_ = Fl
+      Uf .= Fl
    elseif Sr < 0
-      # for n in 1:3
-      #    Uf[n] = Fr[n]
-      # end
-      Uf_ = Fr
+      Uf .= Fr
    else
-      # Uf .= (Sr*Fl-Sl*Fr + Sl*Sr*dU)/dS
-      # for n in 1:3
-      #    Uf[n] = (Sr*Fl[n]-Sl*Fr[n] + Sl*Sr*dU[n])/dS
-      # end
-      Uf_ = ((Sr*Fl[1]-Sl*Fr[1] + Sl*Sr*dU[1])/dS,
-             (Sr*Fl[2]-Sl*Fr[2] + Sl*Sr*dU[2])/dS,
-             (Sr*Fl[3]-Sl*Fr[3] + Sl*Sr*dU[3])/dS)
+      Uf .= (Sr*Fl-Sl*Fr + Sl*Sr*dU)/dS
    end
-   return Uf_
+   return nothing
 end
 
-function hllc!(equation, lam, Ul, Ur, x, Uf)
+
+function hllc!(equation::Euler, lam, Ul, Ur, x, Uf)
    @unpack eq = equation
    γ = eq.γ
    # TODO - Replace with pde2primitive
@@ -290,15 +280,14 @@ numfluxes = Dict("lax_friedrich"  => lax_friedrich!,
 #-------------------------------------------------------------------------------
 # Plotting Functions
 #-------------------------------------------------------------------------------
-function initialize_plot(grid, problem, equation, scheme, U)
+function initialize_plot(grid, problem, equation::Euler, scheme, U)
    anim = Animation()
    xc = grid.xc
    nx = grid.nx
-   @unpack eq = equation
    @unpack nvar = problem
    Up = copy(U)
    for j=1:nx
-      @views Up[:, j] = pde2primitive(U[:,j],eq.γ)
+      @views Up[:, j] = pde2primitive(U[:,j],equation.γ)
    end
    # Adding title as a subplot in itself
    p_title = plot(title = "$nx points, time = 0",
@@ -331,7 +320,7 @@ function initialize_plot(grid, problem, equation, scheme, U)
    return p, anim
 end
 
-function update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data)
+function update_plot!(grid, problem, equation::Euler, scheme, U, t, it, param, plt_data)
    p, anim = plt_data
    @unpack save_time_interval = param
    @unpack final_time = problem
@@ -345,11 +334,10 @@ function update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data
    end
    xc = grid.xc
    nx = grid.nx
-   @unpack eq = equation
    @unpack nvar = problem
    Up = copy(U)
    for j=1:nx
-      @views Up[:, j] = pde2primitive(U[:,j],eq.γ)
+      @views Up[:, j] = pde2primitive(U[:,j],equation.γ)
    end
    time = round(t, digits=3)
    title!(p[1], "$nx points, time = $time")
@@ -361,7 +349,7 @@ function update_plot!(grid, problem, equation, scheme, U, t, it, param, plt_data
    frame(anim)
 end
 
-function final_plot(plt_data)
+function final_plot(plt_data, equation::Euler)
    p, anim = plt_data
    soln_data = readdlm("toro_user_exact.dat", skipstart = 9);
    @views x = soln_data[:,1];

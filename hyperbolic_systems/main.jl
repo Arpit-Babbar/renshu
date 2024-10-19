@@ -4,7 +4,7 @@ using LinearAlgebra
 using OffsetArrays
 using PyPlot
 
-gArray(nvar, nx) = OffsetArray(zeros(nvar, nx+2), 
+gArray(nvar, nx) = OffsetArray(zeros(nvar, nx+2),
                               OffsetArrays.Origin(1, 0))
 
 # TODO - Add safety CFL
@@ -21,14 +21,6 @@ function compute_lam_dt(eq, grid, Ua)
    end
    println("dt = ", dt)
    return lam, 0.5*dt
-end
-
-function set_initial_condition!(grid, U, initial_condition)
-   nx = grid.nx
-   xc = grid.xc
-   for i=1:nx
-      U[:,i] = initial_condition(xc[i])
-   end
 end
 
 function plot_solution(grid, U, Ue, t)
