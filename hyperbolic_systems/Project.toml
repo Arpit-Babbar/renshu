@@ -4,7 +4,6 @@ authors = ["Arpit Babbar <arpitbabbar@gmail.com>"]
 version = "0.1.0"
 
 [deps]
-Cthulhu = "f68482b8-f384-11e8-15f7-abe071a5a75f"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"

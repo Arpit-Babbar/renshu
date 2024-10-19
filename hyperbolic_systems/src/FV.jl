@@ -7,8 +7,6 @@ using TickTock
 using Plots
 using UnPack
 using StaticArrays
-using Cthulhu
-# plotly(size = (750, 565)) # use gr as the plot backend, for its high performance
 #-------------------------------------------------------------------------------
 # Create a dictionary of problem description
 #-------------------------------------------------------------------------------
@@ -64,28 +62,6 @@ gArray(nvar, nx) = OffsetArray(zeros(nvar, nx+2),
 #-------------------------------------------------------------------------------
 # Adjust dt to reach final time or the next time when solution has to be saved
 #-------------------------------------------------------------------------------
-# function adjust_time_step_cuda(problem, param, dt, t)
-#    # Adjust to reach final time exactly
-#    @unpack final_time = problem
-#    @unpack save_time_interval = param
-#    CUDA.@allowscalar if t + dt[1] > final_time
-#       dt[1] = final_time - t
-#       return nothing
-#    end
-
-#    # Adjust to reach next solution saving time
-#    CUDA.@allowscalar if save_time_interval > 0.0
-#       next_save_time = ceil(t/save_time_interval) * save_time_interval
-#       # If t is not a plotting time, we check if the next time
-#       # would step over the plotting time to adjust dt
-#       if abs(t-next_save_time) > 1e-10 && t + dt[1] - next_save_time > 1e-10
-#          dt[1] = next_save_time - t
-#          return nothing
-#       end
-#    end
-#    return nothing
-# end
-
 function adjust_time_step(problem, param, dt, t)
    # Adjust to reach final time exactly
    @unpack final_time = problem
@@ -141,20 +117,6 @@ function set_initial_value!(grid, U, initial_value)
    # @assert false U[1,:]
 end
 
-function set_initial_value_cuda!(grid, U, initial_value)
-   nx = grid.nx
-   xc = grid.xc
-   idx = (CUDA.blockIdx().x - 1) * CUDA.blockDim().x + CUDA.threadIdx().x
-   # idx = 1
-   i = idx+1
-   if i > nx+1
-      return nothing
-   end
-   u = @view U[:,i]
-   @views initial_value(u, xc[i-1])
-   return nothing
-end
-
 function update_ghost!(grid, U, problem)
    xmin, xmax = grid.domain
    nx = grid.nx
@@ -169,12 +131,6 @@ function update_ghost!(grid, U, problem)
    return nothing
 end
 
-function my_fill!(uf, init)
-   idx = CUDA.threadIdx().x
-   uf[idx] = init
-   return nothing
-end
-
 @inline function get_node_vars(u, eq, indices)
    SVector(ntuple(@inline(v -> u[v, indices]), 3))
 end
@@ -186,8 +142,6 @@ function compute_error(grid, U, t, equation, problem)
    error_linf = 0.0
    nx, dx = grid.nx, grid.dx
    xc     = grid.xc
-   lam_loc = 0.0
-   dt_loc  = 1.0
    for i=1:nx
       u_   = U[1, i]
       u_exact = boundary_value(xc[i], t)
