@@ -138,6 +138,7 @@ function set_initial_value!(grid, U, initial_value)
    for i=1:nx
       @views initial_value(U[:,i], xc[i])
    end
+   # @assert false U[1,:]
 end
 
 function set_initial_value_cuda!(grid, U, initial_value)
@@ -174,73 +175,9 @@ function my_fill!(uf, init)
    return nothing
 end
 
-@inline function get_node_vars(u,indices...)
-   SVector(ntuple(@inline(v -> u[v, indices...]), 3))
+@inline function get_node_vars(u, eq, indices)
+   SVector(ntuple(@inline(v -> u[v, indices]), 3))
 end
-
-# function compute_residual_cuda!(equation, grid, lam, U, scheme, res,
-#                            dx0, Uf, promoter)
-#    # TODO - Do we really want one thread to do just one iteration?
-#    nx = grid.nx
-#    xf = grid.xf
-#    dx = grid.dx
-#    @unpack eq = equation
-#    @unpack numflux = scheme
-#    dx0[2:nx+1] .= dx # std array
-#    # res[:,:] .= 0.0 # Shouldn't we be able to avoid this?
-#    fill!(res, zero(eltype(res)))
-#                    # Something like this?
-#                    #      @views res[:, i-1] += f/ dx0[i-1]
-#                    #      @views res[:, i]   = f/ dx0[i]
-#    # loop over faces
-#    @cuda threads=3 my_fill!(Uf, zero(eltype(Uf)))
-#    @unpack eq = equation
-#    γ = eq.γ
-#    function cuda_res1(γ, lam, U, xf, Uf, res, dx0, nx)
-#       Uf[1] = 0.0
-#       Uf[2] = 0.0
-#       Uf[3] = 0.0
-#       # Ul = get_node_vars(U, i-1)
-#       idx = (CUDA.blockIdx().x - 1) * CUDA.blockDim().x + CUDA.threadIdx().x
-#       i = idx+1
-#       if i > nx+2
-#          return nothing
-#       end
-#       Ul = SVector{3}(U[1,i-1], U[2,i-1], U[3,i-1])
-#       Ur = SVector{3}(U[1,i], U[2,i], U[3,i])
-#       Uf_ = numflux(γ, lam[1], Ul, Ur, xf[i-1], Uf)
-#       for n in 1:3
-#          res[n, i-1] += Uf_[n] / dx0[i-1]
-#       end
-#       return nothing
-#    end
-
-#    function cuda_res2(γ, lam, U, xf, Uf, res, dx0, nx)
-#       Uf[1] = 0.0
-#       Uf[2] = 0.0
-#       Uf[3] = 0.0
-#       idx = (CUDA.blockIdx().x - 1) * CUDA.blockDim().x + CUDA.threadIdx().x
-#       # idx = 1
-#       i = idx+1
-#       if i > nx+2
-#          return nothing
-#       end
-#       Ul = SVector{3}(U[1,i-1], U[2,i-1], U[3,i-1])
-#       Ur = SVector{3}(U[1,i], U[2,i], U[3,i])
-#       Uf_ = numflux(γ, lam[1], Ul, Ur, xf[i-1], Uf)
-#       for n in 1:3
-#          res[n, i]   -= Uf_[n] / dx0[i]
-#       end
-#       return nothing
-#    end
-
-#    nthreads = min(400, nx+1)
-#    nblocks  = ceil(Int64, ( (nx+1)/nthreads) )
-
-#    @cuda threads=nthreads blocks=nblocks cuda_res1(γ, lam, U, xf, Uf, res, dx0, nx) # std array
-#    @cuda threads=nthreads blocks=nblocks cuda_res2(γ, lam, U, xf, Uf, res, dx0, nx) # std array
-#    return nothing
-# end
 
 function compute_error(grid, U, t, equation, problem)
    @unpack boundary_value = problem
@@ -269,55 +206,20 @@ function compute_residual!(equation, grid, lam, U, scheme, res,
    dx = grid.dx
    eq = equation.eq
    numflux = scheme.numflux
-   dx0 =  OffsetArray(zeros(nx+2), OffsetArrays.Origin(0))
    dx0[1:nx] .= dx
    dx0[0] = dx0[nx+1] = 0.0 # redundant values
-   res[:,:] .= 0.0 # Shouldn't we be able to avoid this?
+   res .= 0.0 # Shouldn't we be able to avoid this?
                    # Something like this?
                    #      @views res[:, i-1] += f/ dx0[i-1]
                    #      @views res[:, i]   = f/ dx0[i]
    # loop over faces
-   Uf = zeros(3)
    for i=1:nx+1
-      @views Ul, Ur  = U[:,i-1], U[:,i]
-      numflux(equation.eq, lam, Ul, Ur, xf[i], Uf)
-      @views res[:, i-1] += Uf/ dx0[i-1]
-      @views res[:, i]   -= Uf/ dx0[i]
+      Ul, Ur = get_node_vars(U, eq, i-1), get_node_vars(U, eq, i)
+      F = numflux(equation.eq, lam, Ul, Ur, xf[i], Uf)
+      @views res[:, i-1] += F/ dx0[i-1]
+      @views res[:, i]   -= F/ dx0[i]
    end
 end
-
-# function solve_cuda(equation, problem, scheme, param, promoter)
-#    tick()
-#    grid = make_grid(problem, param, promoter)
-#    @unpack nvar = problem
-#    @unpack final_time = problem
-#    Tf = final_time
-#    nx = grid.nx
-#    # Allocating variables
-
-#    U   = CuArray(zeros(nvar, nx+2)) # std array
-#    res = CuArray(zeros(nvar, nx+2)) # dU/dt + res(U) = 0
-#    dx0 =  CuArray(zeros(nx + 2))
-#    Uf = CuArray(zeros(3))
-#    dt, lam = CuArray([1e20]), CuArray([0.0])
-
-#    Ua  = U
-#    @unpack initial_value = problem
-#    set_initial_value!(grid, U, initial_value)
-#    it, t = 0, 0.0
-#    while t < Tf
-#       compute_dt(equation, scheme, param, grid, Ua, dt, lam)
-#       adjust_time_step(problem, param, dt, t)
-#       update_ghost!(grid, U, problem)
-#       compute_residual!(equation, grid, lam, U, scheme, res,
-#                         dx0, Uf, promoter)
-#       @. U -= dt*res
-#       CUDA.@allowscalar t += dt[1]; it += 1
-#    end
-#    tock()
-#    sol = (grid, U)
-#    return sol
-# end
 
 function solve(equation, problem, scheme, param, promoter, plotters)
    tick()
@@ -336,7 +238,7 @@ function solve(equation, problem, scheme, param, promoter, plotters)
    res = gArray(nvar, nx) # dU/dt + res(U) = 0
    Ua  = U # ua is just Ua for this first order method,
            # storing for clarity
-   dx0 =  zeros(nx + 2)
+   dx0 =  OffsetArray(zeros(nx+2), OffsetArrays.Origin(0))
    Uf = zeros(3)
    dt, lam = [1e20], [0.0]
 

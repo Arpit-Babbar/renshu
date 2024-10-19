@@ -6,10 +6,11 @@ using FV1D.FV
 using FV1D.Grid
 using FV1D.EqLinAdv
 using StaticArrays
+using UnPack
 using LinearAlgebra
 using Plots
 
-grid_size = 50 # number of cells
+grid_size = 160 # number of cells
 
 # Plan - To not have to worry about periodicity, we can temporarily
 # specify the boundary points to be the Dirichlet values.
@@ -31,11 +32,6 @@ final_time = 1.0
 
 numflux   = "upwind"
 
-# initial condition
-# Ul, Ur       = [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]
-# initial_value(x) = (x <= 0) ? Ul : Ur
-boundary_value(x, t) = initial_value(x) # Dummy
-
 function boundary_value(x,t,problem,equation)
    eigen_decomp = equation.eigen_decomp
    nvar = problem.nvar
@@ -53,11 +49,15 @@ boundary_value(x,t) = boundary_value(x,t,problem, equation)
 
 boundary_condition = "Periodic"
 function initial_value(x)
-   return SVector(sin(2.0*pi*x),0.5*sin(2.0*pi*x),1.5*sin(2.0*pi*x))
+   val = SVector(sin(2.0*pi*x),0.5*sin(2.0*pi*x),1.5*sin(2.0*pi*x))
+   # @show val
+   return val
 end
 function initial_value(U, x)
-   U .= SVector(x)
+   U .= initial_value(x)
 end
+
+boundary_value(x, t) = initial_value(x) # exact solution
 
 save_time_interval = final_time
 skip_plotting = false
@@ -73,9 +73,10 @@ param = Parameters(grid_size, cfl, Ccfl, save_time_interval)
 scheme = Scheme(equation, numflux)
 @time sol = solve(equation, problem, scheme, param, u -> u, plotters)
 
-
 @unpack p, anim = sol
 savefig(p, "final_soln.png")
 gif(anim, "soln.gif", fps = 1) # would have been better in the solve function
                      # here because of VS Code
-plot(p, legend=true) # final solution
+# plot(p, legend=true) # final solution
+
+@show sol.l1

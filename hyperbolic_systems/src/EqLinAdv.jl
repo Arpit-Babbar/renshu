@@ -1,27 +1,40 @@
 module EqLinAdv
 
 using LinearAlgebra
+using StaticArrays
 # using PyPlot
 using Plots
 using LaTeXStrings
-struct LinAdv
-   fprime::Function # CHANGE - fprime shouldn't be a function, but a matrix.
+struct LinAdv{FPrime, Eigen}
+   fprime::FPrime # CHANGE - fprime shouldn't be a function, but a matrix.
+   eigen_decomp::Eigen
 end
 
-flux(x, U, eq::LinAdv) = eq.fprime(U, x, eq) * U
+function flux(x, U, eq::LinAdv)
+   # (eq.fprime(U, x, eq) * U)
+   V = zeros(3)
+   fprim = eq.fprime(U, x, eq)
+   for i in 1:3
+      for j in 1:3
+         V[i] += fprim[i,j]*U[j]
+      end
+   end
+   return V
+end
                         # matrix multiplication
 #-------------------------------------------------------------------------------
 # Numerical Fluxes
 #-------------------------------------------------------------------------------
-function lax_friedrich(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
-   eq = equation["eq"]
+function lax_friedrich(eq, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
    Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
-   Uf .= 0.5*(Fl+Fr) - 0.5*lam*(Ur-Ul)
-   return nothing
+   # @assert false "broken. See old versions in git to fix"
+   Uf = 0.5*(Fl+Fr) - 0.5*lam[1]*(Ur-Ul)
+   return Uf
 end
 
 # Looks expensive for a non-constant speed. Can it be fixed?
 function upwind(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
+   Uf = zeros(size(Ul))
    # eigen_decomp   = eigen(eq.fprime(0.5 * (Ul+Ur), x, eq)) # Roe's scheme had (f(Ul)-f(Ur))/(Ul-Ur)
    #                               # appearing hard to extend to high dimensions because Ul, Ur
    #                               # are now vectors and can't be put in denominators.
@@ -32,7 +45,7 @@ function upwind(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
    lamp, lamm = diagm(lp), diagm(lm)
    Uf  .= evecs * lamp * inv(evecs) * Ul # Uf = Fp
    Uf .+= evecs * lamm * inv(evecs) * Ur  # Uf = Fp + Fm
-   return nothing
+   return Uf
 end
 
 # TODO - Avoid repetetive eigen_decomp calculation
@@ -129,7 +142,7 @@ function get_plot_funcs(skip_plotting)
    end
 end
 
-get_equation(fprime) = (;eq = LinAdv(fprime),
+get_equation(fprime) = (;eq = LinAdv(fprime, eigen(fprime(0.0,0.0,0.0))),
                          flux = flux,
                          fprime = fprime,
                          eigen_decomp = eigen(fprime(0.0,0.0,0.0)), # dummy inputs

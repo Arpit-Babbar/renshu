@@ -7,6 +7,8 @@ using StaticArrays
 using LaTeXStrings
 using UnPack
 
+import ..FV1D: get_node_vars
+
 # For efficiency, euler should also contain γm1,γm3,3γm1_2. That just might a
 # kill of readability though. Also, we don't know whether accessing that
 # far-away gamma is even better than computing it every time
@@ -56,6 +58,10 @@ function pressure(equation::IsentropicEuler, U)
    return p
 end
 
+function get_node_vars(U, eq::IsentropicEuler, indices...)
+    SVector(ntuple(v -> U[v, indices...], 2))
+ end
+
 #-------------------------------------------------------------------------------
 # Numerical Fluxes
 #-------------------------------------------------------------------------------
@@ -73,8 +79,8 @@ function rusanov!(equation::IsentropicEuler, lam, Ul, Ur, x, Uf) # Numerical flu
    cl, cr = sqrt(gamma*pl/rhol) / eps, sqrt(gamma*pr/rhor) / eps # sound speed
    λ = maximum(abs.((ul, ul-cl, ul+cl, ur, ur-cr, ur+cr))) # local wave speed
    Fl, Fr = flux(x, Ul, equation), flux(x, Ur, equation)
-   Uf  .= 0.5*(Fl+Fr) - 0.5*λ*(Ur - Ul)
-   return nothing
+   F = 0.5*(Fl+Fr) - 0.5*λ*(Ur - Ul)
+   return F
 end
 
 function steger_warming!(equation::IsentropicEuler, lam, Ul, Ur, x, Uf)

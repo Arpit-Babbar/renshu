@@ -12,7 +12,7 @@ using Plots
 using UnPack
 gr(size = (750, 565)) # use plotly for interactivity
 
-grid_size = 400 # number of cells
+grid_size = 1600 # number of cells
 
 # To not have to worry about periodicity, we can temporarily
 # specify the boundary points to be the Dirichlet values.
@@ -53,7 +53,7 @@ boundary_condition = "Periodic"
 
 save_time_interval = 0.1*final_time
 skip_plotting      = false
-plotters = get_plot_funcs(skip_plotting)
+plotters = EqEuler.get_plot_funcs(skip_plotting)
 
 cfl = 0.0
 Ccfl = 0.9

@@ -7,6 +7,8 @@ using StaticArrays
 using LaTeXStrings
 using UnPack
 
+import ..FV1D: get_node_vars
+
 # For efficiency, euler should also contain γm1,γm3,3γm1_2. That just might a
 # kill of readability though. Also, we don't know whether accessing that
 # far-away gamma is even better than computing it every time
@@ -28,6 +30,11 @@ function flux(x, U, eq::Euler)
    F = SVector(U[2], p + ρ * u^2, (E+p) * u) # flux
    return F
 end
+
+function get_node_vars(U, eq::Euler, indices)
+   SVector(ntuple(v -> U[v, indices], 3))
+end
+
 # TODO - Find the best version by counting the number of operations!!
 
 # The matrix fprime(U)
@@ -78,8 +85,8 @@ function rusanov!(equation::Euler, lam, Ul, Ur, x, Uf) # Numerical flux of face 
    cl, cr = sqrt(γ*pl/ρl), sqrt(γ*pr/ρr)                   # sound speed
    λ = maximum(abs.([ul, ul-cl, ul+cl, ur, ur-cr, ur+cr])) # local wave speed
    Fl, Fr = flux(x, Ul, equation), flux(x, Ur, equation)
-   Uf  .= 0.5*(Fl+Fr) - 0.5*λ*(Ur - Ul)
-   return nothing
+   F  = 0.5*(Fl+Fr) - 0.5*λ*(Ur - Ul)
+   return F
 end
 
 function steger_warming!(equation::Euler, lam, Ul, Ur, x, Uf)
