@@ -158,8 +158,8 @@ function compute_error(grid, U, t, equation, problem)
    return error_l1, error_l2, error_linf
 end
 
-function compute_residual!(equation, grid, lam, U, scheme, res,
-                           dx0, Uf, promoter)
+function update_solution!(equation, grid, lam, U, scheme, res,
+                           dt, dx0, Uf, promoter)
    nx = grid.nx
    xf = grid.xf
    dx = grid.dx
@@ -178,6 +178,8 @@ function compute_residual!(equation, grid, lam, U, scheme, res,
       @views res[:, i-1] += F/ dx0[i-1]
       @views res[:, i]   -= F/ dx0[i]
    end
+
+   @. @views U[:,1:nx] -= dt*res[:,1:nx]
 end
 
 function solve(equation, problem, scheme, param, promoter, plotters)
@@ -213,9 +215,7 @@ function solve(equation, problem, scheme, param, promoter, plotters)
       compute_dt(equation.eq, equation.fprime, scheme, param, grid, Ua, dt, lam)
       adjust_time_step(problem, param, dt, t)
       update_ghost!(grid, U, problem)
-      compute_residual!(equation, grid, lam, U, scheme, res,
-                        dx0, Uf, promoter)
-      @. @views U[:,1:nx] -= dt*res[:,1:nx]
+      update_solution!(equation, grid, lam, U, scheme, res, dt, dx0, Uf, promoter)
       t += dt[1]; it += 1
       @show t, dt
       update_plot!(grid, problem, equation.eq, scheme, U, t, it, param, plt_data)

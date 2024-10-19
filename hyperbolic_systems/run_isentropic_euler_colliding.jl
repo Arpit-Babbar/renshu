@@ -74,4 +74,3 @@ scheme = Scheme(equation, numflux)
 savefig(p, "final_soln.png")
 gif(anim, "soln.mp4", fps = 1) # would have been better in the solve function
                      # here because of VS Code
-p
