@@ -84,8 +84,8 @@ function adjust_time_step(problem, param, dt, t)
    return nothing
 end
 
-function compute_dt(equation, scheme, param, grid, Ua, dt, lam)
-   @unpack fprime, eq = equation
+function compute_dt(equation, fprime, scheme, param, grid, Ua, dt, lam)
+   @show typeof(equation)
    @unpack Ccfl = param
    nx, dx = grid.nx, grid.dx
    xc     = grid.xc
@@ -93,7 +93,7 @@ function compute_dt(equation, scheme, param, grid, Ua, dt, lam)
    dt_loc  = 1.0
    for i=1:nx
       ua   = Ua[:, i]
-      lam0 = maximum(abs.(eigvals(equation.fprime(xc[i], ua, eq)))) # CHECK xc[i]!
+      lam0 = maximum(abs.(eigvals(fprime(xc[i], ua, equation)))) # CHECK xc[i]!
       lam_loc  = max(lam_loc, lam0)
       dt_loc   = min(dt_loc, dx[i]/lam0)
    end
@@ -124,6 +124,11 @@ function update_ghost!(grid, U, problem)
    if problem.boundary_condition == "Dirichlet"
       @views U[:, 0]   .= U[:, 1] # only for short time
       @views U[:,nx+1] .= U[:,nx]
+   elseif problem.boundary_condition == "Reflect"
+      @views U[:, 0]   .= U[:, 1] # only for short time
+      @views U[:,nx+1] .= U[:,nx]
+      @views U[2, 0]    = -U[2, 1] # only for short time
+      @views U[2,nx+1]  = -U[2,nx]
    else
       @views U[:, 0]    .= U[:, nx]
       @views U[:, nx+1] .= U[:,1]
@@ -132,7 +137,7 @@ function update_ghost!(grid, U, problem)
 end
 
 @inline function get_node_vars(u, eq, indices)
-   SVector(ntuple(@inline(v -> u[v, indices]), 3))
+   SVector(ntuple(@inline(v -> u[v, indices]), 1))
 end
 
 function compute_error(grid, U, t, equation, problem)
@@ -193,22 +198,24 @@ function solve(equation, problem, scheme, param, promoter, plotters)
    Ua  = U # ua is just Ua for this first order method,
            # storing for clarity
    dx0 =  OffsetArray(zeros(nx+2), OffsetArrays.Origin(0))
-   Uf = zeros(3)
+   Uf = zeros(nvar)
    dt, lam = [1e20], [0.0]
 
    @unpack initial_value = problem
    set_initial_value!(grid, U, initial_value)
    it, t = 0, 0.0
+   @show size(U)
    plt_data = initialize_plot(grid, problem, equation.eq, scheme, U)
+   rm("output", force = true, recursive = true); mkpath("output")
    while t < Tf
       l1, l2, linf = compute_error(grid, U, t, equation, problem)
       @show l1, l2, linf
-      compute_dt(equation, scheme, param, grid, Ua, dt, lam)
+      compute_dt(equation.eq, equation.fprime, scheme, param, grid, Ua, dt, lam)
       adjust_time_step(problem, param, dt, t)
       update_ghost!(grid, U, problem)
       compute_residual!(equation, grid, lam, U, scheme, res,
                         dx0, Uf, promoter)
-      @. U -= dt*res
+      @. @views U[:,1:nx] -= dt*res[:,1:nx]
       t += dt[1]; it += 1
       @show t, dt
       update_plot!(grid, problem, equation.eq, scheme, U, t, it, param, plt_data)

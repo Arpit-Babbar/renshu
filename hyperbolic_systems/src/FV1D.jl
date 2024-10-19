@@ -2,7 +2,7 @@ module FV1D
 
 function get_node_vars(U, eq, indices)
     SVector(ntuple(v -> U[v, indices], 1))
- end
+end
 
 include("Grid.jl")
 include("FV.jl")
