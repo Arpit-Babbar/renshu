@@ -10,7 +10,7 @@ using UnPack
 using LinearAlgebra
 using Plots
 
-grid_size = 160 # number of cells
+grid_size = 40 # number of cells
 
 # Plan - To not have to worry about periodicity, we can temporarily
 # specify the boundary points to be the Dirichlet values.
@@ -22,15 +22,15 @@ nvar         = 3        # number of variables
 fprime(U,x,eq)  = [1.0 2.0 3.0;
                    0.0 -2.0 3.0;
                    0.0 0.0 3.0] # The matrix given by F'(U)
-fprime(U,x,eq)  = [1.0 0.0 0.0;
-                   0.0 1.0 0.0;
-                   0.0 0.0 1.0] # The matrix given by F'(U)
+# fprime(U,x,eq)  = [1.0 0.0 0.0;
+#                    0.0 1.0 0.0;
+#                    0.0 0.0 1.0] # The matrix given by F'(U)
                 # The last argument is absolutely dummy to solve
                 # Euler with the same code. Should we make `eq` an
                 # optional argument?
 final_time = 1.0
 
-numflux   = "upwind"
+numflux   = "flux_central"
 
 function boundary_value(x,t,problem,equation)
    eigen_decomp = equation.eigen_decomp
@@ -57,9 +57,7 @@ function initial_value(U, x)
    U .= initial_value(x)
 end
 
-boundary_value(x, t) = initial_value(x) # exact solution
-
-save_time_interval = final_time
+save_time_interval = 0.01 * final_time
 skip_plotting = false
 cfl = 0.0 # Currently not used
 Ccfl = 0.9

@@ -117,6 +117,12 @@ function rusanov!(equation::IsentropicEuler, lam, Ul, Ur, x, Uf) # Numerical flu
    return F
 end
 
+function flux_central(equation::IsentropicEuler, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
+   Fl, Fr = flux(x, Ul, equation), flux(x, Ur, equation)
+   F = 0.5*(Fl+Fr)
+   return F
+end
+
 @inline function ln_mean(x, y)
    epsilon_f2 = 1.0e-4
    f2 = (x * (x - 2 * y) + y * y) / (x * (x + 2 * y) + y * y) # f2 = f^2
@@ -197,7 +203,8 @@ numfluxes = Dict("lax_friedrich"  => lax_friedrich!,
                  "flux_winters"   => flux_winters,
                  "roe"            => roe!,
                  "hll"            => hll!,
-                 "hllc"           => hllc!
+                 "hllc"           => hllc!,
+                 "flux_central"   => flux_central
                  )
 
 #-------------------------------------------------------------------------------

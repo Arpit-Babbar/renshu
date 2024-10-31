@@ -12,7 +12,7 @@ using Plots
 using UnPack
 gr(size = (750, 565)) # use plotly for interactivity
 
-grid_size = 1600 # number of cells
+grid_size = 160 # number of cells
 
 # To not have to worry about periodicity, we can temporarily
 # specify the boundary points to be the Dirichlet values.
@@ -21,7 +21,7 @@ grid_size = 1600 # number of cells
 
 xmin, xmax   = 0.0, 1.0 # domain
 nvar         = 3        # number of variables
-final_time   = 1.0
+final_time   = 0.1
 γ            = 1.4      # gas constant
 disc_x = 0.3            # location of initial discontinuity
 
@@ -56,12 +56,12 @@ skip_plotting      = false
 plotters = EqEuler.get_plot_funcs(skip_plotting)
 
 cfl = 0.0
-Ccfl = 0.9
+Ccfl = 0.5
 
 #------------------------------------------------------------------------------
 # FVM Solver
 #------------------------------------------------------------------------------
-equation = get_equation(γ)
+equation = EqEuler.get_equation(γ)
 problem = Problem((xmin,xmax), nvar, initial_value!, boundary_value,
                   boundary_condition, final_time)
 param = Parameters(grid_size, cfl, Ccfl, save_time_interval)

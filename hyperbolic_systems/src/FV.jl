@@ -7,6 +7,7 @@ using TickTock
 using Plots
 using UnPack
 using StaticArrays
+using NLsolve
 #-------------------------------------------------------------------------------
 # Create a dictionary of problem description
 #-------------------------------------------------------------------------------
@@ -85,7 +86,6 @@ function adjust_time_step(problem, param, dt, t)
 end
 
 function compute_dt(equation, fprime, scheme, param, grid, Ua, dt, lam)
-   @show typeof(equation)
    @unpack Ccfl = param
    nx, dx = grid.nx, grid.dx
    xc     = grid.xc
@@ -158,28 +158,64 @@ function compute_error(grid, U, t, equation, problem)
    return error_l1, error_l2, error_linf
 end
 
-function update_solution!(equation, grid, lam, U, scheme, res,
-                           dt, dx0, Uf, promoter)
+function compute_residual!(eq, grid, lam, U, scheme, res,
+                           dx0, Uf, promoter)
    nx = grid.nx
    xf = grid.xf
    dx = grid.dx
-   eq = equation.eq
    numflux = scheme.numflux
    dx0[1:nx] .= dx
    dx0[0] = dx0[nx+1] = 0.0 # redundant values
-   res .= 0.0 # Shouldn't we be able to avoid this?
-                   # Something like this?
-                   #      @views res[:, i-1] += f/ dx0[i-1]
-                   #      @views res[:, i]   = f/ dx0[i]
    # loop over faces
    for i=1:nx+1
       Ul, Ur = get_node_vars(U, eq, i-1), get_node_vars(U, eq, i)
-      F = numflux(equation.eq, lam, Ul, Ur, xf[i], Uf)
+      F = numflux(eq, lam, Ul, Ur, xf[i], Uf)
       @views res[:, i-1] += F/ dx0[i-1]
       @views res[:, i]   -= F/ dx0[i]
    end
+end
 
+function update_solution!(equation, grid, lam, U, scheme, res,
+                           dt, dx0, Uf, promoter)
+   res .= 0.0 # Shouldn't we be able to avoid this?
+   compute_residual!(equation.eq, grid, lam, U, scheme, res, dx0, Uf, promoter)
+   nx = grid.nx
    @. @views U[:,1:nx] -= dt*res[:,1:nx]
+end
+
+function apply_rhs_implicit!(problem, equation, grid, lam, F, Unew, U, scheme, res,
+                             dt, dx0, Uf, promoter)
+   update_ghost!(grid, Unew, problem)
+   res .= 0.0 # Shouldn't we be able to avoid this?
+   compute_residual!(equation.eq, grid, lam, Unew, scheme, res, dx0, Uf, promoter)
+   nx = grid.nx
+   for i in eachindex(F)
+      F[i] = Unew[i] - (U[i] - dt[1]*res[i])
+   end
+   F[:,0] .= 0.0
+   F[:,nx+1] .= 0.0
+end
+
+function apply_rhs_implicit!(problem, equation, grid, lam, F, Unew, U, scheme, res,
+                             dt, dx0, Uf, promoter)
+   update_ghost!(grid, Unew, problem)
+   res .= 0.0 # Shouldn't we be able to avoid this?
+   compute_residual!(equation.eq, grid, lam, Unew, scheme, res, dx0, Uf, promoter)
+   # Add another compute_residual! function here which will use equation.eq2 or something
+   nx = grid.nx
+   for i in eachindex(F)
+      F[i] = Unew[i] - (U[i] - dt[1]*res[i])
+   end
+   F[:,0] .= 0.0
+   F[:,nx+1] .= 0.0
+end
+
+function generate_function_of_F_y(problem, equation, grid, lam, U, scheme, res,
+                                  dt, dx0, Uf, promoter, func)
+   function function_of_y(F, y)
+       return func(problem, equation, grid, lam, F, y, U, scheme, res,
+                   dt, dx0, Uf, promoter)
+   end
 end
 
 function solve(equation, problem, scheme, param, promoter, plotters)
@@ -215,7 +251,11 @@ function solve(equation, problem, scheme, param, promoter, plotters)
       compute_dt(equation.eq, equation.fprime, scheme, param, grid, Ua, dt, lam)
       adjust_time_step(problem, param, dt, t)
       update_ghost!(grid, U, problem)
-      update_solution!(equation, grid, lam, U, scheme, res, dt, dx0, Uf, promoter)
+      # update_solution!(equation, grid, lam, U, scheme, res, dt, dx0, Uf, promoter)
+      func = generate_function_of_F_y(problem, equation, grid, lam, U, scheme, res,
+                                      dt, dx0, Uf, promoter, apply_rhs_implicit!)
+      sol_nl = nlsolve(func, U, m=0, xtol = 1e-12, ftol = 1e-12)
+      U .= sol_nl.zero
       t += dt[1]; it += 1
       @show t, dt
       update_plot!(grid, problem, equation.eq, scheme, U, t, it, param, plt_data)

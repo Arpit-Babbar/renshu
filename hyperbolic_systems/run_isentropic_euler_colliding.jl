@@ -12,7 +12,7 @@ using Plots
 using UnPack
 gr(size = (750, 565)) # use plotly for interactivity
 
-grid_size = 100 # number of cells
+grid_size = 80 # number of cells
 
 # To not have to worry about periodicity, we can temporarily
 # specify the boundary points to be the Dirichlet values.
@@ -21,10 +21,10 @@ grid_size = 100 # number of cells
 
 xmin, xmax   = -1.0, 1.0 # domain
 nvar         = 2        # number of variables
-final_time   = 0.5
+final_time   = 0.04
 γ            = 1.4      # gas constant
 
-numflux = "rusanov"
+numflux = "flux_central"
 
 function initial_value!(U, x, equation)
    @unpack epsilon = equation

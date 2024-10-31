@@ -7,7 +7,7 @@ using StaticArrays
 using LaTeXStrings
 using UnPack
 
-import ..FV1D: get_node_vars
+import ..FV1D.FV: get_node_vars
 
 # For efficiency, euler should also contain γm1,γm3,3γm1_2. That just might a
 # kill of readability though. Also, we don't know whether accessing that

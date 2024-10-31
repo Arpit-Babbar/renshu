@@ -10,6 +10,8 @@ struct LinAdv{FPrime, Eigen}
    eigen_decomp::Eigen
 end
 
+import ..FV1D.FV: get_node_vars
+
 function flux(x, U, eq::LinAdv)
    # (eq.fprime(U, x, eq) * U)
    V = zeros(3)
@@ -48,6 +50,17 @@ function upwind(equation, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
    return Uf
 end
 
+function flux_central(eq, lam, Ul, Ur, x, Uf) # Numerical flux of face at x
+   Fl, Fr = flux(x, Ul, eq), flux(x, Ur, eq)
+   # @assert false "broken. See old versions in git to fix"
+   Uf = 0.5*(Fl+Fr)
+   return Uf
+end
+
+function get_node_vars(U, eq::LinAdv, indices)
+   SVector(ntuple(v -> U[v, indices], 3))
+end
+
 # TODO - Avoid repetetive eigen_decomp calculation
 function compute_exact_soln!(grid, equation, problem, t, Ue)
    nx = grid.nx
@@ -69,7 +82,8 @@ function compute_exact_soln!(grid, equation, problem, t, Ue)
 end
 
 numfluxes = Dict("upwind"        => upwind,
-                 "lax_friedrich" => lax_friedrich)
+                 "lax_friedrich" => lax_friedrich,
+                 "flux_central"  => flux_central)
 
 #-------------------------------------------------------------------------------
 # Plotting functions

@@ -23,7 +23,6 @@ for (i, file) in enumerate(files)
         energies[i, 1] = t
         energies[i, 2] = total_energy
     end
-
 end
 
 energies[:, 2] ./= energies[1, 2]
